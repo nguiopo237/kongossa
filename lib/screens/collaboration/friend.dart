@@ -1,0 +1,212 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+import 'package:responsive_sizer/responsive_sizer.dart';
+
+import '../../main.dart';
+import '../../presentation/component/video_component/tiktok_player_video.dart';
+
+class FriendFeedScreen extends StatelessWidget {
+  // Données statiques pour le développement (à commenter en production)
+  final List<Map<String, dynamic>> mockVideos = [
+    {
+      'videoUrl':
+      'https://res.cloudinary.com/dlzkp9dix/video/upload/v1770851499/kogossa_app/secure/signed_1770851460270.mp4.mp4',
+      'username': 'kongossa_off',
+      'description':
+      'Le nouveau son qui fait danser tout Douala 🔥 #kongossa #camer',
+      'music': 'son original - Kongossa TV',
+      'likes': 15200,
+      'comments': 342,
+      'shares': 89,
+      'profileImage': 'https://randomuser.me/api/portraits/women/44.jpg',
+    },
+    {
+      'videoUrl':
+      'https://res.cloudinary.com/dlzkp9dix/video/upload/v1770851499/kogossa_app/secure/signed_1770851460271.mp4.mp4',
+      'username': 'camer_dance',
+      'description':
+      'Challenge dance 🇨🇲 #cameroun #dancechallenge',
+      'music': 'Afro beat - DJ Mix',
+      'likes': 8900,
+      'comments': 128,
+      'shares': 45,
+      'profileImage': 'https://randomuser.me/api/portraits/men/32.jpg',
+    },
+  ];
+
+  String url = "";
+  String urls = "";
+
+  // Méthode pour récupérer les vidéos depuis Firestore
+  Stream<List<Map<String, dynamic>>> _getVideosFromFirestore() {
+    return
+        Posts.where("postData.videopost", isNotEqualTo: [])
+        .orderBy("timestamp", descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs
+          .where((doc) {
+        // Vérifier si le document a une vidéo valide
+        final videoData = doc['postData'];
+        if (videoData == null) return false;
+
+        final videoUrl = videoData['videopost'];
+        return videoUrl != null && videoUrl.toString().isNotEmpty;
+      })
+          .map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        final postData = data['postData'] as Map<String, dynamic>? ?? {};
+        final userData = data['userData'] as Map<String, dynamic>? ?? {};
+
+        return {
+          'videoUrl': postData['videopost'] ?? '',
+          'posttitle': postData['posttitle'] ?? '',
+          'username': userData['name'] ?? 'Utilisateur',
+          'description': postData['posttitle'] ?? 'description',
+          'music': data['music'] ?? 'Son original',
+          'likes': postData['likes'] ?? 0,
+          'comments': postData['comments'] ?? 0,
+          'shares': postData['shares'] ?? 0,
+          'profileImage': userData['photoUrl'] ?? '',
+          'postId': doc.id,
+          'timestamp': data['timestamp'],
+        };
+      }).toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        // Utiliser les données mockées en développement, Firestore en production
+        // stream: _getVideosFromFirestore(), // Décommentez pour Firestore
+        stream: _getVideosFromFirestore(), // Commentez en production
+        builder: (context, snapshot) {
+          // Gestion des états de chargement
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            );
+          }
+
+          // Gestion des erreurs
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    color: Colors.white,
+                    size: 50,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Erreur de chargement',
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    '${snapshot.error}',
+                    style: TextStyle(color: Colors.grey, fontSize: 14),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      // Recharger
+                    },
+                    child: Text('Réessayer'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // Vérifier si les données existent
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.videocam_off,
+                    color: Colors.white.withOpacity(0.7),
+                    size: 70,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Aucune vidéo disponible',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Les vidéos apparaîtront ici',
+                    style: TextStyle(
+                      color: Colors.grey[400],
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // Récupérer les vidéos filtrées
+          final videos = snapshot.data!;
+
+          return PageView.builder(
+            scrollDirection: Axis.vertical,
+            itemCount: videos.length,
+            controller: PageController(initialPage: 0),
+            itemBuilder: (context, index) {
+              final video = videos[index];  
+              // return Center(child: Column(
+              //   mainAxisAlignment: MainAxisAlignment.center,
+              //   children: [
+              //     Text(index.toString()),
+              //     Text(video['videoUrl'].toString()),
+              //     Text(video['posttitle'].toString()),
+              //   ],
+              // ));
+
+
+
+              // print("link");
+              // print(video['videoUrl'].toString());
+              // print(video['videoUrl'].toString().replaceAll(RegExp(r'^[\[\]"]+'), ""));
+              // print(video['videoUrl'].toString().replaceAll("]", ""));
+              //  url = video['videoUrl'].toString().replaceAll("[", "");
+              // urls = url.toString().replaceAll("]", "");
+
+              // print("link");
+              // print("link");
+              // print(url);
+              return Padding(
+                padding:  EdgeInsets.only(bottom: 10.h),
+                child: TikTokVideoPlayer(
+                  videoUrl:  video['videoUrl'].toString(),
+                  username: video['username'] ?? '',
+                  description: video['description'] ?? '',
+                  music: video['music'] ?? 'Son original',
+                  likes: video['likes'] ?? 0,
+                  comments: video['comments'] ?? 0,
+                  shares: video['shares'] ?? 0,
+                  profileImage: video['profileImage'] ?? '',
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
