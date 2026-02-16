@@ -1,8 +1,17 @@
 import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:responsive_sizer/responsive_sizer.dart';
+
+import '../../../config_App/colorsApp.dart';
+import '../../../main.dart';
+import '../../../model/datamodel/user_model.dart';
+import '../../../presentation/component/image_component/image.dart';
+import '../../../presentation/component/widget/select_media.dart';
+import '../../../presentation/component/widget/widget_component.dart';
 SplashController s = Get.find();
 class SplashController extends GetxController {
   // static SplashController get to => Get.find();
@@ -25,6 +34,193 @@ class SplashController extends GetxController {
       print('Erreur de conversion timestamp: $e');
     }
     return DateTime.now();
+  }
+
+  Widget buildProfileShimmer() {
+    return Container(
+      width: 12.w,
+      height: 12.w,
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: SizedBox(
+          width: 4.w,
+          height: 4.w,
+          child: CircularProgressIndicator(
+            strokeWidth: 0.3.w,
+            valueColor: AlwaysStoppedAnimation<Color>(ColorApp.primary1),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget buildDefaultProfile() {
+    return Container(
+      width: 12.w,
+      height: 12.w,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            ColorApp.primary1.withOpacity(0.1),
+            ColorApp.primary2.withOpacity(0.1),
+          ],
+        ),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        CupertinoIcons.person_crop_circle,
+        color: ColorApp.primary1,
+        size: 8.w,
+      ),
+    );
+  }
+
+  Widget buildProfileContent(DocumentSnapshot document) {
+    return Container(
+      padding: EdgeInsets.all(0.5.w),
+      decoration: BoxDecoration(
+        gradient: SweepGradient(
+          colors: [
+            ColorApp.primary1,
+            ColorApp.primary2,
+            ColorApp.primary3,
+            ColorApp.primary1,
+          ],
+        ),
+        shape: BoxShape.circle,
+      ),
+      child: Container(
+        padding: EdgeInsets.all(0.3.w),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+        ),
+        child: Stack(
+          children: [
+            // Avatar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(100),
+              child: document["photoUrl"] == null || document["photoUrl"] == ""
+                  ? Container(
+                width: 10.w,
+                height: 10.w,
+                color: Colors.grey[100],
+                child: Icon(
+                  CupertinoIcons.person_fill,
+                  size: 6.w,
+                  color: Colors.grey[400],
+                ),
+              )
+                  : CustomImage(
+                source: document["photoUrl"]!,
+                type: ImageType.network,
+                width: 8.w,
+                height: 8.w,
+                fit: BoxFit.cover,
+              ),
+            ),
+
+            // Badge de statut en ligne
+            Positioned(
+              bottom: 0,
+              right: 0,
+              child: Container(
+                width: 2.5.w,
+                height: 2.5.w,
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 0.2.w,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.green.withOpacity(0.4),
+                      blurRadius: 4,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Bouton d'upload
+            Positioned(
+              top: 0,
+              right: 0,
+              child: GestureDetector(
+                onTap: () {
+                  WidgetComponent.getmodal(
+                    sectionview: Container(
+                      height: 60.h,
+                      child: PremiumMediaSelector(
+                        onSourceSelected: (p1) {},
+                      ),
+                    ),
+                  );
+                },
+                child: Container(
+                  width: 4.w,
+                  height: 4.w,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        ColorApp.primary1,
+                        ColorApp.primary2,
+                      ],
+                    ),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white,
+                      width: 0.2.w,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: ColorApp.primary1.withOpacity(0.3),
+                        blurRadius: 8,
+                        spreadRadius: 0,
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    Icons.add_a_photo_rounded,
+                    color: Colors.white,
+                    size: 2.w,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+  Widget buildUserProfile() {
+    return StreamBuilder(
+      stream: Users.where('googleId', isEqualTo: AppUser.info?.googleId).snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return buildProfileShimmer();
+        }
+
+        if (snapshot.hasError || !snapshot.hasData) {
+          return buildDefaultProfile();
+        }
+
+        try {
+          final document = snapshot.data!.docs.first;
+          return buildProfileContent(document);
+        } catch (e) {
+          return buildDefaultProfile();
+        }
+      },
+    );
   }
 
 

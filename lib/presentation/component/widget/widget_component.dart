@@ -24,13 +24,13 @@ class WidgetComponent {
    Get.bottomSheet(
        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
        isScrollControlled: isScrollControlled,
-       // backgroundColor: Colors.transparent,
+        backgroundColor: Colors.transparent,
        Material(
          shape: RoundedRectangleBorder(
              borderRadius: BorderRadius.only(
                  topLeft: Radius.circular(20), topRight: Radius.circular(20))),
          child: BackdropFilter(
-           filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+           filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
            child: StatefulBuilder(
              builder: (context, states) {
                return Container(

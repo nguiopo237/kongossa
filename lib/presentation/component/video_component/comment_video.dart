@@ -11,6 +11,7 @@ import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../main.dart';
 import '../../../model/datamodel/user_model.dart';
+import '../../../sevice/controlleur/splashcontrolleur/splashscreen_controlleur.dart';
 import '../../../sevice/upload/upload_post.dart';
 import '../image_component/image.dart';
 
@@ -48,7 +49,6 @@ class _CommentModalState extends State<CommentModal>
     super.initState();
     _commentCount = widget.initialCommentCount;
 
-
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
@@ -60,8 +60,6 @@ class _CommentModalState extends State<CommentModal>
 
     _animationController.forward();
   }
-
-
 
   PostUpdateService service = PostUpdateService();
 
@@ -78,8 +76,6 @@ class _CommentModalState extends State<CommentModal>
       Navigator.of(context).pop();
     });
   }
-
-
 
   bool _isLiked = false;
 
@@ -98,7 +94,6 @@ class _CommentModalState extends State<CommentModal>
   }
 
   List<dynamic> comments = [];
-
 
   sendcomment() async {
     final comment = {
@@ -192,8 +187,9 @@ class _CommentModalState extends State<CommentModal>
     if (_commentController.text.trim().isEmpty) return;
 
     print(widget.videoId);
-    // Get.back();
+
     FocusManager.instance.primaryFocus?.unfocus();
+    Get.back();
     try {
       DocumentReference postRef = FirebaseFirestore.instance
           .collection('postcarduser')
@@ -269,126 +265,133 @@ class _CommentModalState extends State<CommentModal>
   Widget build(BuildContext context) {
     return Scaffold(
 
-      body: Column(
-        children: [
-          Container(
-            margin: EdgeInsets.only(top: 12, bottom: 0.2.h),
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2),
+      body: Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30)
+      ),
+        child: Column(
+          children: [
+            Container(
+              margin: EdgeInsets.only(top: 12, bottom: 0.2.h),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: ColorApp.primary,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          ),
 
-          // En-tête
+            // En-tête
+            Expanded(
+              child: StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('postcarduser')
+                    .doc(widget.videoId)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  // Gestion des états de chargement
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-          Expanded(
-            child: StreamBuilder<DocumentSnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('postcarduser')
-                  .doc(widget.videoId)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                // Gestion des états de chargement
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                // Gestion des erreurs
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.error_outline,
-                          size: 48,
-                          color: Colors.red[300],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Erreur de chargement',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                // Vérifier si le document existe
-                if (!snapshot.hasData || !snapshot.data!.exists) {
-                  return _buildEmptyComments();
-                }
-
-                // Récupérer les données
-                var data = snapshot.data!.data() as Map<String, dynamic>;
-
-                // Accéder au tableau commentaire dans postData
-
-                if (data['postData'] != null &&
-                    data['postData']['commentaire'] != null) {
-                  comments = List.from(data['postData']['commentaire']);
-                }
-
-
-                // Trier par date (du plus récent au plus ancien)
-                comments.sort((a, b) {
-                  DateTime dateA = DateTime.parse(a['time'] ?? '1970-01-01');
-                  DateTime dateB = DateTime.parse(b['time'] ?? '1970-01-01');
-                  return dateB.compareTo(dateA); // Plus récent d'abord
-                });
-
-                if (comments.isEmpty) {
-                  return _buildEmptyComments();
-                }
-
-                return Column(
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 0.2.h,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  // Gestion des erreurs
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            'Commentaires (${comments.length})',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          Icon(
+                            Icons.error_outline,
+                            size: 48,
+                            color: Colors.red[300],
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: _closeModal,
+                          const SizedBox(height: 16),
+                          Text(
+                            'Erreur de chargement',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[600],
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                    const Divider(height: 1),
-                    Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: comments.length,
-                        itemBuilder: (context, index) {
-                          final item = comments[index];
-                         return _buildCommentItem(item, index,);
-                        },
+                    );
+                  }
+
+                  // Vérifier si le document existe
+                  if (!snapshot.hasData || !snapshot.data!.exists) {
+                    return _buildEmptyComments();
+                  }
+
+                  // Récupérer les données
+                  var data = snapshot.data!.data() as Map<String, dynamic>;
+
+                  // Accéder au tableau commentaire dans postData
+
+                  if (data['postData'] != null &&
+                      data['postData']['commentaire'] != null) {
+                    comments = List.from(data['postData']['commentaire']);
+                  }
+
+                  // Trier par date (du plus récent au plus ancien)
+                  comments.sort((a, b) {
+                    DateTime dateA = DateTime.parse(a['time'] ?? '1970-01-01');
+                    DateTime dateB = DateTime.parse(b['time'] ?? '1970-01-01');
+                    return dateB.compareTo(dateA); // Plus récent d'abord
+                  });
+
+                  if (comments.isEmpty) {
+                    return _buildEmptyComments();
+                  }
+
+                  return Column(
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 0.2.h,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Commentaires (${comments.length})',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: _closeModal,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                );
-              },
+                      const Divider(height: 1),
+                      Expanded(
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: comments.length,
+                          itemBuilder: (context, index) {
+                            final item = comments[index];
+                            return _buildCommentItem(item, index);
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-      bottomNavigationBar: _buildCommentInput(),
+      bottomNavigationBar: Padding(
+        padding: EdgeInsets.only(bottom: 2.h),
+        child: _buildCommentInput(),
+      ),
     );
   }
 
@@ -411,7 +414,7 @@ class _CommentModalState extends State<CommentModal>
     }
 
     // Récupérer l'ID de l'utilisateur connecté
-    String? currentUserId =  AppUser.info?.googleId;
+    String? currentUserId = AppUser.info?.googleId;
 
     // Vérifier si l'utilisateur a liké CE commentaire précis
     bool isLikedByCurrentUser = false;
@@ -459,8 +462,9 @@ class _CommentModalState extends State<CommentModal>
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(item['comment']??"",
-                    style: const TextStyle(fontSize: 14)
+                Text(
+                  item['comment'] ?? "",
+                  style: const TextStyle(fontSize: 14),
                 ),
               ],
             ),
@@ -483,7 +487,9 @@ class _CommentModalState extends State<CommentModal>
                   style: TextStyle(
                     fontSize: 12,
                     color: isLikedByCurrentUser ? Colors.red : Colors.grey[700],
-                    fontWeight: isLikedByCurrentUser ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: isLikedByCurrentUser
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                 ),
               ],
@@ -524,16 +530,13 @@ class _CommentModalState extends State<CommentModal>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: ColorApp.primary,
+        color: ColorApp.BlackColor,
         border: Border(top: BorderSide(color: Colors.grey[200]!)),
       ),
       child: Row(
         children: [
           // Avatar de l'utilisateur connecté
-          const CircleAvatar(
-            radius: 20,
-            backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=7'),
-          ),
+          s.buildUserProfile(),
 
           const SizedBox(width: 12),
 
@@ -545,113 +548,72 @@ class _CommentModalState extends State<CommentModal>
               readOnly: true,
 
               onTap: () {
-                Future.microtask((){
+                Future.microtask(() {
                   WidgetComponent.getmodal(
                     isScrollControlled: true,
-                    sectionview: Padding(
-                      padding: const EdgeInsets.all(25),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _commentController,
-                              // focusNode: _focusNode,
-                              decoration: InputDecoration(
-                                hintText: 'Ajouter un commentaire...',
-                                hintStyle: TextStyle(color: Colors.grey[500]),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(25),
-                                  borderSide: BorderSide.none,
+                    sectionview: Container(
+                      decoration: BoxDecoration(
+                        color: ColorApp.BlackColor,
+                        border: Border(
+                          top: BorderSide(color: Colors.grey[200]!),
+                        ),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 2.h),
+                        child: Row(
+                          children: [
+                            s.buildUserProfile(),
+                            SizedBox(width: 2.w),
+                            Expanded(
+                              child: TextField(
+                                controller: _commentController,
+                                autofocus: true,
+                                // focusNode: _focusNode,
+                                decoration: InputDecoration(
+                                  hintText: 'Ajouter un commentaire...',
+                                  hintStyle: TextStyle(color: Colors.grey[500]),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(25),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.grey[100],
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 10,
+                                  ),
                                 ),
-                                filled: true,
-                                fillColor: Colors.grey[100],
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 10,
-                                ),
-                              ),
-                              maxLines: null,
-                              textInputAction: TextInputAction.send,
-                              onSubmitted: (_) => addComments(),
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: addComments,
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: _commentController.text.isNotEmpty
-                                    ? Colors.blue
-                                    : Colors.grey[300],
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.send,
-                                color: _commentController.text.isNotEmpty
-                                    ? Colors.white
-                                    : Colors.grey[600],
-                                size: 20,
+                                maxLines: null,
+                                textInputAction: TextInputAction.send,
+                                onSubmitted: (_) => addComments(),
                               ),
                             ),
-                          ),
-                        ],
+                            SizedBox(width: 2.w),
+                            GestureDetector(
+                              onTap: addComments,
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: _commentController.text.isNotEmpty
+                                      ? Colors.blue
+                                      : Colors.grey[300],
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.send,
+                                  color: _commentController.text.isNotEmpty
+                                      ? Colors.white
+                                      : Colors.grey[600],
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   );
                 });
-
-                // WidgetComponent.getmodal(
-                //   isScrollControlled: true,
-                //   sectionview: Padding(
-                //     padding: const EdgeInsets.all(25),
-                //     child: Row(
-                //       children: [
-                //         Expanded(
-                //           child: TextField(
-                //             controller: _commentController,
-                //             // focusNode: _focusNode,
-                //             decoration: InputDecoration(
-                //               hintText: 'Ajouter un commentaire...',
-                //               hintStyle: TextStyle(color: Colors.grey[500]),
-                //               border: OutlineInputBorder(
-                //                 borderRadius: BorderRadius.circular(25),
-                //                 borderSide: BorderSide.none,
-                //               ),
-                //               filled: true,
-                //               fillColor: Colors.grey[100],
-                //               contentPadding: const EdgeInsets.symmetric(
-                //                 horizontal: 20,
-                //                 vertical: 10,
-                //               ),
-                //             ),
-                //             maxLines: null,
-                //             textInputAction: TextInputAction.send,
-                //             onSubmitted: (_) => addComments(),
-                //           ),
-                //         ),
-                //         GestureDetector(
-                //           onTap: addComments,
-                //           child: Container(
-                //             padding: const EdgeInsets.all(10),
-                //             decoration: BoxDecoration(
-                //               color: _commentController.text.isNotEmpty
-                //                   ? Colors.blue
-                //                   : Colors.grey[300],
-                //               shape: BoxShape.circle,
-                //             ),
-                //             child: Icon(
-                //               Icons.send,
-                //               color: _commentController.text.isNotEmpty
-                //                   ? Colors.white
-                //                   : Colors.grey[600],
-                //               size: 20,
-                //             ),
-                //           ),
-                //         ),
-                //       ],
-                //     ),
-                //   ),
-                // );
               },
               decoration: InputDecoration(
                 hintText: 'Ajouter un commentairess...',
@@ -680,4 +642,7 @@ class _CommentModalState extends State<CommentModal>
       ),
     );
   }
+
 }
+
+

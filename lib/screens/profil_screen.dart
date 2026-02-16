@@ -118,7 +118,7 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
 
           // Grille des posts
           SliverPadding(
-            padding: EdgeInsets.symmetric(horizontal: 0.5.w),
+            padding: EdgeInsets.only(right: 0.5.w,left: 0.5,bottom: 10.h),
             sliver: _buildPostsGrid(),
           ),
         ],
@@ -196,7 +196,7 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimary,
+                     color: Colors.blue,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -204,7 +204,7 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
                       userProfile.username,
                       style: TextStyle(
                         fontSize: 14,
-                        color: AppTheme.textSecondary,
+                          color: Colors.blue
                       ),
                     ),
                   ],
@@ -393,9 +393,9 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
         labelColor: AppTheme.textPrimary,
         unselectedLabelColor: AppTheme.textSecondary,
         tabs: const [
-          Tab(icon: Icon(Icons.grid_on_outlined)),
-          Tab(icon: Icon(Icons.favorite_border)),
-          Tab(icon: Icon(Icons.bookmark_border)),
+          Tab(icon: Icon(Icons.grid_on_outlined,color: Colors.blue,)),
+          Tab(icon: Icon(Icons.favorite_border,color: Colors.blue)),
+          Tab(icon: Icon(Icons.bookmark_border,color: Colors.blue)),
         ],
       ),
     );

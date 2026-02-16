@@ -178,7 +178,7 @@ class _PremiumPostcardState extends State<PremiumPostcard> with TickerProviderSt
   Widget _buildMediaContent() {
     if (widget.postVideo != null && widget.postVideo!.isNotEmpty) {
       return Container(
-        height: 70.h,
+        height: 60.h,
         // margin: EdgeInsets.symmetric(vertical: 1.h),
         child: Stack(
           children: [
@@ -759,9 +759,32 @@ class _PremiumPostcardState extends State<PremiumPostcard> with TickerProviderSt
             // onTap: widget.onComment,
             onTap: () {
 
-              WidgetComponent.getmodal(sectionview: SizedBox(
-                  height: Get.height/1.3,
-                  child: CommentModal(videoId: widget.id, videoTitle: '',)));
+              Future.microtask((){
+
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+
+                  shape:  RoundedRectangleBorder(
+                      borderRadius: BorderRadiusGeometry.vertical(
+                        top: Radius.circular(30),
+                      )),// ou true avec hauteur
+                  // fixe
+                  builder: (context) => ClipRRect(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+                    child: SizedBox(
+                        height: Get.height/1.3,
+                        child: CommentModal(videoId: widget.id, videoTitle: '',)),
+                  ),
+                );
+              });
+
+              // WidgetComponent.getmodal(
+              //
+              //     sectionview: SizedBox(
+              //     height: Get.height/1.3,
+              //     child: CommentModal(videoId: widget.id, videoTitle: '',)));
             },
           ),
           _buildActionButton(

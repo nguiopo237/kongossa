@@ -133,7 +133,6 @@ class _EntryPointState extends State<EntryPoint>
                       if (authController.indexpage.value == 1) {
                         return FriendFeedScreen();
 
-
                          WidgetsBinding.instance.addPostFrameCallback((_) {
                            if (Get.context != null) {
                              Get.to(() => FriendFeedScreen());

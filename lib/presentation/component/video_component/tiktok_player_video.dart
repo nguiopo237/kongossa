@@ -141,11 +141,28 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with TickerProvid
         // ✅ VIDÉO EN CACHE - Lecture immédiate
         _controller = VideoPlayerController.file(cachedFile!);
         _isUsingCache = true;
+        _controller.addListener(() {
+          if (_controller.value.position == _controller.value.duration) {
+            // La vidéo est finie, ne pas la rejouer automatiquement
+            // Option 1: Ne rien faire (rester sur la dernière frame)
+            // Option 2: Chercher une action personnalisée
+            _onVideoEnded();
+          }
+        });
+
         debugPrint('🎬 Lecture depuis le CACHE');
       } else {
         // ⚠️ VIDÉO NON CACHÉE - Lecture en ligne + téléchargement
         _controller = VideoPlayerController.networkUrl(Uri.parse(cleanUrl),);
         _isUsingCache = false;
+        _controller.addListener(() {
+          if (_controller.value.position == _controller.value.duration) {
+            // La vidéo est finie, ne pas la rejouer automatiquement
+            // Option 1: Ne rien faire (rester sur la dernière frame)
+            // Option 2: Chercher une action personnalisée
+            _onVideoEnded();
+          }
+        });
         debugPrint('🌐 Lecture depuis le RÉSEAU');
 
         // Déclencher le téléchargement en arrière-plan pour la prochaine fois
@@ -156,7 +173,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with TickerProvid
       _initializeVideoPlayerFuture = _controller.initialize().then((_) {
         if (mounted) {
           setState(() {
-            _controller.setLooping(true);
+            _controller.setLooping(false);
             _controller.setVolume(_isMuted ? 0 : 1);
             _controller.play();
             _isControllerReady = true;
@@ -183,7 +200,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with TickerProvid
     _initializeVideoPlayerFuture = _controller.initialize().then((_) {
       if (mounted) {
         setState(() {
-          _controller.setLooping(true);
+          _controller.setLooping(false);
           _controller.setVolume(_isMuted ? 0 : 1);
           _controller.play();
           _isControllerReady = true;
@@ -201,11 +218,12 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with TickerProvid
       final newController = VideoPlayerController.file(cachedFile);
       await newController.initialize();
 
+
       if (mounted) {
         setState(() {
           final oldController = _controller;
           _controller = newController;
-          _controller.setLooping(true);
+          _controller.setLooping(false);
           _controller.setVolume(_isMuted ? 0 : 1);
           _controller.play();
           _isControllerReady = true;
@@ -262,6 +280,15 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with TickerProvid
     });
   }
 
+
+
+void _onVideoEnded() {
+  print('📹 Vidéo terminée - pas de boucle');
+  // Vous pouvez afficher un message, un bouton, etc.
+  // Mais NE PAS relancer _controller.play() automatiquement
+}
+
+
   @override
   Widget build(BuildContext context) {
     // final Size screenSize = MediaQuery.of(context).size;
@@ -273,13 +300,16 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with TickerProvid
       onVisibilityChanged: (visibilityInfo) {
         if (!_isControllerReady) return;
 
-        final visibleFraction = visibilityInfo.visibleFraction;
-        if (visibleFraction > 0.7) {
+        final visibleFraction = visibilityInfo.visibleFraction * 100;
+        print("visibleFraction");
+        print(visibleFraction);
+        print("visibleFraction");
+        if (visibleFraction==0.0) {
+          _controller.pause();
+        } else {
           _controller.play();
           // Essayer de passer en cache quand la vidéo est visible
           _refreshWithCachedVersion();
-        } else {
-          _controller.pause();
         }
       },
       child: GestureDetector(
@@ -318,13 +348,19 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with TickerProvid
                 if (snapshot.connectionState == ConnectionState.done &&
                     _controller.value.isInitialized) {
                   return SizedBox.expand(
-                    child: FittedBox(
-                      fit: BoxFit.cover,
-                      child: SizedBox(
-                        width: _controller.value.size.width,
-                        height: _controller.value.size.height,
-                        child: VideoPlayer(_controller),
-                      ),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        FittedBox(
+                          fit: BoxFit.cover,
+                          child: SizedBox(
+                            width: _controller.value.size.width,
+                            height: _controller.value.size.height,
+                            child: VideoPlayer(_controller),
+                          ),
+                        ),
+                        _buildReplayButton(),
+                      ],
                     ),
                   );
                 } else {
@@ -527,10 +563,20 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with TickerProvid
 
                           showModalBottomSheet(
                             context: context,
-                            isScrollControlled: false, // ou true avec hauteur fixe
-                            builder: (context) => SizedBox(
-                                height: Get.height/1.5,
-                                child: CommentModal(videoId: widget.id, videoTitle: '',)),
+                            isScrollControlled: true,  
+                            backgroundColor: Colors.transparent,
+
+                            shape:  RoundedRectangleBorder(
+                                borderRadius: BorderRadiusGeometry.vertical(
+                                  top: Radius.circular(30),
+                                )),// ou true avec hauteur
+                            // fixe
+                            builder: (context) => ClipRRect(
+                              borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+                              child: SizedBox(
+                                  height: Get.height/1.3,
+                                  child: CommentModal(videoId: widget.id, videoTitle: '',)),
+                            ),
                           );
                         });
 
@@ -719,5 +765,35 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with TickerProvid
       return '${(count / 1000).toStringAsFixed(1)}K';
     }
     return count.toString();
+  }
+
+  Widget _buildReplayButton() {
+    // Ajouter un listener pour détecter la fin de la vidéo
+    return ValueListenableBuilder(
+      valueListenable: _controller,
+      builder: (context, VideoPlayerValue value, child) {
+        // Si la vidéo est finie, afficher un bouton de replay
+        if (value.position == value.duration && value.isPlaying == false) {
+          return Container(
+            color: Colors.black.withOpacity(0.5),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Center(
+                  child: IconButton(
+                    icon: Icon(Icons.replay, size: 50, color: Colors.white),
+                    onPressed: () {
+                      _controller.seekTo(Duration.zero);
+                      _controller.play();
+                    },
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        return SizedBox.shrink();
+      },
+    );
   }
 }

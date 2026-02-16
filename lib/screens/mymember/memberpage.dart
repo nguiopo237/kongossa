@@ -225,6 +225,7 @@ class _MembersPageState extends State<MembersPage> with SingleTickerProviderStat
             itemCount: members.length,
             itemBuilder: (context, index) {
               final member = members[index];
+
               return MemberCard(
                 member: member,
                 onTap: () {

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
@@ -191,6 +193,17 @@ class _HomePageState extends State<HomePage> {
     try {
       final documents = snapshot.data!.docs;
 
+      var doc = snapshot.data!.docs[0];
+      var data = doc.data() as Map<String, dynamic>;
+
+// Maintenant vous pouvez afficher les champs
+      print("ici");// Affiche toutes les données
+      // print(data);  // Affiche un champ spécifique
+      // print();
+    // Affiche un champ spécifique
+
+
+
       return ListView.builder(
         shrinkWrap: true,
         physics: const BouncingScrollPhysics(),
@@ -198,6 +211,7 @@ class _HomePageState extends State<HomePage> {
         itemCount: documents.length,
         itemBuilder: (context, index) {
           final item = documents[index];
+          debugPrint(documents[0]["postData"].toString());
           return _buildPostCard(item);
         },
       );
@@ -214,6 +228,9 @@ class _HomePageState extends State<HomePage> {
 
   // Widget de carte post avec validation des données
   Widget _buildPostCard(QueryDocumentSnapshot item) {
+    print("item.toString()");
+    print(item.toString());
+    print("item.toString()");
     List<dynamic> comments = [];
     List<dynamic> alllike = [];
     // Extraction sécurisée des données avec valeurs par défaut
