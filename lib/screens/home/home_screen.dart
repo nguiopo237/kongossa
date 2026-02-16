@@ -33,7 +33,7 @@ class _HomePageState extends State<HomePage> {
         slivers: [
           // AppBar professionnelle
           SliverAppBar(
-            expandedHeight: 12.h,
+            expandedHeight: 3.h,
             floating: true,
             pinned: true,
             snap: true,
@@ -59,7 +59,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 child: SafeArea(
-                  bottom: false,
+                  bottom: true,
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: 4.w),
                     child: const ProfessionalAppBar(),
@@ -214,6 +214,8 @@ class _HomePageState extends State<HomePage> {
 
   // Widget de carte post avec validation des données
   Widget _buildPostCard(QueryDocumentSnapshot item) {
+    List<dynamic> comments = [];
+    List<dynamic> alllike = [];
     // Extraction sécurisée des données avec valeurs par défaut
     final userData = _getSafeMap(item['userData']);
     final postData = _getSafeMap(item['postData']);
@@ -224,12 +226,29 @@ class _HomePageState extends State<HomePage> {
     // Gestion sécurisée des images
     String? postImage = _getSafeImageUrl(postData['imagepost']);
     String? postVideo = _getSafeVideoUrl(postData['videopost']);
+    // var data = item.data as Map<String, dynamic>;
 
+    // Accéder au tableau commentaire dans postData
+
+    if (postData!= null &&
+        postData['commentaire'] != null) {
+      comments = List.from(postData['commentaire']);
+    }
+    if (postData!= null &&
+        postData['allike'] != null) {
+      alllike = List.from(postData['allike']);
+    }
+
+    // if (data['postData'] != null &&
+    //     data['postData']['commentaire'] != null) {
+    //   comments = List.from(data['postData']['commentaire']);
+    // }
     return Padding(
       padding: EdgeInsets.symmetric(
         // horizontal: 2.w,
         vertical: 0.h,
       ),
+
       child: PremiumPostcard(
         id: item.id,
         name: userData['name']?.toString() ?? 'Utilisateur',
@@ -237,7 +256,9 @@ class _HomePageState extends State<HomePage> {
         image: userData['photoUrl']?.toString(),
         postImage: postImage,
         postVideo: postVideo,
-        likes: _getSafeLikes(postData['likes']),
+        likes:alllike.length,
+        alllike: alllike,
+        comments: comments.length,
         content: postData['posttitle']?.toString() ?? '',
       ),
     );

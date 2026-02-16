@@ -307,6 +307,8 @@ class _CreatePostPremiumScreenState extends State<CreatePostPremiumScreen>
         "islike": false,
         "status": "published",
         "commentaire": [],
+        "personlike": [],
+        "allike": [],   
         "createdAt": FieldValue.serverTimestamp(),
         "userId": AppUser.info!.googleId,
       };
@@ -535,7 +537,7 @@ class _CreatePostPremiumScreenState extends State<CreatePostPremiumScreen>
         return Padding(
           padding: EdgeInsets.symmetric(vertical: 4.h),
           child: Scaffold(
-            extendBodyBehindAppBar: true,
+            // extendBodyBehindAppBar: true,
             appBar: AppBar(
               title: AnimatedOpacity(
                 opacity: _fadeAnimation.value,
@@ -565,45 +567,49 @@ class _CreatePostPremiumScreenState extends State<CreatePostPremiumScreen>
             ),
             body: Container(
               color: Colors.white, // Simplifié pour meilleures performances
-              child: SafeArea(
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        child: Column(
-                          children: [
-                            // En-tête utilisateur premium - OPTIMISÉ
-                            _buildPremiumUserHeader(),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Column(
+                        children: [
+                          // En-tête utilisateur premium - OPTIMISÉ
+                          _buildPremiumUserHeader(),
 
-                            // Zone de texte avec effet glassmorphism
-                            _buildPremiumTextField(),
+                          // Zone de texte avec effet glassmorphism
+                          _buildPremiumTextField(),
 
-                            // Contenu multimédia
-                            if (_attachedImages.isNotEmpty ||
-                                _attachedVideos.isNotEmpty)
-                              _buildPremiumMediaGallery(),
+                          // Contenu multimédia
+                          if (_attachedImages.isNotEmpty ||
+                              _attachedVideos.isNotEmpty)
+                            _buildPremiumMediaGallery(),
 
-                            // Options de publication premium
-                            _buildPremiumOptions(),
+                          // Options de publication premium
+                          _buildPremiumOptions(),
 
-                            // Feeling sélectionné
-                            if (_isFeeling && _selectedFeeling != null)
-                              _buildSelectedFeeling(),
+                          // Feeling sélectionné
+                          if (_isFeeling && _selectedFeeling != null)
+                            _buildSelectedFeeling(),
 
-                            // Paramètres avancés
-                            _buildAdvancedSettings(),
-                          ],
-                        ),
+                          // Paramètres avancés
+                          _buildAdvancedSettings(),
+                        ],
                       ),
                     ),
+                  ),
+                  SizedBox(height: 20,),
 
-                    // Barre d'actions premium
-                    _buildPremiumActionBar(),
-                  ],
-                ),
+                  // Barre d'actions premium
+
+                ],
               ),
             ),
+            floatingActionButton: Padding(
+              padding:  EdgeInsets.only(bottom: 6.h),
+              child: SizedBox(height: 10.h,child:  _buildPremiumActionBar( ),),
+            ),
+            floatingActionButtonLocation: FloatingActionButtonLocation.miniStartDocked,
           ),
         );
       },
@@ -975,21 +981,7 @@ class _CreatePostPremiumScreenState extends State<CreatePostPremiumScreen>
       child: Stack(
         children: [
           Videoplayerpost(files: File(_attachedVideos.first.toString()),),
-          // ClipRRect(
-          //   borderRadius: BorderRadius.circular(15),
-          //   child: Container(
-          //     height: 200,
-          //     width: double.infinity,
-          //     color: Colors.grey[300],
-          //     child: const Center(
-          //       child: Icon(
-          //         Icons.play_circle_filled,
-          //         color: Colors.black54,
-          //         size: 60,
-          //       ),
-          //     ),
-          //   ),
-          // ),
+
           Positioned(
             top: 10,
             right: 10,
@@ -1268,12 +1260,10 @@ class _CreatePostPremiumScreenState extends State<CreatePostPremiumScreen>
         top: false,
         child: Row(
           children: [
-            Expanded(
-              child: _buildGradientButton(
-                text: 'Publier',
-                onPressed: _publishPost,
-                isActive: _hasContent,
-              ),
+            _buildGradientButton(
+              text: 'Publier',
+              onPressed: _publishPost,
+              isActive: _hasContent,
             ),
             const SizedBox(width: 15),
             Container(

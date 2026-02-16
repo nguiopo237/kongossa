@@ -23,6 +23,8 @@ import '../../sevice/controlleur/authentification/auth_controlleur.dart';
 import '../../utils/rive_utils.dart';
 import '../collaboration/friend.dart';
 import '../home/home_screen.dart' hide ColorApp;
+import '../mymember/memberpage.dart';
+import '../profil_screen.dart';
 import 'components/btm_nav_item.dart';
 import 'components/menu_btn.dart';
 import 'components/side_bar.dart';
@@ -89,7 +91,7 @@ class _EntryPointState extends State<EntryPoint>
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      resizeToAvoidBottomInset: false,
+      // resizeToAvoidBottomInset: false,
       // backgroundColor: ColorApp.primary5,
       body: Container(
         height: Get.height,
@@ -130,17 +132,19 @@ class _EntryPointState extends State<EntryPoint>
                       }
                       if (authController.indexpage.value == 1) {
                         return FriendFeedScreen();
-                      } if (authController.indexpage.value == 2) {
+                      }
+                      if (authController.indexpage.value == 2) {
                         return  CreatePostPremiumScreen();
-                        // WidgetsBinding.instance.addPostFrameCallback((_) {
-                        //   // WidgetComponent.getmodal(
-                        //   //   sectionview: Container(
-                        //   //     height: Get.height,
-                        //   //     child: CreatePostPremiumScreen(),
-                        //   //   ),
-                        //   // );
-                        //
-                        // });
+                      }
+                      if (authController.indexpage.value == 3) {
+                        return  MembersPage(
+
+                        );
+                      }   if (authController.indexpage.value == 4) {
+                        return  PremiumProfileScreen (
+                          userId: "1",
+
+                        );
                       }
                       return HomePage(); // ou un autre widget par défaut
                     }),

@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/date_symbol_data_local.dart';
+
 import 'package:kongossa/screens/authentification.dart';
 
 import 'package:kongossa/screens/onboding/onboding_screen.dart';
@@ -18,12 +20,15 @@ CollectionReference Users = FirebaseFirestore.instance.collection(
 CollectionReference Posts = FirebaseFirestore.instance.collection(
   'postcarduser',
 );
+CollectionReference Sms = FirebaseFirestore.instance.collection(
+  'message',
+);
 
 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
+  await initializeDateFormatting('fr_FR', null);
   // Initialiser Firebase avant de lancer l'application
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseFirestore.instance.settings = Settings(

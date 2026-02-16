@@ -31,7 +31,7 @@ class ProfessionalAppBar extends StatelessWidget {
     return Container(
       color: Colors.white,
       width: double.infinity,
-      height: 10.h,
+      height: 8.h,
       padding: EdgeInsets.symmetric(horizontal: 2.w),
       child: Row(
         children: [
@@ -66,7 +66,7 @@ class ProfessionalAppBar extends StatelessWidget {
   // Logo avec effet moderne
   Widget _buildLogo() {
     return Container(
-      height: 8.h,
+      height: 5.h,
       width: 20.w,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
@@ -82,8 +82,8 @@ class ProfessionalAppBar extends StatelessWidget {
       child: CustomImage(
         source: Consticon.logo,
         type: ImageType.asset,
-        height: 7.h,
-        width: 18.w,
+        // height: 7.h,
+        // width: 18.w,
         fit: BoxFit.contain,
       ),
     );
@@ -114,13 +114,13 @@ class ProfessionalAppBar extends StatelessWidget {
           hintText: "Rechercher...",
           hintStyle: GoogleFonts.inter(
             color: Colors.grey[400],
-            fontSize: 14.sp,
+            fontSize: 12.sp,
             fontWeight: FontWeight.w400,
           ),
           prefixIcon: Icon(
             Icons.search_rounded,
             color: Colors.grey[400],
-            size: 20.sp,
+            size: 16.sp,
           ),
           suffixIcon: Container(
             margin: EdgeInsets.all(1.w),
@@ -243,8 +243,8 @@ class ProfessionalAppBar extends StatelessWidget {
               borderRadius: BorderRadius.circular(100),
               child: document["photoUrl"] == null || document["photoUrl"] == ""
                   ? Container(
-                width: 12.w,
-                height: 12.w,
+                width: 10.w,
+                height: 10.w,
                 color: Colors.grey[100],
                 child: Icon(
                   CupertinoIcons.person_fill,
@@ -255,8 +255,8 @@ class ProfessionalAppBar extends StatelessWidget {
                   : CustomImage(
                 source: document["photoUrl"]!,
                 type: ImageType.network,
-                width: 12.w,
-                height: 12.w,
+                width: 8.w,
+                height: 8.w,
                 fit: BoxFit.cover,
               ),
             ),

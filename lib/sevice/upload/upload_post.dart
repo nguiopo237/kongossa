@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../main.dart';
 import '../../model/datamodel/user_model.dart';
+import '../../presentation/component/widget/widget_component.dart';
+import '../controlleur/splashcontrolleur/splashscreen_controlleur.dart';
 
 
 class PostUpdateService {
@@ -108,20 +110,183 @@ class PostUpdateService {
   // ============================================
   // 4. UPDATE DES LIKES
   // ============================================
-  Future<void> toggleLike(String postId, bool isLiked) async {
+  Future<void> toggleLike({
+    required String postId,
+    bool? isLiked,
+    required int like
+  }) async {
     try {
-      await Posts.doc(postId).update({
-        "postData.likes": FieldValue.increment(isLiked ? 1 : -1),
-        "postData.islike": isLiked ? true : false,
-        "timestamp": FieldValue.serverTimestamp(),
+      DocumentReference postRef = _firestore
+          .collection('postcarduser')
+          .doc(postId);
+
+      DocumentSnapshot snapshot = await postRef.get();
+
+      if (!snapshot.exists) {
+        print("Document n'existe pas");
+        return;
+      }
+
+      var data = snapshot.data() as Map<String, dynamic>;
+      print('Données du post: ${data['postData']}');
+
+      // Récupérer l'utilisateur actuel
+      String? currentUserId = AppUser.info?.googleId;
+      String? currentUserName = AppUser.info?.displayName;
+      String? currentUserAvatar = AppUser.info?.photoUrl;
+
+      if (currentUserId == null) {
+        print("Utilisateur non connecté");
+        return;
+      }
+
+      // Récupérer la liste des personnes qui ont liké le POST (pas les commentaires)
+      // D'après votre structure Firebase, c'est 'allike' dans postData
+      List<dynamic> allike = [];
+
+      // Vérifier si postData existe et contient allike
+      if (data['postData'] != null) {
+        Map<String, dynamic> postData = data['postData'] as Map<String, dynamic>;
+
+        if (postData['allike'] != null && postData['allike'] is List) {
+          allike = List.from(postData['allike']);
+        }
+      }
+
+      print('Liste des likes avant: $allike');
+
+      // Vérifier si l'utilisateur a déjà liké
+      bool alreadyLiked = allike.contains(currentUserId);
+
+      if (!alreadyLiked) {
+        // Ajouter le like
+        allike.add(currentUserId);
+        print("👍 Like ajouté pour l'utilisateur: $currentUserId");
+      } else {
+        // Retirer le like
+        allike.remove(currentUserId);
+        print("👎 Like retiré pour l'utilisateur: $currentUserId");
+      }
+
+      print('Liste des likes après: $allike');
+
+      // Mettre à jour le document
+      await postRef.update({
+        'postData.allike': allike,
+        'postData.likes': allike.length, // Mettre à jour aussi le compteur
       });
-      print("✅ Like ${isLiked ? 'ajouté' : 'retiré'}");
+
+      print('✅ Like mis à jour: ${!alreadyLiked ? "👍" : "👎"} (${allike.length} likes)');
+
     } catch (e) {
-      print("❌ Erreur toggle like: $e");
-      rethrow;
+      print('❌ Erreur toggleLike: $e');
+      print('Stack trace: ${StackTrace.current}');
     }
   }
 
+
+  final String uniqueId =
+      '${DateTime.now().millisecondsSinceEpoch}_${AppUser.info!.uid}_${WidgetComponent.generateRandomString(6)}';
+
+
+  Future<void> toggleLikecomment({
+    required String postId,
+    String? commentId,
+    // bool? isLiked,
+    required int like,
+  }) async
+
+  {
+    try {
+      DocumentReference postRef = _firestore
+          .collection('postcarduser')
+          .doc(postId);
+
+      DocumentSnapshot snapshot = await postRef.get();
+
+      if (!snapshot.exists) {
+        print("Document n'existe pas");
+        return;
+      }
+
+      var data = snapshot.data() as Map<String, dynamic>;
+
+      // Récupérer les commentaires
+      List<dynamic> comments = List.from(
+          data['postData']?['commentaire'] ?? []
+      );
+
+      // Trouver l'index du commentaire
+      int index = comments.indexWhere((c) => c['id'] == commentId);
+
+      if (index == -1) {
+        print("Commentaire non trouvé");
+        return;
+      }
+
+      // Récupérer l'utilisateur actuel
+      String? currentUserId = AppUser.info?.googleId;
+      String? currentUserName = AppUser.info?.displayName;
+      String? currentUserAvatar = AppUser.info?.photoUrl;
+
+      if (currentUserId == null) {
+        print("Utilisateur non connecté");
+        return;
+      }
+
+      // Créer une copie modifiable du commentaire
+      Map<String, dynamic> currentComment =
+      Map<String, dynamic>.from(comments[index]);
+
+      // Récupérer la liste des personnes qui ont liké
+      List<dynamic> allpersonnelike = [];
+      if (currentComment['allpersonnelike'] != null) {
+        allpersonnelike = List.from(currentComment['allpersonnelike']);
+      }
+
+      // Créer l'objet utilisateur pour le like
+      final likeUser = {
+        'idperson': AppUser.info?.googleId,
+        'userId': AppUser.info?.googleId,
+        'username': currentUserName ?? 'Utilisateur',
+        'avatar': currentUserAvatar ?? '',
+        'likedAt': DateTime.now().toIso8601String(),
+      };
+
+      // Mettre à jour la liste des likes (sans FieldValue)
+
+        // Ajouter l'utilisateur s'il n'est pas déjà dans la liste
+        bool alreadyLiked = allpersonnelike.any((u) => u['userId'] == currentUserId);
+        if (!alreadyLiked) {
+          allpersonnelike.add(likeUser);
+          print("j ajoute");
+          print("j ajoute");
+        }else{
+          allpersonnelike.removeWhere((u) => u['userId'] == currentUserId);
+          print("jenleve");
+          print("jenleve");
+        }
+
+
+      // Mettre à jour le commentaire
+      // currentComment['isLiked'] = isLiked ?? false;
+      currentComment['likes'] = allpersonnelike.length;
+      currentComment['allpersonnelike'] = allpersonnelike;
+
+      // Remplacer l'ancien commentaire
+      comments[index] = currentComment;
+
+      // Mettre à jour le document (sans FieldValue dans le tableau)
+      await postRef.update({
+        'postData.commentaire': comments,
+      });
+
+      print('✅ Like mis à jour: ${ allpersonnelike.any((u) => u['userId'] == currentUserId) == false ?  "👍" : "👎"} (${allpersonnelike.length} likes)');
+
+    } catch (e) {
+      print('❌ Erreur toggleLikecomment: $e');
+    }
+  }
   // ============================================
   // 5. UPDATE DES COMMENTAIRES
   // ============================================

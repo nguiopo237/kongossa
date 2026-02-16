@@ -1,7 +1,10 @@
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:get/get_core/src/get_main.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:video_player/video_player.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -9,7 +12,11 @@ import 'dart:async';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
+import '../../../model/datamodel/user_model.dart';
+import '../../../sevice/upload/upload_post.dart';
 import '../image_component/image.dart';
+import '../widget/widget_component.dart';
+import 'comment_video.dart';
 
 class TikTokVideoPlayer extends StatefulWidget {
   final String videoUrl;
@@ -17,9 +24,12 @@ class TikTokVideoPlayer extends StatefulWidget {
   final String description;
   final String music;
   final int likes;
+  final bool isLiked;
+  final String id;
   final int comments;
   final int shares;
   final String profileImage;
+  final List<dynamic>? alllike;
 
   const TikTokVideoPlayer({
     Key? key,
@@ -27,9 +37,12 @@ class TikTokVideoPlayer extends StatefulWidget {
     required this.username,
     required this.description,
     required this.music,
-    this.likes = 1200,
-    this.comments = 45,
-    this.shares = 23,
+    this.likes = 0,
+    this.isLiked = false,
+    required this.id ,
+    this.comments = 0,
+    this.shares = 0,
+    this.alllike ,
     required this.profileImage,
   }) : super(key: key);
 
@@ -37,7 +50,7 @@ class TikTokVideoPlayer extends StatefulWidget {
   _TikTokVideoPlayerState createState() => _TikTokVideoPlayerState();
 }
 
-class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with AutomaticKeepAliveClientMixin {
+class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with TickerProviderStateMixin  {
 
   @override
   bool get wantKeepAlive => true; //
@@ -53,6 +66,9 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with AutomaticKee
   Offset _heartPosition = Offset.zero;
   bool _isControllerReady = false;
   bool _isUsingCache = false;
+  late AnimationController _pulseController;
+  PostUpdateService service = PostUpdateService();
+
 
   @override
   void initState() {
@@ -61,6 +77,10 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with AutomaticKee
     print("mon lien");
     print(widget.videoUrl);
     print("mon lien");
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
     _initializePlayer();
   }
 
@@ -71,22 +91,22 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with AutomaticKee
 
   /// Vérifie si la vidéo est en cache et retourne le fichier si disponible
   Future<File?> _getCachedVideo() async {
-      final cleanUrl = _cleanUrl(widget.videoUrl);
-      print("check video ");
-      print(cleanUrl);
-      print("check video ");
-      final file = await DefaultCacheManager().getFileFromCache(cleanUrl);
-      if ( file!=null) {
-        debugPrint('✅ Vidéo trouvée en caches');
-        print(file.file);
-        print(file.file.path);
-        debugPrint('✅ Vidéo trouvée en caches');
-        return file.file;
-      }else{
-        debugPrint('✅ Vidéo pas trouvée en caches');
+    final cleanUrl = _cleanUrl(widget.videoUrl);
+    print("check video ");
+    print(cleanUrl);
+    print("check video ");
+    final file = await DefaultCacheManager().getFileFromCache(cleanUrl);
+    if ( file!=null) {
+      debugPrint('✅ Vidéo trouvée en caches');
+      print(file.file);
+      print(file.file.path);
+      debugPrint('✅ Vidéo trouvée en caches');
+      return file.file;
+    }else{
+      debugPrint('✅ Vidéo pas trouvée en caches');
 
-        return null;
-      }
+      return null;
+    }
 
 
   }
@@ -150,6 +170,11 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with AutomaticKee
     }
   }
 
+  // Future<bool> _onLikeButtonTapped(bool isLiked) async {
+  //
+  // }
+
+
   /// Gestionnaire d'erreur avec fallback
   void _handleInitializationError() {
     // Vidéo de secours
@@ -203,18 +228,30 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with AutomaticKee
 
   void _toggleLike() {
     setState(() {
-      _isLiked = !_isLiked;
-      _likeCount += _isLiked ? 1 : -1;
+      _showHeartAnimation = true;
+      _isLiked =!widget.isLiked;
+
+      service.toggleLike(postId: widget.id,isLiked:  _isLiked,like: widget.likes );
+      // _likeCount += _isLiked ? 1 : -1;
     });
   }
 
-  void _handleDoubleTap() {
+  _handleDoubleTap() {
     setState(() {
       _showHeartAnimation = true;
       if (!_isLiked) {
         _isLiked = true;
         _likeCount += 1;
       }
+      setState(() {
+        _isLiked = !widget.isLiked;
+        if (_isLiked) {
+          _pulseController.forward().then((_) => _pulseController.reset());
+        }
+      });
+      service.toggleLike(postId: widget.id,isLiked:  _isLiked,like: widget.likes );
+      // service.toggleLike(widget.id, _isLiked);
+      // return _isLiked;
     });
 
     _doubleTapTimer?.cancel();
@@ -227,9 +264,11 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with AutomaticKee
 
   @override
   Widget build(BuildContext context) {
-    final Size screenSize = MediaQuery.of(context).size;
-    super.build(context);
-    return VisibilityDetector(
+    // final Size screenSize = MediaQuery.of(context).size;
+    // super.build(context);
+    return Scaffold(
+        resizeToAvoidBottomInset: false,
+      body: VisibilityDetector(
       key: Key(widget.videoUrl),
       onVisibilityChanged: (visibilityInfo) {
         if (!_isControllerReady) return;
@@ -333,7 +372,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with AutomaticKee
 
             // 🔊 MUTE BUTTON
             Positioned(
-              top: 60,
+              top:   widget.username!=""?60: 1.h,
               right: 16,
               child: GestureDetector(
                 onTap: () {
@@ -380,19 +419,20 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with AutomaticKee
               ),
 
             // ❤️ DOUBLE TAP HEART ANIMATION
-            if (_showHeartAnimation)
+            if (_showHeartAnimation&&widget.username!="")
               Positioned(
                 left: _heartPosition.dx - 30,
                 top: _heartPosition.dy - 30,
                 child: TweenAnimationBuilder(
-                  tween: Tween<double>(begin: 0, end: 1),
+                  tween: Tween(begin: 0.0, end: 1.0),
                   duration: const Duration(milliseconds: 800),
                   curve: Curves.easeOutBack,
-                  builder: (context, double value, child) {
+                  builder: (context, opacity, child) {
+                    final safeOpacity = opacity.clamp(0.0, 1.0);
                     return Opacity(
-                      opacity: 1 - value,
+                      opacity: safeOpacity,
                       child: Transform.scale(
-                        scale: 1 + value,
+                        scale: safeOpacity,
                         child: const Icon(
                           Icons.favorite,
                           color: Colors.red,
@@ -405,195 +445,209 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with AutomaticKee
               ),
 
             // 📱 RIGHT SIDE ACTIONS
-            Positioned(
-              right: 1.w,
-              bottom: 1.h,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // PROFILE IMAGE WITH FOLLOW
-                  GestureDetector(
-                    onTap: () {},
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.white,
-                              width: 2,
+            if (widget.username!="")
+              Positioned(
+                right: 1.w,
+                bottom: 1.h,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // PROFILE IMAGE WITH FOLLOW
+                    GestureDetector(
+                      onTap: () {},
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white,
+                                width: 2,
+                              ),
+                            ),
+                            child: CustomImage(
+                              source: widget.profileImage,
+                              type: ImageType.circle,
                             ),
                           ),
-                          child: CustomImage(
-                            source: widget.profileImage,
-                            type: ImageType.circle,
+                          const SizedBox(height: 4),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _isFollowing = !_isFollowing;
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _isFollowing
+                                    ? Colors.transparent
+                                    : const Color(0xFFFF6B6B),
+                                border: _isFollowing
+                                    ? Border.all(color: Colors.white, width: 1)
+                                    : null,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                _isFollowing ? 'Suivi' : '+',
+                                style: GoogleFonts.montserrat(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
                           ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // ❤️ LIKE BUTTON
+                    _buildActionButton(
+                      icon: widget.alllike!.contains(AppUser.info!.googleId)? Icons.favorite : Icons.favorite_border,
+                      color: widget.alllike!.contains(AppUser.info!.googleId)? Colors.red : Colors.white,
+                      label: _formatCount(widget.likes),
+                      onTap: _toggleLike,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 💬 COMMENT BUTTON
+                    _buildActionButton(
+                      icon: Icons.chat_bubble_outline,
+                      color: Colors.white,
+                      label: _formatCount(widget.comments),
+                      onTap: () {
+                        // showModalBottomSheet(
+                        //   context: context,
+                        //   isScrollControlled: false, // ou true avec hauteur fixe
+                        //   builder: (context) => SizedBox(
+                        //       height: Get.height/1.5,
+                        //       child: CommentModal(videoId: widget.id, videoTitle: '',)),
+                        // );
+                        // _controller.pause();
+                        WidgetComponent.getmodal(isScrollControlled: true,sectionview: SizedBox(
+                            height: Get.height/1.4,
+                            child: CommentModal(videoId: widget.id, videoTitle: '',)));
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 📤 SHARE BUTTON
+                    _buildActionButton(
+                      icon: Icons.reply,
+                      color: Colors.white,
+                      label: _formatCount(widget.shares),
+                      onTap: () {},
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 🎵 MUSIC DISC
+                    Container(
+                      width: 45,
+                      height: 45,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: ClipOval(
+                        child: CustomImage(
+                          source: widget.profileImage,
+                          type: ImageType.circle,
                         ),
-                        const SizedBox(height: 4),
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _isFollowing = !_isFollowing;
-                            });
-                          },
-                          child: Container(
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // 📝 VIDEO INFO BOTTOM LEFT
+            if (widget.username!="")
+              Positioned(
+                left: 1.w,
+                bottom: 1.h,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // USERNAME
+                    GestureDetector(
+                      onTap: () {},
+                      child: Row(
+                        children: [
+                          Text(
+                            '@${widget.username}',
+                            style: GoogleFonts.montserrat(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
+                              horizontal: 6,
+                              vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: _isFollowing
-                                  ? Colors.transparent
-                                  : const Color(0xFFFF6B6B),
-                              border: _isFollowing
-                                  ? Border.all(color: Colors.white, width: 1)
-                                  : null,
-                              borderRadius: BorderRadius.circular(12),
+                              color: const Color(0xFFFF6B6B),
+                              borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-                              _isFollowing ? 'Suivi' : '+',
+                              'Suivre',
                               style: GoogleFonts.montserrat(
                                 color: Colors.white,
-                                fontSize: 12,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ❤️ LIKE BUTTON
-                  _buildActionButton(
-                    icon: _isLiked ? Icons.favorite : Icons.favorite_border,
-                    color: _isLiked ? Colors.red : Colors.white,
-                    label: _formatCount(_likeCount),
-                    onTap: _toggleLike,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 💬 COMMENT BUTTON
-                  _buildActionButton(
-                    icon: Icons.chat_bubble_outline,
-                    color: Colors.white,
-                    label: _formatCount(widget.comments),
-                    onTap: () {},
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 📤 SHARE BUTTON
-                  _buildActionButton(
-                    icon: Icons.reply,
-                    color: Colors.white,
-                    label: _formatCount(widget.shares),
-                    onTap: () {},
-                  ),
-                  const SizedBox(height: 16),
-
-                 // 🎵 MUSIC DISC
-                  Container(
-                    width: 45,
-                    height: 45,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                    child: ClipOval(
-                      child: CustomImage(
-                        source: widget.profileImage,
-                        type: ImageType.circle,
+                        ],
                       ),
                     ),
-                   ),
-                ],
-              ),
-            ),
+                    const SizedBox(height: 4),
 
-            // 📝 VIDEO INFO BOTTOM LEFT
-            Positioned(
-              left: 1.w,
-              bottom: 1.h,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // USERNAME
-                  GestureDetector(
-                    onTap: () {},
-                    child: Row(
-                      children: [
-                        Text(
-                          '@${widget.username}',
-                          style: GoogleFonts.montserrat(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFF6B6B),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            'Suivre',
-                            style: GoogleFonts.montserrat(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-
-                  // DESCRIPTION
-                  SizedBox(
-                    width: screenSize.width * 0.7,
-                    child: Text(
-                      widget.description,
-                      style: GoogleFonts.montserrat(
-                        color: Colors.white,
-                        fontSize: 14,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // MUSIC INFO
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.music_note,
-                        color: Colors.white,
-                        size: 14,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        widget.music,
+                    // DESCRIPTION
+                    SizedBox(
+                      width: Get.width * 0.7,
+                      child: Text(
+                        widget.description,
                         style: GoogleFonts.montserrat(
                           color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
+                          fontSize: 14,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    // MUSIC INFO
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.music_note,
+                          color: Colors.white,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          widget.music,
+                          style: GoogleFonts.montserrat(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
 
             // ⏹️ BOTTOM PROGRESS BAR
             if (_isControllerReady)
@@ -615,7 +669,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with AutomaticKee
           ],
         ),
       ),
-    );
+    ),);
   }
 
   Widget _buildActionButton({

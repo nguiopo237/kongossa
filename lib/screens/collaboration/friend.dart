@@ -39,6 +39,8 @@ class FriendFeedScreen extends StatelessWidget {
 
   // Méthode pour récupérer les vidéos depuis Firestore
   Stream<List<Map<String, dynamic>>> _getVideosFromFirestore() {
+    List<dynamic> comment = [];
+    List<dynamic> alllike = [];
     return
         Posts.where("postData.videopost", isNotEqualTo: [])
         .orderBy("timestamp", descending: true)
@@ -58,6 +60,15 @@ class FriendFeedScreen extends StatelessWidget {
         final postData = data['postData'] as Map<String, dynamic>? ?? {};
         final userData = data['userData'] as Map<String, dynamic>? ?? {};
 
+        if (postData!= null &&
+            postData['commentaire'] != null) {
+          comment = List.from(postData['commentaire']);
+        }
+        if (postData!= null &&
+            postData['allike'] != null) {
+          alllike = List.from(postData['allike']);
+        }
+
         return {
           'videoUrl': postData['videopost'] ?? '',
           'posttitle': postData['posttitle'] ?? '',
@@ -65,11 +76,14 @@ class FriendFeedScreen extends StatelessWidget {
           'description': postData['posttitle'] ?? 'description',
           'music': data['music'] ?? 'Son original',
           'likes': postData['likes'] ?? 0,
+          'islike': postData['islike'] ?? false,
           'comments': postData['comments'] ?? 0,
           'shares': postData['shares'] ?? 0,
           'profileImage': userData['photoUrl'] ?? '',
           'postId': doc.id,
           'timestamp': data['timestamp'],
+          'comment':comment,
+          'alllike':alllike,
         };
       }).toList();
     });
@@ -78,13 +92,15 @@ class FriendFeedScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: Colors.black,
-      body: StreamBuilder<List<Map<String, dynamic>>>(
+      body:  StreamBuilder<List<Map<String, dynamic>>>(
         // Utiliser les données mockées en développement, Firestore en production
         // stream: _getVideosFromFirestore(), // Décommentez pour Firestore
         stream: _getVideosFromFirestore(), // Commentez en production
         builder: (context, snapshot) {
           // Gestion des états de chargement
+          print('🔥 StreamBuilder rebuild à ${DateTime.now().millisecondsSinceEpoch}');
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(
               child: CircularProgressIndicator(
@@ -163,42 +179,28 @@ class FriendFeedScreen extends StatelessWidget {
           // Récupérer les vidéos filtrées
           final videos = snapshot.data!;
 
+
+
           return PageView.builder(
             scrollDirection: Axis.vertical,
             itemCount: videos.length,
             controller: PageController(initialPage: 0),
             itemBuilder: (context, index) {
-              final video = videos[index];  
-              // return Center(child: Column(
-              //   mainAxisAlignment: MainAxisAlignment.center,
-              //   children: [
-              //     Text(index.toString()),
-              //     Text(video['videoUrl'].toString()),
-              //     Text(video['posttitle'].toString()),
-              //   ],
-              // ));
+              final video = videos[index];
 
 
-
-              // print("link");
-              // print(video['videoUrl'].toString());
-              // print(video['videoUrl'].toString().replaceAll(RegExp(r'^[\[\]"]+'), ""));
-              // print(video['videoUrl'].toString().replaceAll("]", ""));
-              //  url = video['videoUrl'].toString().replaceAll("[", "");
-              // urls = url.toString().replaceAll("]", "");
-
-              // print("link");
-              // print("link");
-              // print(url);
               return Padding(
                 padding:  EdgeInsets.only(bottom: 10.h),
                 child: TikTokVideoPlayer(
+                  id: video['postId'].toString(),
                   videoUrl:  video['videoUrl'].toString(),
                   username: video['username'] ?? '',
                   description: video['description'] ?? '',
                   music: video['music'] ?? 'Son original',
-                  likes: video['likes'] ?? 0,
-                  comments: video['comments'] ?? 0,
+                  likes: List.from(video['alllike']).length,
+                  isLiked: video['islike'],
+                  comments: List.from(video['comment']).length,
+                  alllike:  List.from(video['alllike']),
                   shares: video['shares'] ?? 0,
                   profileImage: video['profileImage'] ?? '',
                 ),

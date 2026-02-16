@@ -1,6 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:expandable_text/expandable_text.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:get/get_utils/src/extensions/internacionalization.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kongossa/presentation/component/widget/cloudinaryvideoplayer.dart';
@@ -12,15 +14,20 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../../config_App/colorsApp.dart';
 import '../../../../config_App/image.dart';
+import '../../../../model/datamodel/user_model.dart';
 import '../../../../sevice/upload/upload_cloud.dart';
 import '../../../../sevice/upload/upload_post.dart';
 import '../../image_component/image.dart';
 import '../../style/custum_text.dart';
+import '../../video_component/comment_video.dart';
+import '../../video_component/tiktok_player_video.dart';
+import '../widget_component.dart';
 import 'like_button.dart';
 
 class PremiumPostcard extends StatefulWidget {
   final String? image;
   final String? name;
+  final List<dynamic>? alllike;
   final String? bio;
   final String id;
   final String? content;
@@ -52,6 +59,7 @@ class PremiumPostcard extends StatefulWidget {
     this.content,
     required this.id,
     this.postImage,
+    this.alllike,
     this.postVideo,
     this.likes = 0,
     this.comments = 0,
@@ -84,6 +92,8 @@ class _PremiumPostcardState extends State<PremiumPostcard> with TickerProviderSt
   late AnimationController _slideController;
   late Animation<Offset> _slideAnimation;
   late PageController _pageController;
+
+  WidgetComponent item = WidgetComponent();
 
   verifie() async {
     if (widget.postImage != null && widget.postImage!.isNotEmpty) {
@@ -144,7 +154,9 @@ class _PremiumPostcardState extends State<PremiumPostcard> with TickerProviderSt
         _pulseController.forward().then((_) => _pulseController.reset());
       }
     });
-    service.toggleLike(widget.id, _isLiked);
+    service.toggleLike(postId: widget.id,isLiked:  _isLiked,like: widget.likes );
+
+    // service.toggleLike(widget.id, _isLiked);
     return _isLiked;
   }
 
@@ -166,11 +178,14 @@ class _PremiumPostcardState extends State<PremiumPostcard> with TickerProviderSt
   Widget _buildMediaContent() {
     if (widget.postVideo != null && widget.postVideo!.isNotEmpty) {
       return Container(
-        margin: EdgeInsets.symmetric(vertical: 1.h),
+        height: 70.h,
+        // margin: EdgeInsets.symmetric(vertical: 1.h),
         child: Stack(
           children: [
+
             ClipRRect(
-              child: Videoplayerpost(videoUrl: widget.postVideo!),
+              child: TikTokVideoPlayer(id: widget.id,videoUrl: widget.postVideo!, username: '', description: '', music: '', profileImage: '',),
+              // child: Videoplayerpost(videoUrl: widget.postVideo!),
             ),
             Positioned(
               bottom: 2.w,
@@ -659,7 +674,7 @@ class _PremiumPostcardState extends State<PremiumPostcard> with TickerProviderSt
                   ),
                   child: Icon(
                     Icons.favorite,
-                    color: Colors.red,
+                    color: widget.alllike!.contains(AppUser.info!.googleId)? Colors.red : Colors.grey,
                     size: 12.sp,
                   ),
                 ),
@@ -729,12 +744,12 @@ class _PremiumPostcardState extends State<PremiumPostcard> with TickerProviderSt
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           _buildActionButton(
-            icon: _isLiked
+            icon: widget.alllike!.contains(AppUser.info!.googleId)
                 ? Icons.favorite_rounded
                 : Icons.favorite_outline_rounded,
             label: 'J\'aime',
-            color: _isLiked ? Colors.red : Colors.grey[600]!,
-            backgroundColor: _isLiked ? Colors.red.withOpacity(0.1) : null,
+            color: widget.alllike!.contains(AppUser.info!.googleId) ?  Colors.red : Colors.grey[600]!,
+            backgroundColor: widget.alllike!.contains(AppUser.info!.googleId) ? Colors.red.withOpacity(0.1) : null,
             onTap: () => _onLikeButtonTapped(_isLiked),
           ),
           _buildActionButton(
@@ -744,6 +759,9 @@ class _PremiumPostcardState extends State<PremiumPostcard> with TickerProviderSt
             // onTap: widget.onComment,
             onTap: () {
 
+              WidgetComponent.getmodal(sectionview: SizedBox(
+                  height: Get.height/1.3,
+                  child: CommentModal(videoId: widget.id, videoTitle: '',)));
             },
           ),
           _buildActionButton(
