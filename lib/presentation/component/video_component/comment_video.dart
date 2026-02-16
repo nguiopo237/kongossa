@@ -192,7 +192,8 @@ class _CommentModalState extends State<CommentModal>
     if (_commentController.text.trim().isEmpty) return;
 
     print(widget.videoId);
-    Get.back();
+    // Get.back();
+    FocusManager.instance.primaryFocus?.unfocus();
     try {
       DocumentReference postRef = FirebaseFirestore.instance
           .collection('postcarduser')
@@ -544,58 +545,113 @@ class _CommentModalState extends State<CommentModal>
               readOnly: true,
 
               onTap: () {
-                WidgetComponent.getmodal(
-                  isScrollControlled: true,
-                  sectionview: Padding(
-                    padding: const EdgeInsets.all(25),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _commentController,
-                            // focusNode: _focusNode,
-                            decoration: InputDecoration(
-                              hintText: 'Ajouter un commentaire...',
-                              hintStyle: TextStyle(color: Colors.grey[500]),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(25),
-                                borderSide: BorderSide.none,
+                Future.microtask((){
+                  WidgetComponent.getmodal(
+                    isScrollControlled: true,
+                    sectionview: Padding(
+                      padding: const EdgeInsets.all(25),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _commentController,
+                              // focusNode: _focusNode,
+                              decoration: InputDecoration(
+                                hintText: 'Ajouter un commentaire...',
+                                hintStyle: TextStyle(color: Colors.grey[500]),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(25),
+                                  borderSide: BorderSide.none,
+                                ),
+                                filled: true,
+                                fillColor: Colors.grey[100],
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 10,
+                                ),
                               ),
-                              filled: true,
-                              fillColor: Colors.grey[100],
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 10,
-                              ),
-                            ),
-                            maxLines: null,
-                            textInputAction: TextInputAction.send,
-                            onSubmitted: (_) => addComments(),
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: addComments,
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: _commentController.text.isNotEmpty
-                                  ? Colors.blue
-                                  : Colors.grey[300],
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.send,
-                              color: _commentController.text.isNotEmpty
-                                  ? Colors.white
-                                  : Colors.grey[600],
-                              size: 20,
+                              maxLines: null,
+                              textInputAction: TextInputAction.send,
+                              onSubmitted: (_) => addComments(),
                             ),
                           ),
-                        ),
-                      ],
+                          GestureDetector(
+                            onTap: addComments,
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: _commentController.text.isNotEmpty
+                                    ? Colors.blue
+                                    : Colors.grey[300],
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.send,
+                                color: _commentController.text.isNotEmpty
+                                    ? Colors.white
+                                    : Colors.grey[600],
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                );
+                  );
+                });
+
+                // WidgetComponent.getmodal(
+                //   isScrollControlled: true,
+                //   sectionview: Padding(
+                //     padding: const EdgeInsets.all(25),
+                //     child: Row(
+                //       children: [
+                //         Expanded(
+                //           child: TextField(
+                //             controller: _commentController,
+                //             // focusNode: _focusNode,
+                //             decoration: InputDecoration(
+                //               hintText: 'Ajouter un commentaire...',
+                //               hintStyle: TextStyle(color: Colors.grey[500]),
+                //               border: OutlineInputBorder(
+                //                 borderRadius: BorderRadius.circular(25),
+                //                 borderSide: BorderSide.none,
+                //               ),
+                //               filled: true,
+                //               fillColor: Colors.grey[100],
+                //               contentPadding: const EdgeInsets.symmetric(
+                //                 horizontal: 20,
+                //                 vertical: 10,
+                //               ),
+                //             ),
+                //             maxLines: null,
+                //             textInputAction: TextInputAction.send,
+                //             onSubmitted: (_) => addComments(),
+                //           ),
+                //         ),
+                //         GestureDetector(
+                //           onTap: addComments,
+                //           child: Container(
+                //             padding: const EdgeInsets.all(10),
+                //             decoration: BoxDecoration(
+                //               color: _commentController.text.isNotEmpty
+                //                   ? Colors.blue
+                //                   : Colors.grey[300],
+                //               shape: BoxShape.circle,
+                //             ),
+                //             child: Icon(
+                //               Icons.send,
+                //               color: _commentController.text.isNotEmpty
+                //                   ? Colors.white
+                //                   : Colors.grey[600],
+                //               size: 20,
+                //             ),
+                //           ),
+                //         ),
+                //       ],
+                //     ),
+                //   ),
+                // );
               },
               decoration: InputDecoration(
                 hintText: 'Ajouter un commentairess...',

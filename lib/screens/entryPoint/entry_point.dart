@@ -91,7 +91,7 @@ class _EntryPointState extends State<EntryPoint>
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      // resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: false,
       // backgroundColor: ColorApp.primary5,
       body: Container(
         height: Get.height,
@@ -105,7 +105,7 @@ class _EntryPointState extends State<EntryPoint>
           children: [
             AnimatedPositioned(
               width: 288,
-              height: MediaQuery.of(context).size.height,
+              height:Get.height,
               duration: const Duration(milliseconds: 200),
               curve: Curves.fastOutSlowIn,
               left: isSideBarOpen ? 0 : -288,
@@ -132,6 +132,13 @@ class _EntryPointState extends State<EntryPoint>
                       }
                       if (authController.indexpage.value == 1) {
                         return FriendFeedScreen();
+
+
+                         WidgetsBinding.instance.addPostFrameCallback((_) {
+                           if (Get.context != null) {
+                             Get.to(() => FriendFeedScreen());
+                           }
+                         });
                       }
                       if (authController.indexpage.value == 2) {
                         return  CreatePostPremiumScreen();

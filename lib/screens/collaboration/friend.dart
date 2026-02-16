@@ -7,32 +7,7 @@ import '../../presentation/component/video_component/tiktok_player_video.dart';
 
 class FriendFeedScreen extends StatelessWidget {
   // Données statiques pour le développement (à commenter en production)
-  final List<Map<String, dynamic>> mockVideos = [
-    {
-      'videoUrl':
-      'https://res.cloudinary.com/dlzkp9dix/video/upload/v1770851499/kogossa_app/secure/signed_1770851460270.mp4.mp4',
-      'username': 'kongossa_off',
-      'description':
-      'Le nouveau son qui fait danser tout Douala 🔥 #kongossa #camer',
-      'music': 'son original - Kongossa TV',
-      'likes': 15200,
-      'comments': 342,
-      'shares': 89,
-      'profileImage': 'https://randomuser.me/api/portraits/women/44.jpg',
-    },
-    {
-      'videoUrl':
-      'https://res.cloudinary.com/dlzkp9dix/video/upload/v1770851499/kogossa_app/secure/signed_1770851460271.mp4.mp4',
-      'username': 'camer_dance',
-      'description':
-      'Challenge dance 🇨🇲 #cameroun #dancechallenge',
-      'music': 'Afro beat - DJ Mix',
-      'likes': 8900,
-      'comments': 128,
-      'shares': 45,
-      'profileImage': 'https://randomuser.me/api/portraits/men/32.jpg',
-    },
-  ];
+
 
   String url = "";
   String urls = "";

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -36,7 +37,11 @@ void main() async {
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED, // Cache illimité
   );
   AppControllers.initialize();
-  runApp(const MyApp());
+  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
+      .then((_) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    runApp(MyApp());
+  });
 }
 
 class MyApp extends StatelessWidget {
@@ -78,7 +83,12 @@ class MyApp extends StatelessWidget {
                 vertical: 14,
               ),
             ),
+            useMaterial3: true,
+
           ),
+
+          enableLog: false,
+          defaultGlobalState: true,
         //  initialBinding: AppBinding(),
         //onInit: () => AppControllers.initialize(),
         onInit: () => authController.getUserInfoocally(),

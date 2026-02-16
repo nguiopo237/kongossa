@@ -523,17 +523,21 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with TickerProvid
                       color: Colors.white,
                       label: _formatCount(widget.comments),
                       onTap: () {
-                        // showModalBottomSheet(
-                        //   context: context,
-                        //   isScrollControlled: false, // ou true avec hauteur fixe
-                        //   builder: (context) => SizedBox(
-                        //       height: Get.height/1.5,
-                        //       child: CommentModal(videoId: widget.id, videoTitle: '',)),
-                        // );
+                        Future.microtask((){
+
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: false, // ou true avec hauteur fixe
+                            builder: (context) => SizedBox(
+                                height: Get.height/1.5,
+                                child: CommentModal(videoId: widget.id, videoTitle: '',)),
+                          );
+                        });
+
                         // _controller.pause();
-                        WidgetComponent.getmodal(isScrollControlled: true,sectionview: SizedBox(
-                            height: Get.height/1.4,
-                            child: CommentModal(videoId: widget.id, videoTitle: '',)));
+                        // WidgetComponent.getmodal(isScrollControlled: true,sectionview: SizedBox(
+                        //     height: Get.height/1.4,
+                        //     child: CommentModal(videoId: widget.id, videoTitle: '',)));
                       },
                     ),
                     const SizedBox(height: 16),
