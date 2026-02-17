@@ -64,6 +64,8 @@ dependencies:
   like_button: ^2.1.0
   visibility_detector: ^0.4.0+2
   timeago: ^3.5.0
+  firebase_messaging: ^16.1.1
+  flutter_local_notifications: ^19.0.0
 
   http:
 
