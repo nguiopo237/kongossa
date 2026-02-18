@@ -22,7 +22,7 @@ class WidgetComponent {
   static getmodal({Widget? sectionview, states,isScrollControlled=true}) {
 
    Get.bottomSheet(
-       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
        isScrollControlled: isScrollControlled,
         backgroundColor: Colors.transparent,
        Material(
@@ -53,6 +53,25 @@ class WidgetComponent {
 
 
   }
+
+
+  static void showNotification(String message, Color color,context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle, color: color),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Colors.grey[900],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      ),
+    );
+  }
+
 
  static getdialog({Widget? sectionview, states, barrierDismissible}) {
    return Get.dialog(

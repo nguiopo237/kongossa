@@ -13,6 +13,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 import '../../../model/datamodel/user_model.dart';
+import '../../../screens/profil_screen.dart';
 import '../../../sevice/upload/upload_post.dart';
 import '../image_component/image.dart';
 import '../widget/widget_component.dart';
@@ -23,6 +24,9 @@ class TikTokVideoPlayer extends StatefulWidget {
   final String username;
   final String description;
   final String music;
+  final String ?uid;
+  final String ?mail;
+  final String ?bio;
   final int likes;
   final bool isLiked;
   final String id;
@@ -31,7 +35,7 @@ class TikTokVideoPlayer extends StatefulWidget {
   final String profileImage;
   final List<dynamic>? alllike;
 
-  const TikTokVideoPlayer({
+   TikTokVideoPlayer({
     Key? key,
     required this.videoUrl,
     required this.username,
@@ -43,7 +47,7 @@ class TikTokVideoPlayer extends StatefulWidget {
     this.comments = 0,
     this.shares = 0,
     this.alllike ,
-    required this.profileImage,
+    required this.profileImage, this.uid, this.mail, this.bio,
   }) : super(key: key);
 
   @override
@@ -493,19 +497,32 @@ void _onVideoEnded() {
                       onTap: () {},
                       child: Column(
                         children: [
-                          Container(
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.white,
-                                width: 2,
+                          InkWell(onTap: () {
+                            Get.to(PremiumProfileScreen (
+                              userId: widget.uid ,
+                              avatarUrl: widget.profileImage,
+                              displayName: widget.username?? 'Utilisateur',
+                              username: widget.username ?? 'Utilisateur',
+                              mail: widget.mail,
+                              bio: "${widget.bio ??"Créateur de contenu | Digital Creator ✨\nCollaborations"}  📩 ${widget.mail}",
+
+                            ));
+                          },
+
+                            child: Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 2,
+                                ),
                               ),
-                            ),
-                            child: CustomImage(
-                              source: widget.profileImage,
-                              type: ImageType.circle,
+                              child: CustomImage(
+                                source: widget.profileImage,
+                                type: ImageType.circle,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 4),

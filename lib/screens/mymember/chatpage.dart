@@ -2,12 +2,15 @@
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:kongossa/config_App/image.dart';
 import 'package:kongossa/model/datamodel/user_model.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../main.dart';
 import '../../model/datamodel/message_model.dart';
 import '../../presentation/component/widget/message_bulble.dart';
+import '../../sevice/controlleur/notification/chat_notificationservice/chatnotification.dart';
+import '../../sevice/controlleur/notification/fcm_service.dart';
 import '../../sevice/controlleur/splashcontrolleur/splashscreen_controlleur.dart';
 
 class ChatPage extends StatefulWidget {
@@ -20,7 +23,7 @@ class ChatPage extends StatefulWidget {
     Key? key,
     required this.receiverId,
     required this.receiverName,
-     this.isOnline = true,
+    this.isOnline = true,
     this.receiverPhoto,
   }) : super(key: key);
 
@@ -32,6 +35,15 @@ class _ChatPageState extends State<ChatPage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   var uuid = const Uuid();
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      scrollToBottom(); // Le widget est construit
+    });
+  }
 
   PreferredSizeWidget _buildPremiumAppBar() {
     return AppBar(
@@ -60,12 +72,12 @@ class _ChatPageState extends State<ChatPage> {
                       : null,
                   child: widget.receiverPhoto == null
                       ? Text(
-                    widget.receiverName[0].toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )
+                          widget.receiverName[0].toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
                       : null,
                 ),
               ),
@@ -167,104 +179,130 @@ class _ChatPageState extends State<ChatPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _buildPremiumAppBar(),
-      body: Column(
-        children: [
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: Sms
-                  .where("senderId", whereIn: ['${AppUser.info!.googleId}', '${widget.receiverId}'])
-                  .where("receiveId", whereIn: ['${AppUser.info!.googleId}', '${widget.receiverId}'])
-                  .orderBy("timestamp", descending: false)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Center(child: CircularProgressIndicator());
-                } else if (snapshot.hasError) {
-                  return Center(child: Text('Erreur : ${snapshot.error}'));
-                } else if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text('Pas de messages'),
-                        Text('Commencez la conversation !'),
-                      ],
-                    ),
-                  );
-                } else {
-                  // ✅ CORRECTION : Convertir correctement les documents en objets Messagemodel
-                  final messages = snapshot.data!.docs.map((doc) {
-                    // Récupérer les données du document
-                    final data = doc.data() as Map<String, dynamic>;
-
-                    // Créer un objet Messagemodel à partir des données
-                    return Messagemodel(
-                      id: doc.id,
-
-                      senderId: data['senderId'] ?? '',
-                      receiveId: data['receiveId'] ?? '',
-                      content: data['content'] ?? data['text'] ?? '',
-                      timestamp: data['timestamp'] != null
-                          ? (data['timestamp'] as Timestamp).toDate()
-                          : DateTime.now(),
-                      // Ajoutez ici tous les champs nécessaires à votre Messagemodel
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(fit: BoxFit.cover,image: AssetImage(Consticon.backgroundsms)),
+        ),
+        child: Column(
+          children: [
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream:
+                    Sms.where(
+                          "senderId",
+                          whereIn: [
+                            '${AppUser.info!.googleId}',
+                            '${widget.receiverId}',
+                          ],
+                        )
+                        .where(
+                          "receiveId",
+                          whereIn: [
+                            '${AppUser.info!.googleId}',
+                            '${widget.receiverId}',
+                          ],
+                        )
+                        .orderBy("timestamp", descending: false)
+                        .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Center(child: CircularProgressIndicator());
+                  } else if (snapshot.hasError) {
+                    return Center(child: Text('Erreur : ${snapshot.error}'));
+                  } else if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.chat_bubble_outline,
+                            size: 64,
+                            color: Colors.grey,
+                          ),
+                          SizedBox(height: 16),
+                          Text('Pas de messages'),
+                          Text('Commencez la conversation !'),
+                        ],
+                      ),
                     );
-                  }).toList();
+                  } else {
+                    // ✅ CORRECTION : Convertir correctement les documents en objets Messagemodel
+                    final messages = snapshot.data!.docs.map((doc) {
+                      // Récupérer les données du document
+                      final data = doc.data() as Map<String, dynamic>;
 
-                  final messageGroups = MessageService.groupMessagesByDate(messages);
+                      // Créer un objet Messagemodel à partir des données
+                      return Messagemodel(
+                        id: doc.id,
 
-                  return Container(
-                    child: ListView.builder(
-                      reverse: false,
-                      padding: const EdgeInsets.all(16),
-                      itemCount: messageGroups.length,
-                      itemBuilder: (context, groupIndex) {
-                        final group = messageGroups[groupIndex];
+                        senderId: data['senderId'] ?? '',
+                        receiveId: data['receiveId'] ?? '',
+                        content: data['content'] ?? data['text'] ?? '',
+                        timestamp: data['timestamp'] != null
+                            ? (data['timestamp'] as Timestamp).toDate()
+                            : DateTime.now(),
+                        // Ajoutez ici tous les champs nécessaires à votre Messagemodel
+                      );
+                    }).toList();
 
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Center(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[300],
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Text(
-                                  group.title,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.black54,
+                    final messageGroups = MessageService.groupMessagesByDate(
+                      messages,
+                    );
+
+                    return Container(
+                      child: ListView.builder(
+                        reverse: false,
+                        padding: const EdgeInsets.all(16),
+                        controller: _scrollController,
+                        itemCount: messageGroups.length,
+                        itemBuilder: (context, groupIndex) {
+                          final group = messageGroups[groupIndex];
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Text(
+                                    group.title,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.black54,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 16),
-                            // Text(data),
-                            ...group.messages.map((message) {
-                              return MessageBubble(
-                                message: message,
-                                isMe: message.senderId == AppUser.info!.googleId,
-                              );
-                            }).toList(),
-                          ],
-                        );
-                      },
-                    ),
-                  );
-                }
-              },
+                              const SizedBox(height: 16),
+                              // Text(data),
+                              ...group.messages.map((message) {
+                                return MessageBubble(
+                                  message: message,
+                                  isMe:
+                                      message.senderId ==
+                                      AppUser.info!.googleId,
+                                );
+                              }).toList(),
+                            ],
+                          );
+                        },
+                      ),
+                    );
+                  }
+                },
+              ),
             ),
-          ),
-          _buildMessageInput(),
-        ],
+            _buildMessageInput(),
+          ],
+        ),
       ),
     );
   }
@@ -310,7 +348,47 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  void _sendMessage() {
+  // final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FCMService fcmService = FCMService();
+
+  void scrollToBottom() {
+    print("check");
+    try {
+      if (_scrollController.hasClients) {
+        // Vérifier si on n'est pas déjà en bas
+        final currentPosition = _scrollController.position.pixels;
+        final maxPosition = _scrollController.position.maxScrollExtent;
+        print("check");
+        print(currentPosition);
+        print(maxPosition);
+        print("check");
+
+        // Ne faire défiler que si on n'est pas déjà en bas (à 50px près)
+        if ((maxPosition - currentPosition).abs() > 50) {
+          _scrollController
+              .animateTo(
+                maxPosition,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              )
+              .then((_) {
+                print('Défilement terminé');
+              })
+              .catchError((error) {
+                print('Erreur de défilement: $error');
+              });
+        }
+      } else {
+        print("_scrollController.hasClients");
+        print(_scrollController.hasClients);
+        print("_scrollController.hasClients");
+      }
+    } catch (e) {
+      print('Erreur dans _scrollToBottom: $e');
+    }
+  }
+
+  Future<void> _sendMessage() async {
     final String uniqueId = uuid.v4();
     if (_messageController.text.trim().isEmpty) return;
 
@@ -321,10 +399,22 @@ class _ChatPageState extends State<ChatPage> {
       "namesenderId": "${AppUser.info!.displayName}",
       "senderId": "${AppUser.info!.googleId}",
       "receiveId": "${widget.receiverId}",
-      // "senderId": "${widget.receiverId}",
-      // "receiveId": "${AppUser.info!.googleId}",
+      "isRead": false,
     });
+
+    // Version avec gestion d'erreur et animation personnalisée
+
+    scrollToBottom();
+
+
+    await fcmService.sendNotificationToTopic(
+      topic: 'chat_${widget.receiverId}',
+      title: 'Nouveau message',
+      body: '${AppUser.info!.displayName}: ${_messageController.text}',
+    );
 
     _messageController.clear();
   }
+
+  // Méthode simple pour faire défiler vers le bas
 }

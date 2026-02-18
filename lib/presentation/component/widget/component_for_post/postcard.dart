@@ -69,7 +69,7 @@ class PremiumPostcard extends StatefulWidget {
     this.timestamp,
     this.location,
     this.privacy,
-    this.carouselImages,
+    this.carouselImages, 
     this.onBookmark,
     this.onShare,
     this.onComment,
@@ -546,7 +546,7 @@ class _PremiumPostcardState extends State<PremiumPostcard> with TickerProviderSt
       child: ExpandableText(
         widget.content!,
         style: GoogleFonts.inter(
-          fontWeight: FontWeight.w400,
+          fontWeight: FontWeight.bold,
           fontSize: 14.5.sp,
           height: 1.5,
           color: Colors.grey[900],

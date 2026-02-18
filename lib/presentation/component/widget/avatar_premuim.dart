@@ -3,10 +3,14 @@
 import 'package:flutter/material.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 
+import '../../../config_App/image.dart';
+import '../../../model/datamodel/user_model.dart';
+import '../../../sevice/controlleur/splashcontrolleur/splashscreen_controlleur.dart';
 import '../../../sevice/theme/theme_profil.dart';
 
 class PremiumAvatar extends StatelessWidget {
   final String? imageUrl;
+  final String? userId;
   final double size;
   final bool hasStory;
   final bool isLive;
@@ -16,6 +20,7 @@ class PremiumAvatar extends StatelessWidget {
   const PremiumAvatar({
     Key? key,
     this.imageUrl,
+    this.userId,
     this.size = 60,
     this.hasStory = false,
     this.isLive = false,
@@ -37,14 +42,14 @@ class PremiumAvatar extends StatelessWidget {
               shape: BoxShape.circle,
               gradient: hasStory
                   ? const LinearGradient(
-                colors: [
-                  Color(0xFFFCE38A),
-                  Color(0xFFFF6B6B),
-                  Color(0xFFA8E6CF),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              )
+                      colors: [
+                        Color(0xFFFCE38A),
+                        Color(0xFFFF6B6B),
+                        Color(0xFFA8E6CF),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
                   : null,
             ),
             child: Container(
@@ -59,9 +64,16 @@ class PremiumAvatar extends StatelessWidget {
                 radius: size / 2,
                 backgroundImage: imageUrl != null
                     ? NetworkImage(imageUrl!)
-                    : const AssetImage('assets/default_avatar.png')
+                    : const AssetImage(Consticon.profils)
                 as ImageProvider,
                 backgroundColor: Colors.grey[800],
+                child: Visibility(
+                  visible:  imageUrl == null,
+                  child: s.buildUserProfile(
+                  width: 40.w,
+                  height: 40.h,
+                  uid: AppUser.info!.googleId == userId ? null : userId,
+                ),),
               ),
             ),
           ),
@@ -96,11 +108,7 @@ class PremiumAvatar extends StatelessWidget {
                   color: AppTheme.primaryColor,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.check,
-                  color: Colors.white,
-                  size: 12,
-                ),
+                child: const Icon(Icons.check, color: Colors.white, size: 12),
               ),
             ),
         ],

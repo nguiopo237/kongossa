@@ -230,7 +230,7 @@ class _MembersPageState extends State<MembersPage> with SingleTickerProviderStat
                 member: member,
                 onTap: () {
                   Get.to(ChatPage(
-                    receiverId: member.googleId,
+                    receiverId: member.uid,
                     receiverName: member.displayName ?? member.username,
                     receiverPhoto: member.photoUrl,
                     // isOnline: true,

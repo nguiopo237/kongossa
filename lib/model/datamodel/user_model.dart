@@ -10,6 +10,7 @@ class AppUser {
   DateTime createdAt;
   DateTime updatedAt;
   String? phoneNumber;
+  String? bio;
   bool isEmailVerified;
 
   AppUser({
@@ -22,6 +23,7 @@ class AppUser {
     required this.createdAt,
     required this.updatedAt,
     this.phoneNumber,
+    this.bio,
     this.isEmailVerified = false,
   });
 
@@ -37,6 +39,7 @@ class AppUser {
       displayName: data['displayName'] ?? '',
       email: data['email'] ?? '',
       photoUrl: data['photoUrl'],
+      bio: data['bio'],
       serverAuthCode: data['serverAuthCode'],
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       updatedAt: (data['updatedAt'] as Timestamp).toDate(),
@@ -50,6 +53,7 @@ class AppUser {
     return {
       'googleId': googleId,
       'displayName': displayName,
+      'bio': bio,
       'email': email,
       'photoUrl': photoUrl,
       'serverAuthCode': serverAuthCode,

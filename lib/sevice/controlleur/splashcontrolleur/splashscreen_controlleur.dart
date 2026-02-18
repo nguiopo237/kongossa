@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -18,6 +19,9 @@ class SplashController extends GetxController {
 
   final isLoading = true.obs;
   final errorMessage = ''.obs;
+  StreamSubscription? subscription;
+  RxBool isDeviceConnected = false.obs;
+  RxBool isAlertSet = false.obs;
 
   @override
   void onInit() {
@@ -78,7 +82,8 @@ class SplashController extends GetxController {
     );
   }
 
-  Widget buildProfileContent(DocumentSnapshot document) {
+  Widget buildProfileContent(
+      {DocumentSnapshot? document, double ?width = 10, double ?height = 10}) {
     return Container(
       padding: EdgeInsets.all(0.5.w),
       decoration: BoxDecoration(
@@ -103,10 +108,10 @@ class SplashController extends GetxController {
             // Avatar
             ClipRRect(
               borderRadius: BorderRadius.circular(100),
-              child: document["photoUrl"] == null || document["photoUrl"] == ""
+              child: document!["photoUrl"] == null || document["photoUrl"] == ""
                   ? Container(
-                width: 10.w,
-                height: 10.w,
+                width: width!.w,
+                height: height!.w,
                 color: Colors.grey[100],
                 child: Icon(
                   CupertinoIcons.person_fill,
@@ -117,8 +122,8 @@ class SplashController extends GetxController {
                   : CustomImage(
                 source: document["photoUrl"]!,
                 type: ImageType.network,
-                width: 8.w,
-                height: 8.w,
+                width: width!.w,
+                height: height!.w,
                 fit: BoxFit.cover,
               ),
             ),
@@ -201,9 +206,9 @@ class SplashController extends GetxController {
   }
 
 
-  Widget buildUserProfile() {
+  Widget buildUserProfile({double ?width = 10, double ?height = 10,uid}) {
     return StreamBuilder(
-      stream: Users.where('googleId', isEqualTo: AppUser.info?.googleId).snapshots(),
+      stream: Users.where('googleId', isEqualTo: uid??AppUser.info?.googleId).snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return buildProfileShimmer();
@@ -215,7 +220,7 @@ class SplashController extends GetxController {
 
         try {
           final document = snapshot.data!.docs.first;
-          return buildProfileContent(document);
+          return buildProfileContent(document: document,height:height,width: width );
         } catch (e) {
           return buildDefaultProfile();
         }

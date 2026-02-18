@@ -11,6 +11,8 @@ import 'package:kongossa/screens/onboding/onboding_screen.dart';
 import 'package:kongossa/screens/splashscreen/splaschsreen.dart';
 import 'package:kongossa/sevice/controlleur/authentification/auth_controlleur.dart';
 import 'package:kongossa/sevice/controlleur/init_controlleur/init_controlleur.dart';
+import 'package:kongossa/sevice/controlleur/notification/firebase_messaging_service.dart';
+import 'package:kongossa/sevice/controlleur/notification/local_notifications_service.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 
 import 'firebase_options.dart';
@@ -36,6 +38,13 @@ void main() async {
     persistenceEnabled: true,
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED, // Cache illimité
   );
+
+  final localNotificationsService = LocalNotificationsService.instance();
+  await localNotificationsService.init();
+  final firebaseMessagingService = FirebaseMessagingService.instance();
+  await firebaseMessagingService.init(localNotificationsService: localNotificationsService);
+
+
   AppControllers.initialize();
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
       .then((_) {

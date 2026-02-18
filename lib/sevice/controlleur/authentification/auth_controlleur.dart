@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -33,6 +34,8 @@ class AuthController extends GetxController {
   final RxInt resendTimer = 0.obs;
   final RxBool canResend = true.obs;
   Timer? _resendTimer;
+  String? _currentToken;
+  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
 
   @override
   void onInit() {
@@ -53,6 +56,40 @@ class AuthController extends GetxController {
       print("user");
     });
     super.onReady();
+  }
+
+  Future<String?> getCurrentToken() async {
+    print("start");
+    User? user = _auth.currentUser;
+    if (user != null) {
+      _currentToken = await user.getIdToken();
+      print(_currentToken);
+      print(user.uid);
+      return _currentToken;
+    }
+    return null;
+  }
+
+  Future<String?> getFirebaseToken() async {
+
+
+    NotificationSettings settings = await _fcm.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    if (settings.authorizationStatus != AuthorizationStatus.authorized) {
+      print('Permission refusée');
+    }
+
+
+    String? token = await _fcm.getToken();
+    print('Token FCM: $token');
+    _fcm.onTokenRefresh.listen((newToken) {
+      print('Nouveau token: $newToken');
+      // Mettre à jour le token dans votre base de données si nécessaire
+    });
   }
 
 
@@ -85,6 +122,11 @@ class AuthController extends GetxController {
 
       // 1. Authentification avec Google
       final GoogleSignInAccount? googleAccount = await _googleSignIn.signIn();
+
+      // print("_googleSignIn.clientId");
+      // print(googleAccount!.serverAuthCode);
+      // print("_googleSignIn.clientId");
+
 
       if (googleAccount == null) {
         // L'utilisateur a annulé
@@ -189,6 +231,7 @@ class AuthController extends GetxController {
   Future<void> getdelete() async {
     final prefs = await SharedPreferences.getInstance();
     prefs.remove("userinfo");
+    await _googleSignIn.signOut();
     Get.offAll(()=>OnbodingScreen());
   }
 

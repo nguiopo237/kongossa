@@ -68,8 +68,10 @@ class Consticon{
   static const String cochon= 'assets/images/cochon.png';
   static const String person= 'assets/images/person.png';
   static const String logo= 'assets/logo/logo.png';
+  static const String profils= 'assets/avaters/AvatarDefault.jpg';
   static const String background= 'assets/Backgrounds/motif_g.jpeg';
   static const String background2= 'assets/Backgrounds/pagne.jpeg';
+  static const String backgroundsms= 'assets/Backgrounds/kongossaback.jpg';
 
   Future<String> getMedia({String ?item}) async {
     String url  = "${Env.baseurlImg}/${item}";

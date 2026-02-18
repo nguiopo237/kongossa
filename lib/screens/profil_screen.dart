@@ -1,20 +1,33 @@
 // lib/screens/profile/premium_profile_screen.dart
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kongossa/model/datamodel/user_model.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 
-
+import '../main.dart';
 import '../model/datamodel/profil_model.dart';
 import '../presentation/component/widget/avatar_premuim.dart';
 import '../sevice/theme/theme_profil.dart';
+import 'mymember/chatpage.dart';
 
 class PremiumProfileScreen extends StatefulWidget {
-  final String userId;
+  final String? userId;
+  final String? username;
+  final String? displayName;
+  final String? avatarUrl;
+  final String? bio;
+  final String? mail;
 
-  const PremiumProfileScreen({
+  PremiumProfileScreen({
     Key? key,
     required this.userId,
+    this.username,
+    this.displayName,
+    this.avatarUrl,
+    this.bio,
+    this.mail,
   }) : super(key: key);
 
   @override
@@ -23,7 +36,6 @@ class PremiumProfileScreen extends StatefulWidget {
 
 class _PremiumProfileScreenState extends State<PremiumProfileScreen>
     with SingleTickerProviderStateMixin {
-
   late TabController _tabController;
   bool isFollowing = false;
   bool isCurrentUser = false; // À définir selon l'utilisateur connecté
@@ -41,27 +53,37 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
   void _loadUserData() {
     // Simuler le chargement des données
     userProfile = UserProfileModel(
-      uid: widget.userId,
-      username: '@recharge237',
-      displayName: 'RECHARGE237',
-      avatarUrl: 'https://i.pravatar.cc/300',
-      bio: 'Créateur de contenu | Digital Creator ✨\nCollaborations 📩 recharge237@gmail.com',
-      website: 'https://recharge237.com',
+      uid: widget.userId!,
+      username: '@${widget.displayName}',
+      displayName: '${widget.displayName}',
+      avatarUrl: '${widget.avatarUrl}',
+      bio: '${widget.bio}',
+      website: '${widget.mail}',
       followersCount: 12500,
       followingCount: 850,
       likesCount: 125000,
       postsCount: 42,
       isVerified: true,
       joinedDate: DateTime.now().subtract(const Duration(days: 365)),
-      posts: List.generate(12, (index) => PostModel(
-        id: 'post_$index',
-        mediaUrl: 'https://picsum.photos/300/400?random=$index',
-        mediaType: index % 3 == 0 ? MediaType.video : MediaType.image,
-        likesCount: 1500 + index * 100,
-        commentsCount: 85 + index,
-        timestamp: DateTime.now().subtract(Duration(days: index)),
-      )),
+      posts: List.generate(
+        12,
+        (index) => PostModel(
+          id: 'post_$index',
+          mediaUrl: 'https://picsum.photos/300/400?random=$index',
+          mediaType: index % 3 == 0 ? MediaType.video : MediaType.image,
+          likesCount: 1500 + index * 100,
+          commentsCount: 85 + index,
+          timestamp: DateTime.now().subtract(Duration(days: index)),
+        ),
+      ),
     );
+  }
+
+  Stream watchUserPostCount() {
+    return Posts.where(
+      'userData.googleId',
+      isEqualTo: widget.userId,
+    ).snapshots();
   }
 
   @override
@@ -84,41 +106,29 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
                 icon: const Icon(Icons.share_outlined),
                 onPressed: () {},
               ),
-              IconButton(
-                icon: const Icon(Icons.more_vert),
-                onPressed: () {},
-              ),
+              IconButton(icon: const Icon(Icons.more_vert), onPressed: () {}),
             ],
           ),
 
           // Informations du profil
-          SliverToBoxAdapter(
-            child: _buildProfileInfo(),
-          ),
+          SliverToBoxAdapter(child: _buildProfileInfo()),
 
           // Statistiques
-          SliverToBoxAdapter(
-            child: _buildStatsRow(),
-          ),
+          SliverToBoxAdapter(child: _buildStatsRow()),
 
           // Boutons d'action
-          SliverToBoxAdapter(
-            child: _buildActionButtons(),
-          ),
+          if (widget.userId != AppUser.info!.googleId)
+            SliverToBoxAdapter(child: _buildActionButtons()),
 
           // Stories
-          SliverToBoxAdapter(
-            child: _buildStoriesSection(),
-          ),
+          SliverToBoxAdapter(child: _buildStoriesSection()),
 
           // Tab Bar
-          SliverToBoxAdapter(
-            child: _buildTabBar(),
-          ),
+          SliverToBoxAdapter(child: _buildTabBar()),
 
           // Grille des posts
           SliverPadding(
-            padding: EdgeInsets.only(right: 0.5.w,left: 0.5,bottom: 10.h),
+            padding: EdgeInsets.only(right: 0.5.w, left: 0.5, bottom: 10.h),
             sliver: _buildPostsGrid(),
           ),
         ],
@@ -159,10 +169,7 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  AppTheme.backgroundColor,
-                ],
+                colors: [Colors.transparent, AppTheme.backgroundColor],
               ),
             ),
           ),
@@ -180,7 +187,8 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
           Row(
             children: [
               PremiumAvatar(
-                imageUrl: userProfile.avatarUrl,
+                // imageUrl: userProfile.avatarUrl,
+                userId: widget.userId,
                 size: 80,
                 hasStory: true,
                 isVerified: userProfile.isVerified,
@@ -196,16 +204,13 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                     color: Colors.blue,
+                        color: Colors.blue,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       userProfile.username,
-                      style: TextStyle(
-                        fontSize: 14,
-                          color: Colors.blue
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.blue),
                     ),
                   ],
                 ),
@@ -237,10 +242,7 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
           const SizedBox(height: 4),
           Text(
             'A rejoint ${_formatDate(userProfile.joinedDate)}',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppTheme.textSecondary,
-            ),
+            style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
           ),
         ],
       ),
@@ -248,29 +250,69 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
   }
 
   Widget _buildStatsRow() {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 4.w),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildStatItem(
-            value: userProfile.postsCount.toString(),
-            label: 'Posts',
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('postcarduser')
+          .where('userData.googleId', isEqualTo: widget.userId) // Posts de l'utilisateur
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Text('Erreur: ${snapshot.error}');
+        }
+
+        if (!snapshot.hasData) {
+          return Center(child: CircularProgressIndicator());
+        }
+
+        // Statistiques pour les posts de l'utilisateur
+        final docs = snapshot.data!.docs;
+        int postsCount = docs.length;
+        int totalLikesRecus = 0; // Likes sur SES posts
+
+        for (var doc in docs) {
+          Map<String, dynamic> postData = doc.data() as Map<String, dynamic>;
+          List<dynamic> allike = postData["postData"]['allike'] ?? [];
+          // if (allike.contains(widget.userId))
+          if (allike.isNotEmpty) {
+            totalLikesRecus += 1;
+            print('📝 Post ${doc.id}: Liké par cet utilisateur');
+            print(totalLikesRecus);
+          } else {
+            print('📝 Post ${doc.id}: Non liké par cet utilisateur');
+          }
+          print('📝 Post ${doc.id}: ${allike.length} likes reçus }');
+        }
+        print("totalLikesRecus");
+        print(totalLikesRecus);
+        print("totalLikesRecus");
+
+        // Pour compter les likes DONNÉS par l'utilisateur (sur les posts des autres)
+        int likesDonnes = 0;
+        // Il faudra une autre requête pour ça
+        // Je vous montre après
+
+        return Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildStatItem(value: postsCount.toString(), label: 'Posts'),
+              _buildStatItem(
+                value: _formatNumber(userProfile.followersCount),
+                label: 'Followers',
+              ),
+              _buildStatItem(
+                value: _formatNumber(userProfile.followingCount),
+                label: 'Following',
+              ),
+              _buildStatItem(
+                value: totalLikesRecus.toString(), // 👍 Likes REÇUS
+                label: 'Likes reçus',
+              ),
+            ],
           ),
-          _buildStatItem(
-            value: _formatNumber(userProfile.followersCount),
-            label: 'Followers',
-          ),
-          _buildStatItem(
-            value: _formatNumber(userProfile.followingCount),
-            label: 'Following',
-          ),
-          _buildStatItem(
-            value: _formatNumber(userProfile.likesCount),
-            label: 'Likes',
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -288,10 +330,7 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
         const SizedBox(height: 4),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 12,
-            color: AppTheme.textSecondary,
-          ),
+          style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
         ),
       ],
     );
@@ -310,7 +349,9 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
                 });
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: isFollowing ? Colors.transparent : AppTheme.primaryColor,
+                backgroundColor: isFollowing
+                    ? Colors.transparent
+                    : AppTheme.primaryColor,
                 foregroundColor: AppTheme.textPrimary,
                 elevation: 0,
                 padding: EdgeInsets.symmetric(vertical: 1.5.h),
@@ -337,7 +378,16 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
             ),
             child: IconButton(
               icon: const Icon(Icons.message_outlined),
-              onPressed: () {},
+              onPressed: () {
+                Get.to(
+                  ChatPage(
+                    receiverId: widget.userId!,
+                    receiverName: widget.displayName ?? "anonyme",
+                    receiverPhoto: widget.avatarUrl,
+                    // isOnline: true,
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -365,10 +415,7 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
                 const SizedBox(height: 4),
                 Text(
                   'Story ${index + 1}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppTheme.textSecondary,
-                  ),
+                  style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                 ),
               ],
             ),
@@ -382,9 +429,7 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
     return Container(
       margin: EdgeInsets.only(top: 2.h),
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: AppTheme.dividerColor),
-        ),
+        border: Border(bottom: BorderSide(color: AppTheme.dividerColor)),
       ),
       child: TabBar(
         controller: _tabController,
@@ -393,9 +438,9 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
         labelColor: AppTheme.textPrimary,
         unselectedLabelColor: AppTheme.textSecondary,
         tabs: const [
-          Tab(icon: Icon(Icons.grid_on_outlined,color: Colors.blue,)),
-          Tab(icon: Icon(Icons.favorite_border,color: Colors.blue)),
-          Tab(icon: Icon(Icons.bookmark_border,color: Colors.blue)),
+          Tab(icon: Icon(Icons.grid_on_outlined, color: Colors.blue)),
+          Tab(icon: Icon(Icons.favorite_border, color: Colors.blue)),
+          Tab(icon: Icon(Icons.bookmark_border, color: Colors.blue)),
         ],
       ),
     );
@@ -409,13 +454,10 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
         mainAxisSpacing: 2,
         childAspectRatio: 0.8,
       ),
-      delegate: SliverChildBuilderDelegate(
-            (context, index) {
-          final post = userProfile.posts?[index];
-          return _buildGridItem(post);
-        },
-        childCount: userProfile.posts?.length ?? 0,
-      ),
+      delegate: SliverChildBuilderDelegate((context, index) {
+        final post = userProfile.posts?[index];
+        return _buildGridItem(post);
+      }, childCount: userProfile.posts?.length ?? 0),
     );
   }
 
@@ -424,10 +466,7 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
       fit: StackFit.expand,
       children: [
         // Image/Video thumbnail
-        Image.network(
-          post?.mediaUrl ?? '',
-          fit: BoxFit.cover,
-        ),
+        Image.network(post?.mediaUrl ?? '', fit: BoxFit.cover),
 
         // Overlay gradient
         Positioned(
@@ -440,17 +479,18 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  Colors.black.withOpacity(0.7),
-                ],
+                colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
               ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 if (post?.mediaType == MediaType.video)
-                  const Icon(Icons.play_circle_outline, color: Colors.white, size: 16),
+                  const Icon(
+                    Icons.play_circle_outline,
+                    color: Colors.white,
+                    size: 16,
+                  ),
                 Row(
                   children: [
                     const Icon(Icons.favorite, color: Colors.white, size: 12),
@@ -480,8 +520,18 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
 
   String _formatDate(DateTime date) {
     final months = [
-      'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
-      'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'
+      'janvier',
+      'février',
+      'mars',
+      'avril',
+      'mai',
+      'juin',
+      'juillet',
+      'août',
+      'septembre',
+      'octobre',
+      'novembre',
+      'décembre',
     ];
     return '${months[date.month - 1]} ${date.year}';
   }

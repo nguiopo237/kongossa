@@ -2,12 +2,18 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:get/get_core/src/get_main.dart';
+import 'package:kongossa/presentation/component/widget/widget_component.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../main.dart';
+import '../../model/datamodel/user_model.dart';
 import '../../presentation/component/widget/appbar.dart';
+import '../../presentation/component/widget/component_for_post/option_card.dart';
 import '../../presentation/component/widget/component_for_post/postcard.dart';
+import '../profil_screen.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -44,9 +50,7 @@ class _HomePageState extends State<HomePage> {
             elevation: 2,
             shadowColor: Colors.black12,
             shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(
-                bottom: Radius.circular(24),
-              ),
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
             ),
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
@@ -54,10 +58,7 @@ class _HomePageState extends State<HomePage> {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.white,
-                      Colors.grey.shade50,
-                    ],
+                    colors: [Colors.white, Colors.grey.shade50],
                   ),
                 ),
                 child: SafeArea(
@@ -115,11 +116,7 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 48.sp,
-              color: Colors.red.shade300,
-            ),
+            Icon(Icons.error_outline, size: 48.sp, color: Colors.red.shade300),
             SizedBox(height: 2.h),
             Text(
               'Erreur de chargement',
@@ -132,10 +129,7 @@ class _HomePageState extends State<HomePage> {
             SizedBox(height: 1.h),
             Text(
               'Vérifiez votre connexion',
-              style: TextStyle(
-                fontSize: 14.sp,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 14.sp, color: Colors.grey.shade600),
             ),
             SizedBox(height: 2.h),
             ElevatedButton(
@@ -162,11 +156,7 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.post_add,
-              size: 48.sp,
-              color: Colors.grey.shade400,
-            ),
+            Icon(Icons.post_add, size: 48.sp, color: Colors.grey.shade400),
             SizedBox(height: 2.h),
             Text(
               'Aucun post pour le moment',
@@ -179,10 +169,7 @@ class _HomePageState extends State<HomePage> {
             SizedBox(height: 1.h),
             Text(
               'Soyez le premier à publier !',
-              style: TextStyle(
-                fontSize: 14.sp,
-                color: Colors.grey.shade500,
-              ),
+              style: TextStyle(fontSize: 14.sp, color: Colors.grey.shade500),
             ),
           ],
         ),
@@ -193,16 +180,6 @@ class _HomePageState extends State<HomePage> {
     try {
       final documents = snapshot.data!.docs;
 
-      var doc = snapshot.data!.docs[0];
-      var data = doc.data() as Map<String, dynamic>;
-
-// Maintenant vous pouvez afficher les champs
-      print("ici");// Affiche toutes les données
-      // print(data);  // Affiche un champ spécifique
-      // print();
-    // Affiche un champ spécifique
-
-
 
       return ListView.builder(
         shrinkWrap: true,
@@ -211,7 +188,7 @@ class _HomePageState extends State<HomePage> {
         itemCount: documents.length,
         itemBuilder: (context, index) {
           final item = documents[index];
-          debugPrint(documents[0]["postData"].toString());
+          // debugPrint(documents[0]["postData"].toString());
           return _buildPostCard(item);
         },
       );
@@ -228,9 +205,6 @@ class _HomePageState extends State<HomePage> {
 
   // Widget de carte post avec validation des données
   Widget _buildPostCard(QueryDocumentSnapshot item) {
-    print("item.toString()");
-    print(item.toString());
-    print("item.toString()");
     List<dynamic> comments = [];
     List<dynamic> alllike = [];
     // Extraction sécurisée des données avec valeurs par défaut
@@ -247,12 +221,10 @@ class _HomePageState extends State<HomePage> {
 
     // Accéder au tableau commentaire dans postData
 
-    if (postData!= null &&
-        postData['commentaire'] != null) {
+    if (postData != null && postData['commentaire'] != null) {
       comments = List.from(postData['commentaire']);
     }
-    if (postData!= null &&
-        postData['allike'] != null) {
+    if (postData != null && postData['allike'] != null) {
       alllike = List.from(postData['allike']);
     }
 
@@ -273,10 +245,54 @@ class _HomePageState extends State<HomePage> {
         image: userData['photoUrl']?.toString(),
         postImage: postImage,
         postVideo: postVideo,
-        likes:alllike.length,
+        likes: alllike.length,
         alllike: alllike,
         comments: comments.length,
         content: postData['posttitle']?.toString() ?? '',
+        onProfileTap: () {
+          Get.to(PremiumProfileScreen (
+            userId: userData['googleId']?.toString() ,
+            avatarUrl: userData['photoUrl']?.toString(),
+            displayName: userData['name']?.toString() ?? 'Utilisateur',
+            username: userData['name']?.toString() ?? 'Utilisateur',
+            mail: userData['email']?.toString(),
+            bio: "${userData['bio']?.toString() ??"Créateur de contenu | Digital Creator ✨\nCollaborations"}  📩 ${userData['email']}",
+
+          ));
+        },
+        onMore: () {
+          WidgetComponent.getmodal(
+            isScrollControlled: true,
+            sectionview: SizedBox(
+              height: Get.height / 1.26,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  PostOptionsMenu(
+                    postId: item.id,
+                    onDelete: () {
+                      Posts.doc(item.id).delete().then(
+                        (value) {
+                          Get.back();
+                          WidgetComponent.showNotification(
+                            "Post supprimer avec succes",
+                            Colors.green,
+                            context,
+                          );
+                        },
+                      );
+                    },
+
+                    isCurrentUser:
+                        userData['googleId'] == AppUser.info?.googleId
+                        ? true
+                        : false,
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

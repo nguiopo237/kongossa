@@ -3,12 +3,16 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get/get_utils/src/extensions/internacionalization.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'dart:async'; // Ajouté pour le Timer
 
 import '../../../../config_App/colorsApp.dart';
 import '../../../../main.dart';
 import '../../../../model/datamodel/user_model.dart';
+import '../../../../sevice/connection/connectionchecker.dart';
+import '../../../../sevice/controlleur/authentification/auth_controlleur.dart';
+import '../../../../sevice/upload/compress_video.dart';
 import '../../../../sevice/upload/select_image.dart';
 import '../../../../sevice/upload/upload_cloud.dart';
 import '../../image_component/image.dart';
@@ -174,6 +178,7 @@ class _CreatePostPremiumScreenState extends State<CreatePostPremiumScreen>
     //   }
     // });
   }
+  NativeVideoCompressService compress = NativeVideoCompressService();
 
   Future<void> _addVideo() async {
     _attachedImages.clear();
@@ -184,13 +189,11 @@ class _CreatePostPremiumScreenState extends State<CreatePostPremiumScreen>
         print(element.path);
         setState(() {
           _attachedVideos.add(element.path);
-          // _attachedVideosfile.add(File(path))
-
 
         });
       },);
-      print(_attachedVideos.length);
-      print(_attachedVideos.length);
+      // compress.compressLikeYouTube(pickedFile.first.path);
+      // compressLikeYouTube()
 
     }
   }
@@ -222,18 +225,56 @@ class _CreatePostPremiumScreenState extends State<CreatePostPremiumScreen>
     });
   }
 
-  void _publishPost() async {  // ← Rend toute la fonction async
+  void _publishPost() async {
+    final isConnected = await Connexioncheck.checkconnection();
+    if (!isConnected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("noconnect".tr),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     if (!_hasContent) {
       _showNotification('Ajoutez du contenu avant de publier', Colors.orange);
+      return;
+    }
+
+    // Vérifier si le titre est vide
+    if (_postController.text.trim().isEmpty) {
+      _showNotification('Le titre du post est requis', Colors.orange);
       return;
     }
 
     try {
       _animationController.reverse();
 
+      // 🔍 VÉRIFICATION : Est-ce que ce titre existe déjà ?
+      String postTitle = _postController.text.trim();
+
+      // Requête pour vérifier si un post avec ce titre existe déjà
+      QuerySnapshot existingPosts = await Posts
+          .where('postData.posttitle', isEqualTo: postTitle)
+          .where('userData.googleId', isEqualTo: AppUser.info!.googleId) // Même utilisateur
+          .get();
+      print("suite de verification");
+      print(existingPosts.docs);
+      print("suite de verification");
+
+      if (existingPosts.docs.isNotEmpty) {
+        // Un post avec ce titre existe déjà
+        _showNotification('Ce titre de post existe déjà. Veuillez en choisir un autre.', Colors.orange);
+        _animationController.forward(); // Annuler l'animation
+        return;
+      }
+
+      // ✅ Si on arrive ici, le titre n'existe pas, on continue avec l'upload
       UniversalCloudinaryUploader _serviceall = UniversalCloudinaryUploader();
-      List<String> uploadedUrls = []; //
-      if(_attachedVideos.isNotEmpty){
+      List<String> uploadedUrls = [];
+
+      if (_attachedVideos.isNotEmpty) {
         _attachedImages.clear();
         for (var element in _attachedVideos) {
           try {
@@ -253,13 +294,12 @@ class _CreatePostPremiumScreenState extends State<CreatePostPremiumScreen>
           }
         }
 
-        // Mettre à jour sender une seule fois
         setState(() {
           sender = uploadedUrls;
         });
       }
 
-      if(_attachedImages.isNotEmpty){
+      if (_attachedImages.isNotEmpty) {
         for (var element in _attachedImages) {
           try {
             String originalName = path.basename(element);
@@ -278,17 +318,11 @@ class _CreatePostPremiumScreenState extends State<CreatePostPremiumScreen>
           }
         }
 
-        // Mettre à jour sender une seule fois
         setState(() {
           sender = uploadedUrls;
         });
-      }// Liste temporaire pour les URLs
-      // Liste temporaire pour les URLs
+      }
 
-      // CORRECTION : boucle for normale avec await
-
-
-      // Reste du code inchangé...
       final userData = {
         "email": AppUser.info!.email,
         "googleId": AppUser.info!.googleId,
@@ -300,15 +334,15 @@ class _CreatePostPremiumScreenState extends State<CreatePostPremiumScreen>
       };
 
       final postdata = {
-        "posttitle": _postController.text,
-        "imagepost": _attachedImages.isEmpty && _attachedVideos.isEmpty ? [] : _attachedImages.isNotEmpty?sender:[],
-        "videopost": _attachedVideos.isEmpty && sender.isEmpty ? [] :  _attachedVideos.isNotEmpty?sender:[],
+        "posttitle": postTitle, // Utiliser la version trim() ici
+        "imagepost": _attachedImages.isEmpty && _attachedVideos.isEmpty ? [] : _attachedImages.isNotEmpty ? sender : [],
+        "videopost": _attachedVideos.isEmpty && sender.isEmpty ? [] : _attachedVideos.isNotEmpty ? sender : [],
         "likes": 0,
         "islike": false,
         "status": "published",
         "commentaire": [],
         "personlike": [],
-        "allike": [],   
+        "allike": [],
         "createdAt": FieldValue.serverTimestamp(),
         "userId": AppUser.info!.googleId,
       };
@@ -330,7 +364,7 @@ class _CreatePostPremiumScreenState extends State<CreatePostPremiumScreen>
           _postController.clear();
           _attachedImages.clear();
           _attachedVideos.clear();
-          sender.clear(); // ← Important : vider sender ici
+          sender.clear();
           _hasLocation = false;
           _tagPeople = false;
           _isFeeling = false;
@@ -345,7 +379,7 @@ class _CreatePostPremiumScreenState extends State<CreatePostPremiumScreen>
     } catch (e) {
       print("❌ Erreur publication: $e");
       _showNotification('Erreur lors de la publication', Colors.red);
-      _animationController.forward(); // Annuler l'animation en cas d'erreur
+      _animationController.forward();
     }
   }
 
@@ -1259,23 +1293,28 @@ class _CreatePostPremiumScreenState extends State<CreatePostPremiumScreen>
       child: SafeArea(
         top: false,
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
           children: [
             _buildGradientButton(
               text: 'Publier',
               onPressed: _publishPost,
               isActive: _hasContent,
             ),
-            const SizedBox(width: 15),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.more_horiz, color: Colors.black54),
-                onPressed: () {},
-              ),
-            ),
+             const SizedBox(width: 15),
+            // Container(
+            //   decoration: BoxDecoration(
+            //     color: Colors.grey[100],
+            //     borderRadius: BorderRadius.circular(15),
+            //   ),
+            //   child: IconButton(
+            //     icon: const Icon(Icons.more_horiz, color: Colors.black54),
+            //     onPressed: () {
+            //
+            //       // authController.getCurrentToken();
+            //       authController.getFirebaseToken();
+            //     },
+            //   ),
+            // ),
           ],
         ),
       ),

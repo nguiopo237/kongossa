@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:kongossa/main.dart';
+import 'package:kongossa/model/datamodel/user_model.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:rive/rive.dart' hide RadialGradient, LinearGradient;
 
@@ -148,7 +149,12 @@ class _EntryPointState extends State<EntryPoint>
                         );
                       }   if (authController.indexpage.value == 4) {
                         return  PremiumProfileScreen (
-                          userId: "1",
+                          userId: AppUser.info!.googleId,
+                          avatarUrl: AppUser.info!.photoUrl,
+                          displayName: AppUser.info!.displayName,
+                          username: AppUser.info!.displayName,
+                          mail: "${AppUser.info!.email}",
+                          bio: "${AppUser.info?.bio??"Créateur de contenu | Digital Creator ✨\nCollaborations"}  📩 ${AppUser.info!.email}",
 
                         );
                       }

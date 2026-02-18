@@ -17,6 +17,7 @@ import '../image_component/image.dart';
 
 import 'package:uuid/uuid.dart';
 
+import '../style/custum_text.dart';
 import '../widget/widget_component.dart';
 
 class CommentModal extends StatefulWidget {
@@ -268,7 +269,7 @@ class _CommentModalState extends State<CommentModal>
       body: Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(30)
+        borderRadius: BorderRadius.circular(10)
       ),
         child: Column(
           children: [
@@ -446,6 +447,7 @@ class _CommentModalState extends State<CommentModal>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+
                   children: [
                     Text(
                       item['username'] ?? 'Utilisateur inconnu',
@@ -455,16 +457,34 @@ class _CommentModalState extends State<CommentModal>
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      timeago.format(_getSafeDateTime(item['time'])),
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    ),
+                   SizedBox(),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  item['comment'] ?? "",
-                  style: const TextStyle(fontSize: 14),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item['comment'] ?? "",
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    Row(children: [
+                      Text(
+                        timeago.format(DateTime.parse(item['time'])),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                      SizedBox(width: 1.w),
+                      CustomText(
+                        "Repondre".toUpperCase(),
+                        type: TextType.headlineSmall,
+                        style: TextStyle(
+                          color: ColorApp.primary3,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 10,
+                          letterSpacing: 0.5,
+                        ),
+                      )],)
+                  ],
                 ),
               ],
             ),
@@ -616,7 +636,7 @@ class _CommentModalState extends State<CommentModal>
                 });
               },
               decoration: InputDecoration(
-                hintText: 'Ajouter un commentairess...',
+                hintText: 'Ajouter un commentaires...',
                 hintStyle: TextStyle(color: Colors.grey[500]),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(25),

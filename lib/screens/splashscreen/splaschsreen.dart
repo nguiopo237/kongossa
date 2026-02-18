@@ -36,12 +36,6 @@ class _SplashScreenState extends State<SplashScreen> {
         begin: Alignment.topLeft,
         end: Alignment.topLeft,
         colors: [
-          // Color((Random().nextDouble() * 0xfffe4c06).toInt()).withOpacity(1.0),
-          // Color((Random().nextDouble() * 0xfffe7e03).toInt()).withOpacity(1.0),
-          // Color((Random().nextDouble() * 0xff0462bc).toInt()).withOpacity(0.5),
-          // Color((Random().nextDouble() * 0xff0478c5).toInt()).withOpacity(1.0),
-          //  ColorApp.onSecondary,  ColorApp.foreground, ColorApp.primary3,
-         // Colors.white,Colors.black
           Color(0xFFEEF1F8),
           Color(0xFFEEF1F8),
 

@@ -58,6 +58,7 @@ class MemberModel {
   Map<String, dynamic> toMap() {
     return {
       'username': username,
+      'uid': uid,
       'displayName': displayName,
       'photoUrl': photoUrl,
       'email': email,

@@ -48,6 +48,9 @@ class FriendFeedScreen extends StatelessWidget {
           'videoUrl': postData['videopost'] ?? '',
           'posttitle': postData['posttitle'] ?? '',
           'username': userData['name'] ?? 'Utilisateur',
+          'email': userData['email'] ?? '',
+          'bio': userData['bio'] ?? '',
+          'uid': userData['googleId'] ?? '',
           'description': postData['posttitle'] ?? 'description',
           'music': data['music'] ?? 'Son original',
           'likes': postData['likes'] ?? 0,
@@ -178,6 +181,10 @@ class FriendFeedScreen extends StatelessWidget {
                   alllike:  List.from(video['alllike']),
                   shares: video['shares'] ?? 0,
                   profileImage: video['profileImage'] ?? '',
+                  uid :video['uid'],
+                  mail :video['email'],
+                  bio :video['bio'],
+
                 ),
               );
             },
