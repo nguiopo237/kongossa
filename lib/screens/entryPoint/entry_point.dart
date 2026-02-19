@@ -20,6 +20,7 @@ import '../../model/menu.dart';
 import '../../presentation/component/widget/bottom_navigation.dart';
 import '../../presentation/component/widget/component_for_post/create_post_widget.dart';
 import '../../presentation/component/widget/widget_component.dart';
+import '../../sevice/connection/connectionchecker.dart';
 import '../../sevice/controlleur/authentification/auth_controlleur.dart';
 import '../../utils/rive_utils.dart';
 import '../collaboration/friend.dart';
@@ -60,6 +61,7 @@ class _EntryPointState extends State<EntryPoint>
 
   @override
   void initState() {
+    Connexioncheck.getConnectivity(Get.context);
     _animationController =
         AnimationController(
           vsync: this,

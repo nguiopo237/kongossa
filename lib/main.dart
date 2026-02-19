@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +15,7 @@ import 'package:kongossa/sevice/controlleur/init_controlleur/init_controlleur.da
 import 'package:kongossa/sevice/controlleur/notification/firebase_messaging_service.dart';
 import 'package:kongossa/sevice/controlleur/notification/local_notifications_service.dart';
 import 'package:kongossa/utils/test2.0.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -35,7 +38,7 @@ void callbackDispatcher() {
     try {
       switch (task) {
         case "checkMessagesTask":
-          await checkUnreadMessages();
+          await authController.setupMessagesListener() ;
           break;
         case "cleanupTask":
           await performCleanup();
@@ -267,6 +270,84 @@ Future<void> cancelAllBackgroundTasks() async {
   print("🛑 Toutes les tâches annulées arriere");
 }
 
+
+// Dans votre main.dart, dans la classe où vous avez initializeOneSignal()
+
+void _showCustomNotification(OSNotification notification) {
+  // Afficher une notification personnalisée dans l'application
+  print('📱 Affichage personnalisé: ${notification.title}');
+
+  // Option 1: Utiliser un ScaffoldMessenger si vous avez un contexte
+  // Mais attention, _showCustomNotification n'a pas accès au contexte ici
+
+  // Option 2: Émettre un événement pour être géré ailleurs
+  notificationStreamController.add(notification);
+}
+
+// Créer un StreamController pour gérer les notifications
+final StreamController<OSNotification> notificationStreamController =
+StreamController<OSNotification>.broadcast();
+
+// Getter pour le stream
+Stream<OSNotification> get notificationStream => notificationStreamController.stream;
+
+
+void _configureNotificationHandlers() {
+  // Quand l'app est en premier plan
+  OneSignal.Notifications.addForegroundWillDisplayListener((event) {
+    print('📱 Notification reçue en premier plan: ${event.notification.jsonRepresentation()}');
+
+    // Vous pouvez personnaliser l'affichage ici
+    event.preventDefault(); // Empêcher l'affichage automatique
+    _showCustomNotification(event.notification);
+  });
+
+  // Quand l'utilisateur clique sur une notification
+  OneSignal.Notifications.addClickListener((event) {
+    print('👆 Notification cliquée: ${event.notification.jsonRepresentation()}');
+    _handleNotificationClick(event.notification);
+  });
+
+  // Récupérer l'ID du joueur (identifiant unique du device)
+  OneSignal.User.getOnesignalId().then((id) {
+    if (id != null) {
+      print('🆔 OneSignal User ID: $id');
+      // Sauvegarder cet ID pour envoyer des notifications à ce device
+    }
+  });
+}
+// Dans votre main.dart, ajoutez cette fonction
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+void _handleNotificationClick(OSNotification notification) {
+  print('👆 Notification cliquée: ${notification.title}');
+
+  // Récupérer les données supplémentaires
+  final additionalData = notification.additionalData ?? {};
+  print('📦 Données: $additionalData');
+
+  // Naviguer vers l'écran approprié selon le type de notification
+  final type = additionalData['type'];
+  final postId = additionalData['postId'];
+  final commentId = additionalData['commentId'];
+
+  // Utiliser le navigatorKey pour naviguer
+  final context = navigatorKey.currentContext;
+  if (context != null) {
+    if (type == 'like' && postId != null) {
+      navigatorKey.currentState?.pushNamed('/post', arguments: postId);
+    } else if (type == 'comment' && postId != null) {
+      navigatorKey.currentState?.pushNamed('/comments', arguments: postId);
+    } else if (type == 'follow') {
+      navigatorKey.currentState?.pushNamed('/profile', arguments: additionalData['userId']);
+    } else {
+      // Par défaut, aller à l'écran des notifications
+      navigatorKey.currentState?.pushNamed('/notifications');
+    }
+  }
+}
+
+
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -308,6 +389,10 @@ void main() async {
   // Configurer l'orientation
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
       .then((_) {
+        OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+        OneSignal.initialize("f29d87f5-87f2-4d83-b47c-93bf3b08ac0c");
+        OneSignal.Notifications.requestPermission(true);
+        _configureNotificationHandlers();
     FocusManager.instance.primaryFocus?.unfocus();
     runApp(MyApp());
   });

@@ -20,7 +20,7 @@ class AppControllers {
      Get.lazyPut(() => SplashController(), fenix: true);
      Get.lazyPut(() => SmsController(), fenix: true);
      Get.lazyPut(() => MemberService(), fenix: true);
-     Connexioncheck.getConnectivity(Get.context);
+
 
   }
 }

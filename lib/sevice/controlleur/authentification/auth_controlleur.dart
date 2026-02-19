@@ -248,8 +248,9 @@ class AuthController extends GetxController {
 
 
 
-  void setupMessagesListener() {
-    print("ecoute en start");
+  Future<void> setupMessagesListener() async {
+
+    print("🔍 Vérification des messages non lus arriere...");
     notif
     // .where("senderId", whereIn: [AppUser.info!.googleId, widget.receiverId])
         .where("receiveId", isEqualTo: AppUser.info!.googleId)

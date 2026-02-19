@@ -1,5 +1,6 @@
 // lib/screens/profile/premium_profile_screen.dart
 
+import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +8,8 @@ import 'package:get/get.dart';
 import 'package:kongossa/model/datamodel/user_model.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 import '../main.dart';
 import '../model/datamodel/profil_model.dart';
@@ -14,8 +17,8 @@ import '../presentation/component/widget/avatar_premuim.dart';
 
 import '../sevice/theme/theme_profil.dart';
 import '../sevice/upload/upload_post.dart';
+import 'collaboration/friend.dart';
 import 'mymember/chatpage.dart';
-import 'package:path_provider/path_provider.dart';
 
 class PremiumProfileScreen extends StatefulWidget {
   final String? userId;
@@ -50,7 +53,12 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
   int followingCount = 0;
 
   late UserProfileModel userProfile;
-  final PostUpdateService service = PostUpdateService();
+  final PostUpdateService service =
+  PostUpdateService();
+
+  // Cache pour les miniatures vidéo
+  final Map<String, String?> _thumbnailCache = {};
+  final Map<String, Future<String?>> _thumbnailFutures = {};
 
   @override
   void initState() {
@@ -70,7 +78,7 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
     if (widget.userId == null) return;
 
     Users.where("googleId", isEqualTo: widget.userId).snapshots().listen(
-      (QuerySnapshot snapshot) {
+          (QuerySnapshot snapshot) {
         for (var change in snapshot.docChanges) {
           if (change.type == DocumentChangeType.added ||
               change.type == DocumentChangeType.modified) {
@@ -78,9 +86,11 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
             if (data != null) {
               final allfollow = data['allfollow'];
               if (allfollow is List) {
-                setState(() {
-                  followersCount = allfollow.length;
-                });
+                if (mounted) {
+                  setState(() {
+                    followersCount = allfollow.length;
+                  });
+                }
                 debugPrint("📊 Nombre de followers: ${allfollow.length}");
               }
             }
@@ -107,17 +117,7 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
       postsCount: 42,
       isVerified: true,
       joinedDate: DateTime.now().subtract(const Duration(days: 365)),
-      posts: List.generate(
-        12,
-        (index) => PostModel(
-          id: 'post_$index',
-          mediaUrl: 'https://picsum.photos/300/400?random=$index',
-          mediaType: index % 3 == 0 ? MediaType.video : MediaType.image,
-          likesCount: 1500 + index * 100,
-          commentsCount: 85 + index,
-          timestamp: DateTime.now().subtract(Duration(days: index)),
-        ),
-      ),
+      posts: [],
     );
   }
 
@@ -153,14 +153,7 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
                 SliverToBoxAdapter(child: _buildActionButtons(userDoc)),
               SliverToBoxAdapter(child: _buildStoriesSection(userDoc)),
               SliverToBoxAdapter(child: _buildTabBar()),
-              SliverPadding(
-                padding: EdgeInsets.only(
-                  right: 0.5.w,
-                  left: 0.5.w,
-                  bottom: 10.h,
-                ),
-                sliver: _buildPostsGrid(),
-              ),
+              _buildPostsGrid(), // Maintenant retourne directement un Sliver
             ],
           );
         },
@@ -347,6 +340,7 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
 
   Widget _buildStatItem({required String value, required String label}) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           value,
@@ -411,7 +405,7 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
               icon: const Icon(Icons.message_outlined),
               onPressed: () {
                 Get.to(
-                  () => ChatPageTikTok(
+                      () => ChatPageTikTok(
                     receiverId: userData['googleId'] ?? '',
                     receiverName: userData['name'] ?? 'Anonyme',
                     receiverPhoto: userData['photoUrl'] ?? '',
@@ -428,21 +422,26 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
   Widget _buildStoriesSection(QueryDocumentSnapshot<Object?> doc) {
     final userData = doc.data() as Map<String, dynamic>;
     final followers = userData['allfollow'] as List? ?? [];
+
+    if (followers.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Container(
-      height: 100,
+      height: 8.h,
+      // color: Colors.green,
       padding: EdgeInsets.symmetric(horizontal: 4.w),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: followers.length,
-        // À remplacer par le nombre réel de stories
         itemBuilder: (context, index) {
           return Padding(
             padding: EdgeInsets.only(right: 3.w),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 PremiumAvatar(
-                  userId: followers[index],
-                  // imageUrl: 'https://i.pravatar.cc/150?img=${index + 1}',
+                  userId: followers[index].toString(),
                   size: 60,
                   hasStory: index % 3 != 0,
                 ),
@@ -475,33 +474,124 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
     );
   }
 
-  Map<String, dynamic> _getSafeMap(dynamic data) {
-    if (data is Map<String, dynamic>) {
-      return data;
+  // ==================== FONCTIONS POUR LES POSTS AVEC MINIATURES VIDÉO ====================
+
+  Map<String, dynamic> _getSafeMap(dynamic value) {
+    if (value == null) return {};
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      try {
+        return Map<String, dynamic>.from(value);
+      } catch (e) {
+        debugPrint('⚠️ Erreur conversion Map: $e');
+        return {};
+      }
     }
     return {};
   }
 
-  Widget _buildPostsGrid() {
+  List<dynamic> _getSafeList(dynamic value) {
+    if (value == null) return [];
+    if (value is List) return value;
+    if (value is List<dynamic>) return value;
+    if (value is Iterable) return value.toList();
+    return [];
+  }
+
+  MediaType _getMediaType(String? type, bool hasImages, bool hasVideos) {
+    if (hasVideos) return MediaType.video;
+    if (hasImages) return MediaType.image;
+
+    if (type == null) return MediaType.image;
+
+    switch (type.toLowerCase()) {
+      case 'video':
+        return MediaType.video;
+      case 'image':
+        return MediaType.image;
+      case 'multiple':
+      case 'carousel':
+        return MediaType.multiple;
+      default:
+        return MediaType.image;
+    }
+  }
+
+  // Fonction pour générer une miniature vidéo avec cache
+  Future<String?> _getVideoThumbnail(String videoUrl) async {
+    // Vérifier le cache
+    if (_thumbnailCache.containsKey(videoUrl)) {
+      return _thumbnailCache[videoUrl];
+    }
+
+    // Vérifier si une future est déjà en cours
+    if (_thumbnailFutures.containsKey(videoUrl)) {
+      return _thumbnailFutures[videoUrl];
+    }
+
+    // Créer une nouvelle future
+    final future = _generateThumbnail(videoUrl);
+    _thumbnailFutures[videoUrl] = future;
+
+    final result = await future;
+
+    // Mettre en cache et nettoyer la future
+    if (mounted) {
+      setState(() {
+        _thumbnailCache[videoUrl] = result;
+        _thumbnailFutures.remove(videoUrl);
+      });
+    }
+
+    return result;
+  }
+
+  Future<String?> _generateThumbnail(String videoUrl) async {
+    try {
+      // Vérifier d'abord si la vidéo est en cache
+      final fileInfo = await DefaultCacheManager().getFileFromCache(videoUrl);
+
+      String videoPath = videoUrl;
+      if (fileInfo != null && fileInfo.file.existsSync()) {
+        videoPath = fileInfo.file.path;
+      }
+
+      final thumbnailPath = await VideoThumbnail.thumbnailFile(
+        video: videoPath,
+        thumbnailPath: (await getTemporaryDirectory()).path,
+        imageFormat: ImageFormat.JPEG,
+        maxWidth: 300,
+        maxHeight: 300,
+        quality: 75,
+      );
+
+      debugPrint('✅ Miniature générée pour: $videoUrl');
+      return thumbnailPath;
+    } catch (e) {
+      debugPrint('❌ Erreur génération miniature: $e');
+      return null;
+    }
+  }
+
+  // Widget pour l'affichage des posts avec miniatures
+   _buildPostsGrid() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('postcarduser')
           .where('userData.googleId', isEqualTo: widget.userId)
           .snapshots(),
       builder: (context, snapshot) {
-        // Gestion des états de chargement
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SliverToBoxAdapter(
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: CircularProgressIndicator(),
-              ),
-            ),
-          );
-        }
+        // if (snapshot.connectionState == ConnectionState.waiting) {
+        //   return const SliverToBoxAdapter(
+        //     child: Center(
+        //       child: Padding(
+        //         padding: EdgeInsets.all(20),
+        //         child: CircularProgressIndicator(),
+        //       ),
+        //     ),
+        //   );
+        // }
 
-        // Gestion des erreurs
         if (snapshot.hasError) {
           return SliverToBoxAdapter(
             child: Center(
@@ -513,7 +603,6 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
           );
         }
 
-        // Vérification des données
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return const SliverToBoxAdapter(
             child: Center(
@@ -546,44 +635,50 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
                   final postDoc = documents[index];
                   final postData = postDoc.data() as Map<String, dynamic>;
 
-                  // Extraction sécurisée des données
                   final userData = _getSafeMap(postData['userData']);
                   final postContent = _getSafeMap(postData['postData']);
 
-                  // Récupération des commentaires et likes de façon sécurisée
                   final allike = _getSafeList(postContent['allike']);
                   final commentaires = _getSafeList(postContent['commentaire']);
-
-                  // Récupération des images de façon sécurisée
                   final images = _getSafeList(postContent['imagepost']);
+                  final videos = _getSafeList(postContent['videopost']);
 
-                  // Détermination de l'URL du média (première image ou vidéo)
                   String mediaUrl = '';
+                  bool isVideo = videos.isNotEmpty;
 
-                  if (images.isNotEmpty) {
-                    // Si c'est une liste d'images, prendre la première
+                  if (isVideo) {
+                    // C'est une vidéo
+                    final firstVideo = videos.first;
+                    if (firstVideo is String) {
+                      mediaUrl = firstVideo;
+                    } else if (firstVideo is Map) {
+                      mediaUrl = firstVideo['url'] ?? firstVideo.toString();
+                    } else {
+                      mediaUrl = firstVideo.toString();
+                    }
+                  } else if (images.isNotEmpty) {
+                    // C'est une image
                     final firstImage = images.first;
                     if (firstImage is String) {
                       mediaUrl = firstImage;
                     } else if (firstImage is Map) {
-                      // Si c'est un objet avec une clé 'url'
                       mediaUrl = firstImage['url'] ?? firstImage.toString();
                     } else {
                       mediaUrl = firstImage.toString();
                     }
-                  } else if (postContent['mediaUrl'] != null) {
-                    // Fallback sur mediaUrl si imagepost est vide
-                    mediaUrl = postContent['mediaUrl'].toString();
-                  } else if (postContent['videoUrl'] != null) {
-                    // Fallback sur videoUrl
-                    mediaUrl = postContent['videoUrl'].toString();
+                  } else {
+                    // Fallback
+                    mediaUrl = postContent['mediaUrl']?.toString() ??
+                        postContent['videoUrl']?.toString() ?? '';
                   }
 
-                  // Détermination du type de média
                   final mediaTypeStr = postContent['mediaType'] as String?;
-                  final mediaType = _getMediaType(mediaTypeStr, images.isNotEmpty);
+                  final mediaType = _getMediaType(
+                      mediaTypeStr,
+                      images.isNotEmpty,
+                      videos.isNotEmpty
+                  );
 
-                  // Récupération du timestamp
                   Timestamp? timestamp;
                   if (postContent['timestamp'] is Timestamp) {
                     timestamp = postContent['timestamp'] as Timestamp;
@@ -591,11 +686,6 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
                     timestamp = postData['timestamp'] as Timestamp;
                   }
 
-                  // Debug pour vérifier les données
-                  debugPrint('📸 Post ${postDoc.id}: ${allike.length} likes, ${commentaires.length} commentaires');
-                  debugPrint('🖼️ Media URL: $mediaUrl');
-
-                  // Création du PostModel
                   final post = PostModel(
                     id: postDoc.id,
                     mediaUrl: mediaUrl,
@@ -603,15 +693,11 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
                     likesCount: allike.length,
                     mediaType: mediaType,
                     timestamp: timestamp?.toDate() ?? DateTime.now(),
-                    // userId: userData['googleId'] ?? '',
-                    // username: userData['name'] ?? 'Utilisateur',
-                    // userPhoto: userData['photoUrl'] ?? '',
-                    // description: postContent['description'] ?? '',
                   );
 
-                  return _buildGridItem(post);
+                  return _buildGridItem(post,index);
                 } catch (e, stackTrace) {
-                  debugPrint('❌ Erreur lors de la création du post $index: $e');
+                  debugPrint('❌ Erreur post $index: $e');
                   debugPrint('📋 StackTrace: $stackTrace');
                   return _buildErrorGridItem();
                 }
@@ -624,303 +710,25 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
     );
   }
 
-// Fonctions utilitaires
-
-  Map<String, dynamic> _getSafeMaps(dynamic value) {
-    if (value == null) return {};
-    if (value is Map<String, dynamic>) return value;
-    if (value is Map) {
-      try {
-        return Map<String, dynamic>.from(value);
-      } catch (e) {
-        debugPrint('⚠️ Erreur conversion Map: $e');
-        return {};
-      }
-    }
-    return {};
-  }
-
-  List<dynamic> _getSafeList(dynamic value) {
-    if (value == null) return [];
-    if (value is List) return value;
-    if (value is List<dynamic>) return value;
-    // Si c'est un iterable, le convertir en liste
-    if (value is Iterable) return value.toList();
-    return [];
-  }
-
-  MediaType _getMediaType(String? type, bool hasImages) {
-    if (type == null) {
-      return hasImages ? MediaType.image : MediaType.video;
-    }
-
-    switch (type.toLowerCase()) {
-      case 'video':
-        return MediaType.video;
-      case 'image':
-        return MediaType.image;
-      case 'multiple':
-      case 'carousel':
-        return MediaType.multiple;
-      default:
-        return hasImages ? MediaType.image : MediaType.image;
-    }
-  }
-
-  Widget _buildGridItem(PostModel post) {
+  Widget _buildGridItem(PostModel post,index) {
     return GestureDetector(
       onTap: () {
-        // TODO: Naviguer vers la page de détail du post
-        debugPrint('📱 Post cliqué: ${post.id}');
+        debugPrint('📱 Post cliqué: ${post.id} (${post.mediaType})');
+        if(post.mediaType.toString().contains("video")){
+          Get.to(FriendFeedScreen(
+            userid: widget.userId!,
+            indexed: index,
+          ));
+        }
       },
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Image/Video thumbnail
-          if (post.mediaUrl.isNotEmpty)
-            CachedNetworkImage(
-              imageUrl: post.mediaUrl,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => Container(
-                color: Colors.grey[900],
-                child: const Center(
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-                  ),
-                ),
-              ),
-              errorWidget: (context, url, error) => Container(
-                color: Colors.grey[900],
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.broken_image,
-                      color: Colors.white54,
-                      size: 30,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Image\nindisponible',
-                      style: TextStyle(
-                        color: Colors.white54,
-                        fontSize: 8,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            )
+          // Affichage selon le type
+          if (post.mediaType == MediaType.video)
+            _buildVideoThumbnail(post.mediaUrl)
           else
-            Container(
-              color: Colors.grey[900],
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.hide_image,
-                    color: Colors.white54,
-                    size: 30,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Aucune\nimage',
-                    style: TextStyle(
-                      color: Colors.white54,
-                      fontSize: 8,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-
-          // Overlay gradient pour les informations
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: 1.w,
-                vertical: 0.5.h,
-              ),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withOpacity(0.7),
-                  ],
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Indicateur de type de média
-                  _buildMediaTypeIcon(post.mediaType),
-
-                  // Compteur de likes
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.favorite,
-                        color: Colors.white,
-                        size: 12,
-                      ),
-                      const SizedBox(width: 2),
-                      Text(
-                        _formatNumber(post.likesCount),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Badge pour plusieurs médias
-          if (post.mediaType == MediaType.multiple)
-            const Positioned(
-              top: 4,
-              right: 4,
-              child: Icon(
-                Icons.collections,
-                color: Colors.white,
-                size: 16,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMediaTypeIcon(MediaType type) {
-    switch (type) {
-      case MediaType.video:
-        return const Icon(
-          Icons.play_circle_outline,
-          color: Colors.white,
-          size: 16,
-        );
-      case MediaType.multiple:
-        return const Icon(
-          Icons.photo_library_outlined,
-          color: Colors.white,
-          size: 16,
-        );
-      case MediaType.image:
-        return const SizedBox(width: 16); // Espace pour l'alignement
-      case MediaType.image:
-        return const Icon(
-          Icons.help_outline,
-          color: Colors.white54,
-          size: 16,
-        );
-    }
-  }
-
-  Widget _buildErrorGridItem() {
-    return Container(
-      color: Colors.grey[900],
-      child: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              color: Colors.red,
-              size: 30,
-            ),
-            SizedBox(height: 4),
-            Text(
-              'Erreur',
-              style: TextStyle(
-                color: Colors.white54,
-                fontSize: 10,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _formatNumber(int number) {
-    if (number >= 1000000) {
-      return '${(number / 1000000).toStringAsFixed(1)}M';
-    } else if (number >= 1000) {
-      return '${(number / 1000).toStringAsFixed(1)}K';
-    }
-    return number.toString();
-  }
-
-  // Fonctions utilitaires pour une extraction sécurisée des données
-
-  // Map<String, dynamic> _getSafeMap(dynamic value) {
-  //   if (value is Map<String, dynamic>) {
-  //     return value;
-  //   } else if (value is Map) {
-  //     // Conversion si c'est un Map mais pas typé correctement
-  //     return Map<String, dynamic>.from(value);
-  //   }
-  //   return {};
-  // }
-
-
-
-  convert(PostModel post) async {
-    final fileName = await VideoThumbnail.thumbnailFile(
-      video: post.mediaUrl,
-      thumbnailPath: (await getTemporaryDirectory()).path,
-      imageFormat: ImageFormat.JPEG,
-      maxHeight:
-          64, // specify the height of the thumbnail, let the width auto-scaled to keep the source aspect ratio
-      quality: 75,
-    );
-    return fileName;
-  }
-
-   _buildGridItems(PostModel post) async {
-    return GestureDetector(
-      onTap: () {
-        // TODO: Naviguer vers la page de détail du post
-        debugPrint('📱 Post cliqué: ${post.id}');
-      },
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Image/Video thumbnail
-          CachedNetworkImage(
-            imageUrl: post.mediaUrl,
-            fit: BoxFit.cover,
-            placeholder: (context, url) => Container(
-              color: Colors.grey[900],
-              child: const Center(
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-                ),
-              ),
-            ),
-            errorWidget: (context, url, error) => Container(
-              color: Colors.grey[900],
-              child: const Icon(
-                Icons.broken_image,
-                color: Colors.white54,
-                size: 30,
-              ),
-            ),
-          ),
+            _buildImageThumbnail(post.mediaUrl),
 
           // Overlay gradient
           Positioned(
@@ -939,18 +747,7 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Indicateur vidéo
-                  if (post.mediaType == MediaType.video)
-                    const Icon(
-                      Icons.play_circle_outline,
-                      color: Colors.white,
-                      size: 16,
-                    )
-                  else
-                    const SizedBox(width: 16),
-                  // Espace réservé pour l'alignement
-
-                  // Compteur de likes
+                  _buildMediaTypeIcon(post.mediaType),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -971,109 +768,181 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
             ),
           ),
 
-          // Badge multiple (si plusieurs médias)
           if (post.mediaType == MediaType.multiple)
             const Positioned(
               top: 4,
               right: 4,
               child: Icon(Icons.collections, color: Colors.white, size: 16),
             ),
+
+          if (post.mediaType == MediaType.video)
+            const Positioned(
+              top: 4,
+              left: 4,
+              child: Icon(Icons.play_circle_filled, color: Colors.white, size: 20),
+            ),
         ],
       ),
     );
   }
 
+  Widget _buildImageThumbnail(String imageUrl) {
+    if (imageUrl.isEmpty) {
+      return _buildPlaceholder(Icons.hide_image, 'Image\nmanquante');
+    }
 
+    return CachedNetworkImage(
+      imageUrl: imageUrl,
+      fit: BoxFit.cover,
+      placeholder: (context, url) => Container(
+        color: Colors.grey[900],
+        child: const Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+          ),
+        ),
+      ),
+      errorWidget: (context, url, error) => _buildPlaceholder(
+        Icons.broken_image,
+        'Image\nindisponible',
+      ),
+    );
+  }
 
+  Widget _buildVideoThumbnail(String videoUrl) {
+    if (videoUrl.isEmpty) {
+      return _buildPlaceholder(Icons.videocam_off, 'Vidéo\nmanquante');
+    }
 
+    return FutureBuilder<String?>(
+      future: _getVideoThumbnail(videoUrl),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            color: Colors.grey[900],
+            child: const Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+              ),
+            ),
+          );
+        }
 
-  // Méthode utilitaire pour convertir le type de média
-  //   MediaType _getMediaType(dynamic mediaType) {
-  //     if (mediaType == 'image') return MediaType.image;
-  //     if (mediaType == 'video') return MediaType.video;
-  //     return MediaType.image; // Valeur par défaut
-  //   }
-  //
-  //   Widget _buildGridItem(PostModel? post) {
-  //     if (post == null) return const SizedBox.shrink();
-  //
-  //     return Stack(
-  //       fit: StackFit.expand,
-  //       children: [
-  //         Image.network(
-  //           post.mediaUrl,
-  //           fit: BoxFit.cover,
-  //           errorBuilder: (context, error, stackTrace) {
-  //             return Container(color: Colors.grey[300]);
-  //           },
-  //         ),
-  //         Positioned(
-  //           bottom: 0,
-  //           left: 0,
-  //           right: 0,
-  //           child: Container(
-  //             padding: EdgeInsets.all(1.w),
-  //             decoration: BoxDecoration(
-  //               gradient: LinearGradient(
-  //                 begin: Alignment.topCenter,
-  //                 end: Alignment.bottomCenter,
-  //                 colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
-  //               ),
-  //             ),
-  //             child: Row(
-  //               mainAxisAlignment: MainAxisAlignment.spaceAround,
-  //               children: [
-  //                 if (post.mediaType == MediaType.video)
-  //                   const Icon(
-  //                     Icons.play_circle_outline,
-  //                     color: Colors.white,
-  //                     size: 16,
-  //                   ),
-  //                 Row(
-  //                   children: [
-  //                     const Icon(Icons.favorite, color: Colors.white, size: 12),
-  //                     const SizedBox(width: 2),
-  //                     Text(
-  //                       _formatNumber(post.likesCount),
-  //                       style: const TextStyle(
-  //                         color: Colors.white,
-  //                         fontSize: 10,
-  //                       ),
-  //                     ),
-  //                   ],
-  //                 ),
-  //               ],
-  //             ),
-  //           ),
-  //         ),
-  //       ],
-  //     );
-  //   }
-  //
-  //   String _formatNumber(int number) {
-  //     if (number >= 1000000) {
-  //       return '${(number / 1000000).toStringAsFixed(1)}M';
-  //     } else if (number >= 1000) {
-  //       return '${(number / 1000).toStringAsFixed(1)}K';
-  //     }
-  //     return number.toString();
-  //   }
+        if (snapshot.hasData && snapshot.data != null) {
+          return Image.file(
+            File(snapshot.data!),
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              debugPrint('❌ Erreur chargement miniature: $error');
+              return _buildVideoPlaceholder();
+            },
+          );
+        } else {
+          return _buildVideoPlaceholder();
+        }
+      },
+    );
+  }
+
+  Widget _buildPlaceholder(IconData icon, String message) {
+    return Container(
+      color: Colors.grey[900],
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: Colors.white54, size: 30),
+          const SizedBox(height: 4),
+          Text(
+            message,
+            style: const TextStyle(color: Colors.white54, fontSize: 8),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVideoPlaceholder() {
+    return Container(
+      color: Colors.grey[900],
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          CustomPaint(painter: _StripesPainter()),
+          const Center(
+            child: Icon(Icons.play_arrow, color: Colors.white, size: 30),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMediaTypeIcon(MediaType type) {
+    switch (type) {
+      case MediaType.video:
+        return const Icon(Icons.play_circle_outline, color: Colors.white, size: 16);
+      case MediaType.multiple:
+        return const Icon(Icons.photo_library_outlined, color: Colors.white, size: 16);
+      case MediaType.image:
+        return const SizedBox(width: 16);
+      default:
+        return const Icon(Icons.help_outline, color: Colors.white54, size: 16);
+    }
+  }
+
+  Widget _buildErrorGridItem() {
+    return Container(
+      color: Colors.grey[900],
+      child: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, color: Colors.red, size: 30),
+            SizedBox(height: 4),
+            Text(
+              'Erreur',
+              style: TextStyle(color: Colors.white54, fontSize: 10),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatNumber(int number) {
+    if (number >= 1000000) {
+      return '${(number / 1000000).toStringAsFixed(1)}M';
+    } else if (number >= 1000) {
+      return '${(number / 1000).toStringAsFixed(1)}K';
+    }
+    return number.toString();
+  }
 
   String _formatDate(DateTime date) {
     const months = [
-      'janvier',
-      'février',
-      'mars',
-      'avril',
-      'mai',
-      'juin',
-      'juillet',
-      'août',
-      'septembre',
-      'octobre',
-      'novembre',
-      'décembre',
+      'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+      'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
     ];
     return '${months[date.month - 1]} ${date.year}';
   }
+}
+
+// Painter pour les lignes (effet vidéo)
+class _StripesPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.1)
+      ..strokeWidth = 2;
+
+    for (int i = 0; i < 5; i++) {
+      final x = size.width * (i + 1) / 6;
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

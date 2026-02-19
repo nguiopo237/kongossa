@@ -5,15 +5,86 @@ import 'package:responsive_sizer/responsive_sizer.dart';
 import '../../main.dart';
 import '../../presentation/component/video_component/tiktok_player_video.dart';
 
-class FriendFeedScreen extends StatelessWidget {
+class FriendFeedScreen extends StatefulWidget {
+
   // Données statiques pour le développement (à commenter en production)
+  FriendFeedScreen( {this.userid ="",this.indexed=0 });
+
+  final String userid ;
+  final int indexed ;
+
+  @override
+  State<FriendFeedScreen> createState() => _FriendFeedScreenState();
+}
+
+class _FriendFeedScreenState extends State<FriendFeedScreen> {
+  final String url = "";
+
+  final  String urls = "";
+
+  late PageController _pageController;
 
 
-  String url = "";
-  String urls = "";
+
+  int _currentPage = 0;
 
   // Méthode pour récupérer les vidéos depuis Firestore
-  Stream<List<Map<String, dynamic>>> _getVideosFromFirestore() {
+  Stream<List<Map<String, dynamic>>> getVideosFromFirestore(userid) {
+    List<dynamic> comment = [];
+    List<dynamic> alllike = [];
+    return
+        Posts.where("postData.videopost", isNotEqualTo: [])
+        .where("userData.googleId",isEqualTo:  userid)
+        .orderBy("timestamp", descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs
+          .where((doc) {
+        // Vérifier si le document a une vidéo valide
+        final videoData = doc['postData'];
+        if (videoData == null) return false;
+
+        final videoUrl = videoData['videopost'];
+        return videoUrl != null && videoUrl.toString().isNotEmpty;
+      })
+          .map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        final postData = data['postData'] as Map<String, dynamic>? ?? {};
+        final userData = data['userData'] as Map<String, dynamic>? ?? {};
+
+        if (postData!= null &&
+            postData['commentaire'] != null) {
+          comment = List.from(postData['commentaire']);
+        }
+        if (postData!= null &&
+            postData['allike'] != null) {
+          alllike = List.from(postData['allike']);
+        }
+
+        return {
+          'videoUrl': postData['videopost'] ?? '',
+          'posttitle': postData['posttitle'] ?? '',
+          'username': userData['name'] ?? 'Utilisateur',
+          'email': userData['email'] ?? '',
+          'bio': userData['bio'] ?? '',
+          'uid': userData['googleId'] ?? '',
+          'description': postData['posttitle'] ?? 'description',
+          'music': data['music'] ?? 'Son original',
+          'likes': postData['likes'] ?? 0,
+          'islike': postData['islike'] ?? false,
+          'comments': postData['comments'] ?? 0,
+          'shares': postData['shares'] ?? 0,
+          'profileImage': userData['photoUrl'] ?? '',
+          'postId': doc.id,
+          'timestamp': data['timestamp'],
+          'comment':comment,
+          'alllike':alllike,
+        };
+      }).toList();
+    });
+  }
+
+  Stream<List<Map<String, dynamic>>> getVideosFromFirestores(userid) {
     List<dynamic> comment = [];
     List<dynamic> alllike = [];
     return
@@ -66,6 +137,44 @@ class FriendFeedScreen extends StatelessWidget {
       }).toList();
     });
   }
+  bool _isPageViewReady = false;
+
+
+  @override
+  String get restorationId => 'video_gallery';
+
+
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+
+    // Initialiser le controller SANS initialPage
+    _pageController = PageController();
+
+    // Attendre que le widget soit complètement construit
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        // Marquer que le PageView est prêt
+        setState(() {
+          _isPageViewReady = true;
+        });
+
+        // Attendre un frame supplémentaire pour être sûr
+        Future.delayed(Duration(milliseconds: 100), () {
+          if (_pageController.hasClients) {
+            _pageController.jumpToPage(widget.indexed);
+            print("✅ Sauté à la page ${widget.indexed}");
+          } else {
+            print("⚠️ PageView pas encore prêt");
+          }
+        });
+      }
+    });
+
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +184,7 @@ class FriendFeedScreen extends StatelessWidget {
       body:  StreamBuilder<List<Map<String, dynamic>>>(
         // Utiliser les données mockées en développement, Firestore en production
         // stream: _getVideosFromFirestore(), // Décommentez pour Firestore
-        stream: _getVideosFromFirestore(), // Commentez en production
+        stream: widget.userid!=""?  getVideosFromFirestore(widget.userid):getVideosFromFirestores(widget.userid),     // Commentez en production
         builder: (context, snapshot) {
           // Gestion des états de chargement
           print('🔥 StreamBuilder rebuild à ${DateTime.now().millisecondsSinceEpoch}');
@@ -162,7 +271,9 @@ class FriendFeedScreen extends StatelessWidget {
           return PageView.builder(
             scrollDirection: Axis.vertical,
             itemCount: videos.length,
-            controller: PageController(initialPage: 0),
+            controller:_pageController,
+            restorationId: restorationId,
+
             itemBuilder: (context, index) {
               final video = videos[index];
 
@@ -179,7 +290,7 @@ class FriendFeedScreen extends StatelessWidget {
                   isLiked: video['islike'],
                   comments: List.from(video['comment']).length,
                   alllike:  List.from(video['alllike']),
-                  shares: video['shares'] ?? 0,
+                  shares: widget.indexed,
                   profileImage: video['profileImage'] ?? '',
                   uid :video['uid'],
                   mail :video['email'],
