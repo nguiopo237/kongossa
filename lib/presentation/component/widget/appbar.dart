@@ -2,17 +2,22 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:kongossa/presentation/component/style/custum_text.dart';
 import 'package:kongossa/presentation/component/widget/select_media.dart';
 import 'package:kongossa/presentation/component/widget/widget_component.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:get/get.dart';
+import 'package:rive/rive.dart' show RiveAnimation;
 
 import '../../../config_App/colorsApp.dart';
 import '../../../config_App/image.dart';
 import '../../../main.dart';
 import '../../../model/datamodel/user_model.dart';
+import '../../../model/menu.dart';
+import '../../../model/rive_model.dart';
 import '../image_component/image.dart';
 import 'component_for_post/create_post_widget.dart';
+import 'notification_button.dart';
 
 class ProfessionalAppBar extends StatelessWidget {
   final VoidCallback? onCreatePost;
@@ -44,17 +49,20 @@ class ProfessionalAppBar extends StatelessWidget {
             child: Row(
               children: [
                 // Barre de recherche améliorée
-                Expanded(
-                  child: _buildSearchBar(),
-                ),
+                Expanded(child: _buildSearchBar()),
                 SizedBox(width: 2.w),
 
-                // Bouton création de post
-                // _buildCreatePostButton(),
                 SizedBox(width: 2.w),
 
                 // Profil utilisateur avec menu
+
+
+                NotificationPopupButton (bellColor: 0==0?Colors.black:Colors.red,),
+                SizedBox(width: 2.w),
                 _buildUserProfile(),
+
+
+
               ],
             ),
           ),
@@ -71,10 +79,7 @@ class ProfessionalAppBar extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         gradient: LinearGradient(
-          colors: [
-            ColorApp.primary1.withOpacity(0.1),
-            Colors.transparent,
-          ],
+          colors: [ColorApp.primary1.withOpacity(0.1), Colors.transparent],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -96,10 +101,7 @@ class ProfessionalAppBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.grey[50],
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: Colors.grey[200]!,
-          width: 1,
-        ),
+        border: Border.all(color: Colors.grey[200]!, width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.02),
@@ -135,10 +137,7 @@ class ProfessionalAppBar extends StatelessWidget {
             ),
           ),
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(
-            horizontal: 3.w,
-            vertical: 1.h,
-          ),
+          contentPadding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
         ),
       ),
     );
@@ -152,10 +151,7 @@ class ProfessionalAppBar extends StatelessWidget {
       width: 6.h,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            ColorApp.primary1,
-            ColorApp.primary2,
-          ],
+          colors: [ColorApp.primary1, ColorApp.primary2],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -171,21 +167,19 @@ class ProfessionalAppBar extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: onCreatePost ?? () {
-            WidgetComponent.getmodal(
-              sectionview: Container(
-                height: Get.height,
-                child: CreatePostPremiumScreen(),
-              ),
-            );
-          },
+          onTap:
+              onCreatePost ??
+              () {
+                WidgetComponent.getmodal(
+                  sectionview: Container(
+                    height: Get.height,
+                    child: CreatePostPremiumScreen(),
+                  ),
+                );
+              },
           borderRadius: BorderRadius.circular(15),
           child: Center(
-            child: Icon(
-              Icons.add_rounded,
-              color: Colors.white,
-              size: 22.sp,
-            ),
+            child: Icon(Icons.add_rounded, color: Colors.white, size: 22.sp),
           ),
         ),
       ),
@@ -195,7 +189,10 @@ class ProfessionalAppBar extends StatelessWidget {
   // Profil utilisateur premium
   Widget _buildUserProfile() {
     return StreamBuilder(
-      stream: Users.where('googleId', isEqualTo: AppUser.info?.googleId).snapshots(),
+      stream: Users.where(
+        'googleId',
+        isEqualTo: AppUser.info?.googleId,
+      ).snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return _buildProfileShimmer();
@@ -243,22 +240,22 @@ class ProfessionalAppBar extends StatelessWidget {
               borderRadius: BorderRadius.circular(100),
               child: document["photoUrl"] == null || document["photoUrl"] == ""
                   ? Container(
-                width: 10.w,
-                height: 10.w,
-                color: Colors.grey[100],
-                child: Icon(
-                  CupertinoIcons.person_fill,
-                  size: 6.w,
-                  color: Colors.grey[400],
-                ),
-              )
+                      width: 10.w,
+                      height: 10.w,
+                      color: Colors.grey[100],
+                      child: Icon(
+                        CupertinoIcons.person_fill,
+                        size: 6.w,
+                        color: Colors.grey[400],
+                      ),
+                    )
                   : CustomImage(
-                source: document["photoUrl"]!,
-                type: ImageType.network,
-                width: 8.w,
-                height: 8.w,
-                fit: BoxFit.cover,
-              ),
+                      source: document["photoUrl"]!,
+                      type: ImageType.network,
+                      width: 8.w,
+                      height: 8.w,
+                      fit: BoxFit.cover,
+                    ),
             ),
 
             // Badge de statut en ligne
@@ -271,10 +268,7 @@ class ProfessionalAppBar extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.green,
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white,
-                    width: 0.2.w,
-                  ),
+                  border: Border.all(color: Colors.white, width: 0.2.w),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.green.withOpacity(0.4),
@@ -295,9 +289,7 @@ class ProfessionalAppBar extends StatelessWidget {
                   WidgetComponent.getmodal(
                     sectionview: Container(
                       height: 60.h,
-                      child: PremiumMediaSelector(
-                        onSourceSelected: (p1) {},
-                      ),
+                      child: PremiumMediaSelector(onSourceSelected: (p1) {}),
                     ),
                   );
                 },
@@ -306,16 +298,10 @@ class ProfessionalAppBar extends StatelessWidget {
                   height: 4.w,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [
-                        ColorApp.primary1,
-                        ColorApp.primary2,
-                      ],
+                      colors: [ColorApp.primary1, ColorApp.primary2],
                     ),
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.white,
-                      width: 0.2.w,
-                    ),
+                    border: Border.all(color: Colors.white, width: 0.2.w),
                     boxShadow: [
                       BoxShadow(
                         color: ColorApp.primary1.withOpacity(0.3),
@@ -386,7 +372,10 @@ class ProfessionalAppBar extends StatelessWidget {
 // Extension pour les couleurs (à ajouter dans votre ColorApp)
 extension ProfessionalColors on ColorApp {
   static Color get primary2 => const Color(0xFF6C63FF);
+
   static Color get primary3 => const Color(0xFFFF6B6B);
+
   static Color get primary4 => const Color(0xFF4ECDC4);
+
   static Color get primary5 => const Color(0xFFA8E6CF);
 }

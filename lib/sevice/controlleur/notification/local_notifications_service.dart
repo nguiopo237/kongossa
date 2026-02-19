@@ -58,6 +58,8 @@ class LocalNotificationsService {
         onDidReceiveNotificationResponse: (NotificationResponse response) {
       // Handle notification tap in foreground
       print('Foreground notification has been tapped: ${response.payload}');
+      print('Foreground notification has been tapped: ${response.payload}');
+      print('Foregrounds notification has been tappeds: ${response.payload}');
     });
 
     // Create Android notification channel

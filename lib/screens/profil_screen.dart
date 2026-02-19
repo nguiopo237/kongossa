@@ -1,32 +1,39 @@
 // lib/screens/profile/premium_profile_screen.dart
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kongossa/model/datamodel/user_model.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
 
 import '../main.dart';
 import '../model/datamodel/profil_model.dart';
 import '../presentation/component/widget/avatar_premuim.dart';
+
 import '../sevice/theme/theme_profil.dart';
+import '../sevice/upload/upload_post.dart';
 import 'mymember/chatpage.dart';
+import 'package:path_provider/path_provider.dart';
 
 class PremiumProfileScreen extends StatefulWidget {
   final String? userId;
+  final String? id;
   final String? username;
   final String? displayName;
   final String? avatarUrl;
   final String? bio;
   final String? mail;
 
-  PremiumProfileScreen({
+  const PremiumProfileScreen({
     Key? key,
     required this.userId,
     this.username,
     this.displayName,
     this.avatarUrl,
     this.bio,
+    this.id,
     this.mail,
   }) : super(key: key);
 
@@ -38,27 +45,62 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool isFollowing = false;
-  bool isCurrentUser = false; // À définir selon l'utilisateur connecté
+  bool isCurrentUser = false;
+  int followersCount = 0;
+  int followingCount = 0;
 
-  // Données mockées pour l'exemple
   late UserProfileModel userProfile;
+  final PostUpdateService service = PostUpdateService();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _loadUserData();
+    _setupFollowersListener();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  void _setupFollowersListener() {
+    if (widget.userId == null) return;
+
+    Users.where("googleId", isEqualTo: widget.userId).snapshots().listen(
+      (QuerySnapshot snapshot) {
+        for (var change in snapshot.docChanges) {
+          if (change.type == DocumentChangeType.added ||
+              change.type == DocumentChangeType.modified) {
+            final data = change.doc.data() as Map<String, dynamic>?;
+            if (data != null) {
+              final allfollow = data['allfollow'];
+              if (allfollow is List) {
+                setState(() {
+                  followersCount = allfollow.length;
+                });
+                debugPrint("📊 Nombre de followers: ${allfollow.length}");
+              }
+            }
+          }
+        }
+      },
+      onError: (error) {
+        debugPrint("❌ Erreur listener followers: $error");
+      },
+    );
   }
 
   void _loadUserData() {
-    // Simuler le chargement des données
     userProfile = UserProfileModel(
-      uid: widget.userId!,
-      username: '@${widget.displayName}',
-      displayName: '${widget.displayName}',
-      avatarUrl: '${widget.avatarUrl}',
-      bio: '${widget.bio}',
-      website: '${widget.mail}',
+      uid: widget.userId ?? '',
+      username: '@${widget.displayName ?? 'utilisateur'}',
+      displayName: widget.displayName ?? 'Utilisateur',
+      avatarUrl: widget.avatarUrl ?? '',
+      bio: widget.bio ?? '',
+      website: widget.mail ?? '',
       followersCount: 12500,
       followingCount: 850,
       likesCount: 125000,
@@ -79,60 +121,64 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
     );
   }
 
-  Stream watchUserPostCount() {
-    return Posts.where(
-      'userData.googleId',
-      isEqualTo: widget.userId,
-    ).snapshots();
-  }
-
   @override
   Widget build(BuildContext context) {
+    if (widget.userId == null) {
+      return const Scaffold(
+        body: Center(child: Text('ID utilisateur non fourni')),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      body: CustomScrollView(
-        slivers: [
-          // App Bar personnalisée
-          SliverAppBar(
-            expandedHeight: 40.h,
-            floating: false,
-            pinned: true,
-            backgroundColor: AppTheme.backgroundColor,
-            flexibleSpace: FlexibleSpaceBar(
-              background: _buildHeaderBackground(),
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.share_outlined),
-                onPressed: () {},
+      body: StreamBuilder<QuerySnapshot>(
+        stream: Users.where('googleId', isEqualTo: widget.userId).snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text('Erreur: ${snapshot.error}'));
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final userDoc = snapshot.data!.docs.first;
+
+          return CustomScrollView(
+            slivers: [
+              _buildSliverAppBar(),
+              SliverToBoxAdapter(child: _buildProfileInfo(userDoc)),
+              SliverToBoxAdapter(child: _buildStatsRow(userDoc)),
+              if (widget.userId != AppUser.info?.googleId)
+                SliverToBoxAdapter(child: _buildActionButtons(userDoc)),
+              SliverToBoxAdapter(child: _buildStoriesSection(userDoc)),
+              SliverToBoxAdapter(child: _buildTabBar()),
+              SliverPadding(
+                padding: EdgeInsets.only(
+                  right: 0.5.w,
+                  left: 0.5.w,
+                  bottom: 10.h,
+                ),
+                sliver: _buildPostsGrid(),
               ),
-              IconButton(icon: const Icon(Icons.more_vert), onPressed: () {}),
             ],
-          ),
-
-          // Informations du profil
-          SliverToBoxAdapter(child: _buildProfileInfo()),
-
-          // Statistiques
-          SliverToBoxAdapter(child: _buildStatsRow()),
-
-          // Boutons d'action
-          if (widget.userId != AppUser.info!.googleId)
-            SliverToBoxAdapter(child: _buildActionButtons()),
-
-          // Stories
-          SliverToBoxAdapter(child: _buildStoriesSection()),
-
-          // Tab Bar
-          SliverToBoxAdapter(child: _buildTabBar()),
-
-          // Grille des posts
-          SliverPadding(
-            padding: EdgeInsets.only(right: 0.5.w, left: 0.5, bottom: 10.h),
-            sliver: _buildPostsGrid(),
-          ),
-        ],
+          );
+        },
       ),
+    );
+  }
+
+  SliverAppBar _buildSliverAppBar() {
+    return SliverAppBar(
+      expandedHeight: 40.h,
+      floating: false,
+      pinned: true,
+      backgroundColor: AppTheme.backgroundColor,
+      flexibleSpace: FlexibleSpaceBar(background: _buildHeaderBackground()),
+      actions: [
+        IconButton(icon: const Icon(Icons.share_outlined), onPressed: () {}),
+        IconButton(icon: const Icon(Icons.more_vert), onPressed: () {}),
+      ],
     );
   }
 
@@ -140,7 +186,6 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Image de couverture
         Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -155,10 +200,11 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
           child: Image.network(
             'https://picsum.photos/500/800',
             fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(color: Colors.grey[300]);
+            },
           ),
         ),
-
-        // Overlay gradient
         Positioned(
           bottom: 0,
           left: 0,
@@ -178,7 +224,9 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
     );
   }
 
-  Widget _buildProfileInfo() {
+  Widget _buildProfileInfo(QueryDocumentSnapshot<Object?> doc) {
+    final data = doc.data() as Map<String, dynamic>;
+
     return Padding(
       padding: EdgeInsets.all(4.w),
       child: Column(
@@ -187,8 +235,7 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
           Row(
             children: [
               PremiumAvatar(
-                // imageUrl: userProfile.avatarUrl,
-                userId: widget.userId,
+                userId: data['googleId'] ?? '',
                 size: 80,
                 hasStory: true,
                 isVerified: userProfile.isVerified,
@@ -200,7 +247,7 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      userProfile.displayName,
+                      data['name'] ?? 'Nom non défini',
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -209,8 +256,8 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      userProfile.username,
-                      style: TextStyle(fontSize: 14, color: Colors.blue),
+                      '@${data['email'] ?? 'email@exemple.com'}',
+                      style: const TextStyle(fontSize: 14, color: Colors.blue),
                     ),
                   ],
                 ),
@@ -227,7 +274,7 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
             ),
           ),
           const SizedBox(height: 8),
-          if (userProfile.website != null)
+          if (userProfile.website != null && userProfile.website!.isNotEmpty)
             InkWell(
               onTap: () {},
               child: Text(
@@ -249,64 +296,46 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
     );
   }
 
-  Widget _buildStatsRow() {
+  Widget _buildStatsRow(QueryDocumentSnapshot<Object?> userDoc) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('postcarduser')
-          .where('userData.googleId', isEqualTo: widget.userId) // Posts de l'utilisateur
+          .where('userData.googleId', isEqualTo: widget.userId)
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Text('Erreur: ${snapshot.error}');
-        }
+        int postsCount = 0;
+        int totalLikesRecus = 0;
 
-        if (!snapshot.hasData) {
-          return Center(child: CircularProgressIndicator());
-        }
+        if (snapshot.hasData) {
+          final docs = snapshot.data!.docs;
+          postsCount = docs.length;
 
-        // Statistiques pour les posts de l'utilisateur
-        final docs = snapshot.data!.docs;
-        int postsCount = docs.length;
-        int totalLikesRecus = 0; // Likes sur SES posts
-
-        for (var doc in docs) {
-          Map<String, dynamic> postData = doc.data() as Map<String, dynamic>;
-          List<dynamic> allike = postData["postData"]['allike'] ?? [];
-          // if (allike.contains(widget.userId))
-          if (allike.isNotEmpty) {
-            totalLikesRecus += 1;
-            print('📝 Post ${doc.id}: Liké par cet utilisateur');
-            print(totalLikesRecus);
-          } else {
-            print('📝 Post ${doc.id}: Non liké par cet utilisateur');
+          for (var doc in docs) {
+            final postData = doc.data() as Map<String, dynamic>;
+            final allike = postData['postData']?['allike'] as List? ?? [];
+            totalLikesRecus += allike.length;
           }
-          print('📝 Post ${doc.id}: ${allike.length} likes reçus }');
         }
-        print("totalLikesRecus");
-        print(totalLikesRecus);
-        print("totalLikesRecus");
 
-        // Pour compter les likes DONNÉS par l'utilisateur (sur les posts des autres)
-        int likesDonnes = 0;
-        // Il faudra une autre requête pour ça
-        // Je vous montre après
+        final userData = userDoc.data() as Map<String, dynamic>;
+        final followers = userData['allfollow'] as List? ?? [];
 
         return Padding(
           padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildStatItem(value: postsCount.toString(), label: 'Posts'),
+              _buildStatItem(value: _formatNumber(postsCount), label: 'Posts'),
               _buildStatItem(
-                value: _formatNumber(userProfile.followersCount),
+                value: _formatNumber(followers.length),
                 label: 'Followers',
               ),
               _buildStatItem(
-                value: _formatNumber(userProfile.followingCount),
+                value: _formatNumber(followingCount),
                 label: 'Following',
               ),
               _buildStatItem(
-                value: totalLikesRecus.toString(), // 👍 Likes REÇUS
+                value: _formatNumber(totalLikesRecus),
                 label: 'Likes reçus',
               ),
             ],
@@ -336,7 +365,11 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
     );
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildActionButtons(QueryDocumentSnapshot<Object?> doc) {
+    final userData = doc.data() as Map<String, dynamic>;
+    final followers = userData['allfollow'] as List? ?? [];
+    final isFollowing = followers.contains(AppUser.info?.googleId);
+
     return Padding(
       padding: EdgeInsets.all(4.w),
       child: Row(
@@ -344,9 +377,7 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
           Expanded(
             child: ElevatedButton(
               onPressed: () {
-                setState(() {
-                  isFollowing = !isFollowing;
-                });
+                service.addfollowuser(postId: widget.userId!);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: isFollowing
@@ -380,11 +411,10 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
               icon: const Icon(Icons.message_outlined),
               onPressed: () {
                 Get.to(
-                  ChatPage(
-                    receiverId: widget.userId!,
-                    receiverName: widget.displayName ?? "anonyme",
-                    receiverPhoto: widget.avatarUrl,
-                    // isOnline: true,
+                  () => ChatPageTikTok(
+                    receiverId: userData['googleId'] ?? '',
+                    receiverName: userData['name'] ?? 'Anonyme',
+                    receiverPhoto: userData['photoUrl'] ?? '',
                   ),
                 );
               },
@@ -395,27 +425,26 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
     );
   }
 
-  Widget _buildStoriesSection() {
+  Widget _buildStoriesSection(QueryDocumentSnapshot<Object?> doc) {
+    final userData = doc.data() as Map<String, dynamic>;
+    final followers = userData['allfollow'] as List? ?? [];
     return Container(
       height: 100,
       padding: EdgeInsets.symmetric(horizontal: 4.w),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        itemCount: 10,
+        itemCount: followers.length,
+        // À remplacer par le nombre réel de stories
         itemBuilder: (context, index) {
           return Padding(
             padding: EdgeInsets.only(right: 3.w),
             child: Column(
               children: [
                 PremiumAvatar(
-                  imageUrl: 'https://i.pravatar.cc/150?img=${index + 1}',
+                  userId: followers[index],
+                  // imageUrl: 'https://i.pravatar.cc/150?img=${index + 1}',
                   size: 60,
                   hasStory: index % 3 != 0,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Story ${index + 1}',
-                  style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                 ),
               ],
             ),
@@ -446,66 +475,383 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
     );
   }
 
+  Map<String, dynamic> _getSafeMap(dynamic data) {
+    if (data is Map<String, dynamic>) {
+      return data;
+    }
+    return {};
+  }
+
   Widget _buildPostsGrid() {
-    return SliverGrid(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 2,
-        mainAxisSpacing: 2,
-        childAspectRatio: 0.8,
-      ),
-      delegate: SliverChildBuilderDelegate((context, index) {
-        final post = userProfile.posts?[index];
-        return _buildGridItem(post);
-      }, childCount: userProfile.posts?.length ?? 0),
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('postcarduser')
+          .where('userData.googleId', isEqualTo: widget.userId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        // Gestion des états de chargement
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SliverToBoxAdapter(
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: CircularProgressIndicator(),
+              ),
+            ),
+          );
+        }
+
+        // Gestion des erreurs
+        if (snapshot.hasError) {
+          return SliverToBoxAdapter(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Text('Erreur: ${snapshot.error}'),
+              ),
+            ),
+          );
+        }
+
+        // Vérification des données
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const SliverToBoxAdapter(
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Text('Aucun post pour le moment'),
+              ),
+            ),
+          );
+        }
+
+        final documents = snapshot.data!.docs;
+
+        return SliverPadding(
+          padding: EdgeInsets.only(
+            right: 0.5.w,
+            left: 0.5.w,
+            bottom: 10.h,
+          ),
+          sliver: SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 2,
+              mainAxisSpacing: 2,
+              childAspectRatio: 0.8,
+            ),
+            delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                try {
+                  final postDoc = documents[index];
+                  final postData = postDoc.data() as Map<String, dynamic>;
+
+                  // Extraction sécurisée des données
+                  final userData = _getSafeMap(postData['userData']);
+                  final postContent = _getSafeMap(postData['postData']);
+
+                  // Récupération des commentaires et likes de façon sécurisée
+                  final allike = _getSafeList(postContent['allike']);
+                  final commentaires = _getSafeList(postContent['commentaire']);
+
+                  // Récupération des images de façon sécurisée
+                  final images = _getSafeList(postContent['imagepost']);
+
+                  // Détermination de l'URL du média (première image ou vidéo)
+                  String mediaUrl = '';
+
+                  if (images.isNotEmpty) {
+                    // Si c'est une liste d'images, prendre la première
+                    final firstImage = images.first;
+                    if (firstImage is String) {
+                      mediaUrl = firstImage;
+                    } else if (firstImage is Map) {
+                      // Si c'est un objet avec une clé 'url'
+                      mediaUrl = firstImage['url'] ?? firstImage.toString();
+                    } else {
+                      mediaUrl = firstImage.toString();
+                    }
+                  } else if (postContent['mediaUrl'] != null) {
+                    // Fallback sur mediaUrl si imagepost est vide
+                    mediaUrl = postContent['mediaUrl'].toString();
+                  } else if (postContent['videoUrl'] != null) {
+                    // Fallback sur videoUrl
+                    mediaUrl = postContent['videoUrl'].toString();
+                  }
+
+                  // Détermination du type de média
+                  final mediaTypeStr = postContent['mediaType'] as String?;
+                  final mediaType = _getMediaType(mediaTypeStr, images.isNotEmpty);
+
+                  // Récupération du timestamp
+                  Timestamp? timestamp;
+                  if (postContent['timestamp'] is Timestamp) {
+                    timestamp = postContent['timestamp'] as Timestamp;
+                  } else if (postData['timestamp'] is Timestamp) {
+                    timestamp = postData['timestamp'] as Timestamp;
+                  }
+
+                  // Debug pour vérifier les données
+                  debugPrint('📸 Post ${postDoc.id}: ${allike.length} likes, ${commentaires.length} commentaires');
+                  debugPrint('🖼️ Media URL: $mediaUrl');
+
+                  // Création du PostModel
+                  final post = PostModel(
+                    id: postDoc.id,
+                    mediaUrl: mediaUrl,
+                    commentsCount: commentaires.length,
+                    likesCount: allike.length,
+                    mediaType: mediaType,
+                    timestamp: timestamp?.toDate() ?? DateTime.now(),
+                    // userId: userData['googleId'] ?? '',
+                    // username: userData['name'] ?? 'Utilisateur',
+                    // userPhoto: userData['photoUrl'] ?? '',
+                    // description: postContent['description'] ?? '',
+                  );
+
+                  return _buildGridItem(post);
+                } catch (e, stackTrace) {
+                  debugPrint('❌ Erreur lors de la création du post $index: $e');
+                  debugPrint('📋 StackTrace: $stackTrace');
+                  return _buildErrorGridItem();
+                }
+              },
+              childCount: documents.length,
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildGridItem(PostModel? post) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // Image/Video thumbnail
-        Image.network(post?.mediaUrl ?? '', fit: BoxFit.cover),
+// Fonctions utilitaires
 
-        // Overlay gradient
-        Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          child: Container(
-            padding: EdgeInsets.all(1.w),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                if (post?.mediaType == MediaType.video)
-                  const Icon(
-                    Icons.play_circle_outline,
-                    color: Colors.white,
-                    size: 16,
+  Map<String, dynamic> _getSafeMaps(dynamic value) {
+    if (value == null) return {};
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      try {
+        return Map<String, dynamic>.from(value);
+      } catch (e) {
+        debugPrint('⚠️ Erreur conversion Map: $e');
+        return {};
+      }
+    }
+    return {};
+  }
+
+  List<dynamic> _getSafeList(dynamic value) {
+    if (value == null) return [];
+    if (value is List) return value;
+    if (value is List<dynamic>) return value;
+    // Si c'est un iterable, le convertir en liste
+    if (value is Iterable) return value.toList();
+    return [];
+  }
+
+  MediaType _getMediaType(String? type, bool hasImages) {
+    if (type == null) {
+      return hasImages ? MediaType.image : MediaType.video;
+    }
+
+    switch (type.toLowerCase()) {
+      case 'video':
+        return MediaType.video;
+      case 'image':
+        return MediaType.image;
+      case 'multiple':
+      case 'carousel':
+        return MediaType.multiple;
+      default:
+        return hasImages ? MediaType.image : MediaType.image;
+    }
+  }
+
+  Widget _buildGridItem(PostModel post) {
+    return GestureDetector(
+      onTap: () {
+        // TODO: Naviguer vers la page de détail du post
+        debugPrint('📱 Post cliqué: ${post.id}');
+      },
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Image/Video thumbnail
+          if (post.mediaUrl.isNotEmpty)
+            CachedNetworkImage(
+              imageUrl: post.mediaUrl,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => Container(
+                color: Colors.grey[900],
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
                   ),
-                Row(
+                ),
+              ),
+              errorWidget: (context, url, error) => Container(
+                color: Colors.grey[900],
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.favorite, color: Colors.white, size: 12),
-                    const SizedBox(width: 2),
+                    Icon(
+                      Icons.broken_image,
+                      color: Colors.white54,
+                      size: 30,
+                    ),
+                    const SizedBox(height: 4),
                     Text(
-                      _formatNumber(post?.likesCount ?? 0),
-                      style: const TextStyle(color: Colors.white, fontSize: 10),
+                      'Image\nindisponible',
+                      style: TextStyle(
+                        color: Colors.white54,
+                        fontSize: 8,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
-              ],
+              ),
+            )
+          else
+            Container(
+              color: Colors.grey[900],
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.hide_image,
+                    color: Colors.white54,
+                    size: 30,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Aucune\nimage',
+                    style: TextStyle(
+                      color: Colors.white54,
+                      fontSize: 8,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+
+          // Overlay gradient pour les informations
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: 1.w,
+                vertical: 0.5.h,
+              ),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.7),
+                  ],
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Indicateur de type de média
+                  _buildMediaTypeIcon(post.mediaType),
+
+                  // Compteur de likes
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.favorite,
+                        color: Colors.white,
+                        size: 12,
+                      ),
+                      const SizedBox(width: 2),
+                      Text(
+                        _formatNumber(post.likesCount),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
+
+          // Badge pour plusieurs médias
+          if (post.mediaType == MediaType.multiple)
+            const Positioned(
+              top: 4,
+              right: 4,
+              child: Icon(
+                Icons.collections,
+                color: Colors.white,
+                size: 16,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMediaTypeIcon(MediaType type) {
+    switch (type) {
+      case MediaType.video:
+        return const Icon(
+          Icons.play_circle_outline,
+          color: Colors.white,
+          size: 16,
+        );
+      case MediaType.multiple:
+        return const Icon(
+          Icons.photo_library_outlined,
+          color: Colors.white,
+          size: 16,
+        );
+      case MediaType.image:
+        return const SizedBox(width: 16); // Espace pour l'alignement
+      case MediaType.image:
+        return const Icon(
+          Icons.help_outline,
+          color: Colors.white54,
+          size: 16,
+        );
+    }
+  }
+
+  Widget _buildErrorGridItem() {
+    return Container(
+      color: Colors.grey[900],
+      child: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              color: Colors.red,
+              size: 30,
+            ),
+            SizedBox(height: 4),
+            Text(
+              'Erreur',
+              style: TextStyle(
+                color: Colors.white54,
+                fontSize: 10,
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -518,8 +864,203 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
     return number.toString();
   }
 
+  // Fonctions utilitaires pour une extraction sécurisée des données
+
+  // Map<String, dynamic> _getSafeMap(dynamic value) {
+  //   if (value is Map<String, dynamic>) {
+  //     return value;
+  //   } else if (value is Map) {
+  //     // Conversion si c'est un Map mais pas typé correctement
+  //     return Map<String, dynamic>.from(value);
+  //   }
+  //   return {};
+  // }
+
+
+
+  convert(PostModel post) async {
+    final fileName = await VideoThumbnail.thumbnailFile(
+      video: post.mediaUrl,
+      thumbnailPath: (await getTemporaryDirectory()).path,
+      imageFormat: ImageFormat.JPEG,
+      maxHeight:
+          64, // specify the height of the thumbnail, let the width auto-scaled to keep the source aspect ratio
+      quality: 75,
+    );
+    return fileName;
+  }
+
+   _buildGridItems(PostModel post) async {
+    return GestureDetector(
+      onTap: () {
+        // TODO: Naviguer vers la page de détail du post
+        debugPrint('📱 Post cliqué: ${post.id}');
+      },
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Image/Video thumbnail
+          CachedNetworkImage(
+            imageUrl: post.mediaUrl,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => Container(
+              color: Colors.grey[900],
+              child: const Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                ),
+              ),
+            ),
+            errorWidget: (context, url, error) => Container(
+              color: Colors.grey[900],
+              child: const Icon(
+                Icons.broken_image,
+                color: Colors.white54,
+                size: 30,
+              ),
+            ),
+          ),
+
+          // Overlay gradient
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 1.w, vertical: 0.5.h),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Indicateur vidéo
+                  if (post.mediaType == MediaType.video)
+                    const Icon(
+                      Icons.play_circle_outline,
+                      color: Colors.white,
+                      size: 16,
+                    )
+                  else
+                    const SizedBox(width: 16),
+                  // Espace réservé pour l'alignement
+
+                  // Compteur de likes
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.favorite, color: Colors.white, size: 12),
+                      const SizedBox(width: 2),
+                      Text(
+                        _formatNumber(post.likesCount),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Badge multiple (si plusieurs médias)
+          if (post.mediaType == MediaType.multiple)
+            const Positioned(
+              top: 4,
+              right: 4,
+              child: Icon(Icons.collections, color: Colors.white, size: 16),
+            ),
+        ],
+      ),
+    );
+  }
+
+
+
+
+
+  // Méthode utilitaire pour convertir le type de média
+  //   MediaType _getMediaType(dynamic mediaType) {
+  //     if (mediaType == 'image') return MediaType.image;
+  //     if (mediaType == 'video') return MediaType.video;
+  //     return MediaType.image; // Valeur par défaut
+  //   }
+  //
+  //   Widget _buildGridItem(PostModel? post) {
+  //     if (post == null) return const SizedBox.shrink();
+  //
+  //     return Stack(
+  //       fit: StackFit.expand,
+  //       children: [
+  //         Image.network(
+  //           post.mediaUrl,
+  //           fit: BoxFit.cover,
+  //           errorBuilder: (context, error, stackTrace) {
+  //             return Container(color: Colors.grey[300]);
+  //           },
+  //         ),
+  //         Positioned(
+  //           bottom: 0,
+  //           left: 0,
+  //           right: 0,
+  //           child: Container(
+  //             padding: EdgeInsets.all(1.w),
+  //             decoration: BoxDecoration(
+  //               gradient: LinearGradient(
+  //                 begin: Alignment.topCenter,
+  //                 end: Alignment.bottomCenter,
+  //                 colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
+  //               ),
+  //             ),
+  //             child: Row(
+  //               mainAxisAlignment: MainAxisAlignment.spaceAround,
+  //               children: [
+  //                 if (post.mediaType == MediaType.video)
+  //                   const Icon(
+  //                     Icons.play_circle_outline,
+  //                     color: Colors.white,
+  //                     size: 16,
+  //                   ),
+  //                 Row(
+  //                   children: [
+  //                     const Icon(Icons.favorite, color: Colors.white, size: 12),
+  //                     const SizedBox(width: 2),
+  //                     Text(
+  //                       _formatNumber(post.likesCount),
+  //                       style: const TextStyle(
+  //                         color: Colors.white,
+  //                         fontSize: 10,
+  //                       ),
+  //                     ),
+  //                   ],
+  //                 ),
+  //               ],
+  //             ),
+  //           ),
+  //         ),
+  //       ],
+  //     );
+  //   }
+  //
+  //   String _formatNumber(int number) {
+  //     if (number >= 1000000) {
+  //       return '${(number / 1000000).toStringAsFixed(1)}M';
+  //     } else if (number >= 1000) {
+  //       return '${(number / 1000).toStringAsFixed(1)}K';
+  //     }
+  //     return number.toString();
+  //   }
+
   String _formatDate(DateTime date) {
-    final months = [
+    const months = [
       'janvier',
       'février',
       'mars',

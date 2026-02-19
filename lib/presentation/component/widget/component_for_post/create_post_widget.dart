@@ -605,11 +605,13 @@ class _CreatePostPremiumScreenState extends State<CreatePostPremiumScreen>
                 children: [
                   Expanded(
                     child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
+                      // physics: const BouncingScrollPhysics(),
                       child: Column(
                         children: [
                           // En-tête utilisateur premium - OPTIMISÉ
+                          SizedBox(height: 2.h,),
                           _buildPremiumUserHeader(),
+                          SizedBox(height: 2.h,),
 
                           // Zone de texte avec effet glassmorphism
                           _buildPremiumTextField(),
@@ -639,11 +641,12 @@ class _CreatePostPremiumScreenState extends State<CreatePostPremiumScreen>
                 ],
               ),
             ),
-            floatingActionButton: Padding(
-              padding:  EdgeInsets.only(bottom: 6.h),
-              child: SizedBox(height: 10.h,child:  _buildPremiumActionBar( ),),
-            ),
-            floatingActionButtonLocation: FloatingActionButtonLocation.miniStartDocked,
+            bottomNavigationBar: _buildActionBar(),
+            // floatingActionButton: Padding(
+            //   padding:  EdgeInsets.only(bottom: 6.h),
+            //   child: SizedBox(height: 10.h,child: _buildActionBar(),),
+            // ),
+            // floatingActionButtonLocation: FloatingActionButtonLocation.miniStartDocked,
           ),
         );
       },
@@ -654,181 +657,178 @@ class _CreatePostPremiumScreenState extends State<CreatePostPremiumScreen>
   Widget _buildPremiumUserHeader() {
     return Transform.translate(
       offset: Offset(0, _slideAnimation.value),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_isLoadingUser)
-                    const Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 25,
-                          backgroundColor: Colors.grey,
-                        ),
-                        SizedBox(width: 15),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SizedBox(
-                              width: 120,
-                              height: 20,
-                              child: LinearProgressIndicator(),
-                            ),
-                            SizedBox(height: 5),
-                            SizedBox(
-                              width: 80,
-                              height: 15,
-                              child: LinearProgressIndicator(),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_isLoadingUser)
+                  const Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 25,
+                        backgroundColor: Colors.grey,
+                      ),
+                      SizedBox(width: 15),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: 120,
+                            height: 20,
+                            child: LinearProgressIndicator(),
+                          ),
+                          SizedBox(height: 5),
+                          SizedBox(
+                            width: 80,
+                            height: 15,
+                            child: LinearProgressIndicator(),
+                          ),
+                        ],
+                      ),
+                    ],
+                  )
+                else if (_userData != null)
+                  Row(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF6366F1), Color(0xFFEC4899)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF6366F1).withOpacity(0.3),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
                             ),
                           ],
                         ),
-                      ],
-                    )
-                  else if (_userData != null)
-                    Row(
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF6366F1), Color(0xFFEC4899)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF6366F1).withOpacity(0.3),
-                                blurRadius: 20,
-                                offset: const Offset(0, 10),
-                              ),
-                            ],
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(2),
-                            child: Container(
-                              width: 50,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                color: Colors.black,
-                                borderRadius: BorderRadius.circular(18),
+                        child: Padding(
+                          padding: const EdgeInsets.all(2),
+                          child: Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: Colors.black,
+                              borderRadius: BorderRadius.circular(18),
 
-                              ),
-                              child: CustomImage(type: ImageType.circle,source: _userData!["photoUrl"]),
                             ),
+                            child: CustomImage(type: ImageType.circle,source: _userData!["photoUrl"]),
                           ),
                         ),
-                        const SizedBox(width: 15),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _userData!["name"] ?? 'Utilisateur',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.black,
-                              ),
+                      ),
+                      const SizedBox(width: 15),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _userData!["name"] ?? 'Utilisateur',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black,
                             ),
-                            GestureDetector(
-                              onTap: _toggleAudience,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
+                          ),
+                          GestureDetector(
+                            onTap: _toggleAudience,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: Colors.black.withOpacity(0.2),
                                 ),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: Colors.black.withOpacity(0.2),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _isPublic ? Icons.public : Icons.lock,
+                                    size: 14,
+                                    color:
+                                    _isPublic ? Colors.green : Colors.orange,
                                   ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      _isPublic ? Icons.public : Icons.lock,
-                                      size: 14,
-                                      color:
-                                      _isPublic ? Colors.green : Colors.orange,
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    _selectedAudience,
+                                    style: TextStyle(
+                                      color: Colors.black,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
                                     ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      _selectedAudience,
-                                      style: TextStyle(
-                                        color: Colors.black,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
-                      ],
-                    )
-                  else
-                    const Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 25,
-                          backgroundColor: Colors.grey,
-                          child: Icon(Icons.person, color: Colors.white),
-                        ),
-                        SizedBox(width: 15),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Utilisateur',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.black,
-                              ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  )
+                else
+                  const Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 25,
+                        backgroundColor: Colors.grey,
+                        child: Icon(Icons.person, color: Colors.white),
+                      ),
+                      SizedBox(width: 15),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Utilisateur',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black,
                             ),
-                            Text(
-                              'Non connecté',
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 12,
-                              ),
+                          ),
+                          Text(
+                            'Non connecté',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
-                ],
-              ),
-            ),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              child: _hasContent
-                  ? Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.green.withOpacity(0.5),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ),
-                child: const Icon(
-                  Icons.check_circle,
-                  color: Colors.green,
-                  size: 20,
-                ),
-              )
-                  : const SizedBox(),
+              ],
             ),
-          ],
-        ),
+          ),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: _hasContent
+                ? Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.green.withOpacity(0.5),
+                ),
+              ),
+              child: const Icon(
+                Icons.check_circle,
+                color: Colors.green,
+                size: 20,
+              ),
+            )
+                : const SizedBox(),
+          ),
+        ],
       ),
     );
   }
@@ -1320,4 +1320,52 @@ class _CreatePostPremiumScreenState extends State<CreatePostPremiumScreen>
       ),
     );
   }
+
+  Widget _buildActionBar() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      padding:  EdgeInsets.symmetric(vertical: 0.5.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(30),
+          topRight: Radius.circular(30),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Expanded(
+              child: ElevatedButton(
+                onPressed: _hasContent ? _publishPost : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6366F1),
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey[300],
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  elevation: _hasContent ? 5 : 0,
+                ),
+                child: const Text(
+                  'Publier',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 }

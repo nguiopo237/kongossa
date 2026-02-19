@@ -1,27 +1,29 @@
-// lib/presentation/pages/members_page.dart
+// lib/presentation/pages/members_page_tiktok.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../main.dart';
 import '../../model/datamodel/membermodel.dart';
 import '../../model/datamodel/user_model.dart';
+import '../../sevice/controlleur/splashcontrolleur/splashscreen_controlleur.dart';
 import '../../sevice/member_service/member_service.dart';
 import 'chatpage.dart';
 
-
-class MembersPage extends StatefulWidget {
-  const MembersPage({Key? key}) : super(key: key);
+class MembersPageTikTok extends StatefulWidget {
+  const MembersPageTikTok({Key? key}) : super(key: key);
 
   @override
-  State<MembersPage> createState() => _MembersPageState();
+  State<MembersPageTikTok> createState() => _MembersPageTikTokState();
 }
 
-class _MembersPageState extends State<MembersPage> with SingleTickerProviderStateMixin {
+class _MembersPageTikTokState extends State<MembersPageTikTok> with SingleTickerProviderStateMixin {
   final MemberService _memberService = Get.find<MemberService>();
   final TextEditingController _searchController = TextEditingController();
   late TabController _tabController;
+  final ScrollController _scrollController = ScrollController();
 
   String _searchQuery = '';
   String get currentUserId => AppUser.info?.googleId ?? '';
@@ -41,89 +43,150 @@ class _MembersPageState extends State<MembersPage> with SingleTickerProviderStat
   void dispose() {
     _searchController.dispose();
     _tabController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text('Messages'),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Colors.blue,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: Colors.blue,
-          tabs: const [
-            Tab(text: 'Tous'),
-            Tab(text: 'En ligne'),
-            Tab(text: 'Abonnements'),
-          ],
-        ),
-      ),
-      body: Column(
-        children: [
-          // Barre de recherche
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+      backgroundColor: Colors.black,
+      body: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          // AppBar personnalisée style TikTok
+          SliverAppBar(
+            floating: true,
+            snap: true,
+            backgroundColor: Colors.black,
+            elevation: 0,
+            title: const Text(
+              'Messages',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 28,
+                letterSpacing: -0.5,
               ),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Rechercher un membre...',
-                  prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                  suffixIcon: _searchQuery.isNotEmpty
-                      ? IconButton(
-                    icon: const Icon(Icons.clear, color: Colors.grey),
-                    onPressed: () {
-                      _searchController.clear();
-                    },
-                  )
-                      : null,
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 15),
+            ),
+            actions: [
+              // Icône de création de message
+              Container(
+                margin: const EdgeInsets.only(right: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.edit_outlined, color: Colors.white),
+                  onPressed: () {},
+                ),
+              ),
+            ],
+          ),
+
+          // Barre de recherche style TikTok (décommentée et corrigée)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            sliver: SliverToBoxAdapter(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'Rechercher...',
+                    hintStyle: TextStyle(color: Colors.grey[600]),
+                    prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                      icon: Icon(Icons.close, color: Colors.grey[600]),
+                      onPressed: () => _searchController.clear(),
+                    )
+                        : null,
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 15),
+                  ),
                 ),
               ),
             ),
           ),
 
+          // TabBar style TikTok - CORRIGÉ
+          SliverToBoxAdapter(
+            child: Column(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: Colors.grey[900]!,
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  child: TabBar(
+                    controller: _tabController,
+                    labelColor: Colors.white,
+                    unselectedLabelColor: Colors.grey[600],
+                    indicatorColor: Colors.white,
+                    indicatorWeight: 3,
+                    // CORRECTION: indicatorPadding doit être plus petit
+                    indicatorPadding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    // Alternative: si vous voulez plus d'espace, utilisez isScrollable
+                    // isScrollable: true,
+                    tabs: const [
+                      Tab(text: 'Tous'),
+                      Tab(text: 'En ligne'),
+                      Tab(text: 'Abonnements'),
+                    ],
+                  ),
+                ),
+                // Ligne de séparation supplémentaire si nécessaire
+                Container(
+                  height: 0.5,
+                  color: Colors.grey[900],
+                ),
+              ],
+            ),
+          ),
+
           // TabBarView avec les différents streams
-          Expanded(
+          SliverFillRemaining(
             child: TabBarView(
               controller: _tabController,
               children: [
                 // Tous les membres
-                _buildMembersStream(
-                    Users.where("googleId" ,isNotEqualTo: AppUser.info?.googleId).snapshots().map((snapshot){
-                      return  snapshot.docs
-                          .map((doc) => MemberModel.fromFirestore(doc))
-                          .toList();
-                    })
+                _buildMembersList(
+                  stream: Users
+                      .where("googleId", isNotEqualTo: AppUser.info?.googleId)
+                      .snapshots()
+                      .map((snapshot) => snapshot.docs
+                      .map((doc) => MemberModel.fromFirestore(doc))
+                      .toList()),
                 ),
 
                 // Membres en ligne
-                _buildMembersStream(
-                  _memberService.getOnlineMembers(excludeUserId: currentUserId),
+                _buildMembersList(
+                  stream: Users
+                      .where("googleId", isNotEqualTo: AppUser.info?.googleId)
+                      .where("isOnline", isEqualTo: true)
+                      .snapshots()
+                      .map((snapshot) => snapshot.docs
+                      .map((doc) => MemberModel.fromFirestore(doc))
+                      .toList()),
                 ),
 
-                // Abonnements
-                _buildMembersStream(
-                  _memberService.getFollowingMembers(currentUserId),
+                // Abonnements - À CORRIGER selon votre logique métier
+                _buildMembersList(
+                  stream: Users
+                      .where("googleId", isNotEqualTo: AppUser.info?.googleId)
+                      .snapshots()
+                      .map((snapshot) => snapshot.docs
+                      .map((doc) => MemberModel.fromFirestore(doc))
+                      .toList()),
                 ),
               ],
             ),
@@ -133,41 +196,48 @@ class _MembersPageState extends State<MembersPage> with SingleTickerProviderStat
     );
   }
 
-  // Widget pour afficher le stream des membres
-  Widget _buildMembersStream(Stream<List<MemberModel>> stream) {
+  // Widget pour la liste des membres
+  Widget _buildMembersList({required Stream<List<MemberModel>> stream}) {
     return StreamBuilder<List<MemberModel>>(
       stream: stream,
       builder: (context, snapshot) {
-        // État de chargement
+        // État de chargement style TikTok
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
-            // child: LoadingWidget(message: 'Chargement des membres...'),
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
           );
         }
 
         // Erreur
         if (snapshot.hasError) {
+          print('Erreur StreamBuilder: ${snapshot.error}');
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                Icon(Icons.error_outline, size: 48, color: Colors.red[400]),
                 const SizedBox(height: 16),
                 Text(
                   'Erreur de chargement',
-                  style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+                  style: TextStyle(color: Colors.grey[400], fontSize: 16),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  snapshot.error.toString(),
-                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-                  textAlign: TextAlign.center,
+                  'Vérifie ta connexion',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: () {
-                    setState(() {}); // Recharger
-                  },
+                  onPressed: () => setState(() {}),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                   child: const Text('Réessayer'),
                 ),
               ],
@@ -175,223 +245,350 @@ class _MembersPageState extends State<MembersPage> with SingleTickerProviderStat
           );
         }
 
-        // Données reçues
         final members = snapshot.data ?? [];
 
+        // Filtrer par recherche
+        final filteredMembers = _searchQuery.isEmpty
+            ? members
+            : members.where((member) {
+          final name = (member.displayName ?? member.username).toLowerCase();
+          return name.contains(_searchQuery.toLowerCase());
+        }).toList();
+
         // Aucun membre trouvé
-        if (members.isEmpty) {
+        if (filteredMembers.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  Icons.people_outline,
-                  size: 80,
-                  color: Colors.grey[400],
+                  _searchQuery.isEmpty ? Icons.people_outline : Icons.search_off,
+                  size: 64,
+                  color: Colors.grey[800],
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  _searchQuery.isNotEmpty
-                      ? 'Aucun membre trouvé'
-                      : 'Aucun membre disponible',
+                  _searchQuery.isEmpty
+                      ? 'Aucun membre'
+                      : 'Aucun résultat',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.grey[600],
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _searchQuery.isNotEmpty
-                      ? 'Essayez un autre terme de recherche'
-                      : 'Les membres apparaîtront ici',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[500],
-                  ),
+                  _searchQuery.isEmpty
+                      ? 'Les membres apparaîtront ici'
+                      : 'Essaie avec un autre mot',
+                  style: TextStyle(color: Colors.grey[700]),
                 ),
               ],
             ),
           );
         }
 
-        // Liste des membres
-        return RefreshIndicator(
-          onRefresh: () async {
-            setState(() {});
+        // Liste des membres style TikTok
+        return ListView.builder(
+          padding: EdgeInsets.zero,
+          itemCount: filteredMembers.length,
+          itemBuilder: (context, index) {
+            final member = filteredMembers[index];
+            return _buildTikTokMemberCard(member);
           },
-          child: ListView.builder(
-            padding: const EdgeInsets.all(8),
-            itemCount: members.length,
-            itemBuilder: (context, index) {
-              final member = members[index];
-
-              return MemberCard(
-                member: member,
-                onTap: () {
-                  Get.to(ChatPage(
-                    receiverId: member.uid,
-                    receiverName: member.displayName ?? member.username,
-                    receiverPhoto: member.photoUrl,
-                    // isOnline: true,
-                  ),);
-
-                },
-              );
-            },
-          ),
         );
       },
     );
   }
-}
 
-// Carte d'un membre
-class MemberCard extends StatelessWidget {
-  final MemberModel member;
-  final VoidCallback onTap;
-
-  const MemberCard({
-    Key? key,
-    required this.member,
-    required this.onTap,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              // Avatar avec indicateur de statut
-              Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundImage: member.photoUrl != null
-                        ? NetworkImage(member.photoUrl!)
-                        : null,
-                    child: member.photoUrl == null
-                        ? Text(
-                      (member.displayName ?? member.username)[0]
-                          .toUpperCase(),
-                      style: const TextStyle(fontSize: 24),
-                    )
-                        : null,
-                  ),
-                  if (member.isOnline)
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        width: 14,
-                        height: 14,
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(width: 16),
-
-              // Informations du membre
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+  // Carte de membre style TikTok
+  Widget _buildTikTokMemberCard(MemberModel member) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: Colors.grey[900]!,
+            width: 1,
+          ),
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            // print('Membre cliqué: ${member.googleId}');
+            Get.to(() => ChatPageTikTok(
+              receiverId: member.googleId,
+              receiverName: member.displayName ?? member.username,
+              receiverPhoto: member.photoUrl,
+            ));
+          },
+          splashColor: Colors.grey[800],
+          highlightColor: Colors.transparent,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // Avatar avec style TikTok
+                Stack(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            member.displayName ?? member.username,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (member.isVerified)
-                          Container(
-                            margin: const EdgeInsets.only(left: 4),
-                            child: Icon(
-                              Icons.verified,
-                              size: 16,
-                              color: Colors.blue[400],
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    if (member.status != null)
-                      Text(
-                        member.status!,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: member.isOnline
+                            ? Border.all(color: Colors.pink, width: 2)
+                            : null,
                       ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.people,
-                          size: 14,
-                          color: Colors.grey[500],
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${member.followersCount} abonnés',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[500],
+                      child: CircleAvatar(
+                        radius: 28,
+                        backgroundImage: member.photoUrl != null
+                            ? NetworkImage(member.photoUrl!)
+                            : null,
+                        backgroundColor: Colors.grey[800],
+                        child: member.photoUrl == null
+                            ? Text(
+                          (member.displayName ?? member.username)[0]
+                              .toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        )
+                            : null,
+                      ),
+                    ),
+                    if (member.isOnline)
+                      Positioned(
+                        bottom: 2,
+                        right: 2,
+                        child: Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.black, width: 2),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        if (!member.isOnline && member.lastSeen != null)
-                          Expanded(
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 16),
+
+                // Informations
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
                             child: Text(
-                              'Vu ${timeago.format(member.lastSeen!)}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[500],
+                              member.displayName ?? member.username,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+                          if (member.isVerified) ...[
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.verified,
+                              size: 14,
+                              color: Colors.pink[400],
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      if (member.status != null && member.status!.isNotEmpty)
+                        Text(
+                          member.status!,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[500],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.favorite,
+                            size: 12,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Container(
+                              // color: Colors.orange,
 
-              // Flèche ou badge
-              Container(
-                padding: const EdgeInsets.all(8),
-                child: const Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
-                  color: Colors.grey,
+                              child: StreamBuilder<QuerySnapshot>(
+                                stream: Sms
+                                    .where("senderId", whereIn: [AppUser.info!.googleId, member.googleId])
+                                    .where("receiveId", whereIn: [member.googleId, AppUser.info!.googleId])
+                                    .orderBy("timestamp", descending: false)
+                                    .snapshots(),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState == ConnectionState.waiting) {
+                                    return const Center(child: CircularProgressIndicator(color: Colors.pink));
+                                  }
+
+                                  if (snapshot.hasError) {
+                                    return Center(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.error_outline, color: Colors.red[400]),
+                                          const SizedBox(height: 8),
+                                          Text('Erreur de chargement', style: TextStyle(color: Colors.grey[400])),
+                                        ],
+                                      ),
+                                    );
+                                  }
+
+                                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                                    return Text("");
+                                  }
+
+                                 final messages = snapshot.data!.docs.last;
+                                  final unreadDocs = snapshot.data!.docs.where((doc) {
+                                    var data = doc.data() as Map<String, dynamic>;
+                                    return data['isRead'] == false;
+                                  }).toList();
+
+                                  // Compter
+                                  int unreadCount = unreadDocs.length;
+
+                                  print("📊 Total des messages: ${snapshot.data!.docs.length}");
+                                  print("🔴 Messages non lus: $unreadCount");
+
+                                  // Afficher les messages non lus
+                                  print("\n📩 MESSAGES NON LUS:");
+                                  for (var doc in unreadDocs) {
+                                    var data = doc.data() as Map<String, dynamic>;
+                                    print("  • ${data['namesenderId']}: ${data['content']}");
+                                  }
+
+                                  // int countUnread = item.where((element) => element["isRead"] == false).toList().length;
+                                  //
+                                  // print("📊 Messages non lus: $countUnread");
+                                  // Scroll automatique quand de nouveaux messages arrivent
+
+                                  DateTime dateTime = messages['timestamp'] != null
+                                      ? (messages['timestamp'] as Timestamp).toDate()
+                                      : DateTime.now();
+                                  return Row(
+                                    children: [
+                                      Expanded(
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 30.w,
+                                              child: Text(
+                                                messages["content"],
+                                                softWrap: true,
+                                                overflow: TextOverflow.ellipsis,
+                                                maxLines: 1,
+                                                style: TextStyle(
+                                                  fontSize: messages["senderId"]==AppUser.info!.googleId?12.sp:16.sp,
+                                                  color: messages["senderId"]==AppUser.info!.googleId? Colors.grey[600]:Colors.blue,
+                                                  fontWeight:  messages["senderId"]==AppUser.info!.googleId?FontWeight.bold: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            // if (!member.isOnline && member.lastSeen != null)
+                                              Text(
+                                                timeago.format(dateTime),
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey[700],
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      if(unreadCount!=0)
+                                      Align(alignment: Alignment.topRight,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey[900],
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.chat_bubble,
+                                                size: 16,
+                                                color: Colors.red,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                unreadCount.toString(),
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey[400],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+
+                          // Text(
+                          //  '223',
+                          //   style: TextStyle(
+                          //     fontSize: 12,
+                          //     color: Colors.grey[600],
+                          //     fontWeight: FontWeight.w500,
+                          //   ),
+                          // ),
+
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+
+                // Bouton message style TikTok
+
+              ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  String _formatNumber(int number) {
+    if (number >= 1000000) {
+      return '${(number / 1000000).toStringAsFixed(1)}M';
+    } else if (number >= 1000) {
+      return '${(number / 1000).toStringAsFixed(1)}K';
+    }
+    return number.toString();
   }
 }

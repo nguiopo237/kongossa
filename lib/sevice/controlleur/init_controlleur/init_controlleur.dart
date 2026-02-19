@@ -1,6 +1,7 @@
 
 
 
+import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 
 import '../../connection/connectionchecker.dart';
@@ -19,7 +20,7 @@ class AppControllers {
      Get.lazyPut(() => SplashController(), fenix: true);
      Get.lazyPut(() => SmsController(), fenix: true);
      Get.lazyPut(() => MemberService(), fenix: true);
-     Connexioncheck.getConnectivity();
+     Connexioncheck.getConnectivity(Get.context);
 
   }
 }

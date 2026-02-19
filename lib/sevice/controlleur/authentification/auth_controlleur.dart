@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -25,17 +26,23 @@ class AuthController extends GetxController {
   final errorMessage = ''.obs;
   final isGoogleSignInAvailable = true.obs;
 
+
+
   final RxString verificationId = ''.obs;
   final RxString smsCode = ''.obs;
 
   final RxBool codeSent = false.obs;
   final RxInt  indexpage  = 0.obs;
+  final RxInt  notification  = 0.obs;
 
   final RxInt resendTimer = 0.obs;
   final RxBool canResend = true.obs;
   Timer? _resendTimer;
   String? _currentToken;
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
+  FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+  FlutterLocalNotificationsPlugin();
+
 
   @override
   void onInit() {
@@ -48,6 +55,7 @@ class AuthController extends GetxController {
 
   @override
   void onReady() {
+
     // Écouter les changements d'état d'authentification
     _auth.authStateChanges().listen((User? user) {
       this.user.value = user;
@@ -69,6 +77,11 @@ class AuthController extends GetxController {
     }
     return null;
   }
+
+
+
+
+
 
   Future<String?> getFirebaseToken() async {
 
@@ -122,11 +135,6 @@ class AuthController extends GetxController {
 
       // 1. Authentification avec Google
       final GoogleSignInAccount? googleAccount = await _googleSignIn.signIn();
-
-      // print("_googleSignIn.clientId");
-      // print(googleAccount!.serverAuthCode);
-      // print("_googleSignIn.clientId");
-
 
       if (googleAccount == null) {
         // L'utilisateur a annulé
@@ -211,6 +219,75 @@ class AuthController extends GetxController {
     getUserInfoocally();
   }
 
+  Future<void> showSimpleNotification({required Map<String, dynamic> message}) async {
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+    AndroidNotificationDetails(
+      'simple_channel',
+      'Notifications Simples',
+      channelDescription: 'Canal pour les notifications simples',
+      importance: Importance.max,
+      priority: Priority.high,
+      ticker: 'ticker',
+    );
+
+    const NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+      iOS: DarwinNotificationDetails(),
+    );
+
+    await flutterLocalNotificationsPlugin.show(
+      0,
+      message["namesenderId"],
+      message["content"],
+      platformChannelSpecifics,
+      payload: 'simple_notification',
+    );
+
+    // _showSuccessSnackBar('Notification simple envoyée');
+  }
+
+
+
+  void setupMessagesListener() {
+    print("ecoute en start");
+    notif
+    // .where("senderId", whereIn: [AppUser.info!.googleId, widget.receiverId])
+        .where("receiveId", isEqualTo: AppUser.info!.googleId)
+        .orderBy("timestamp", descending: false)
+        .snapshots()
+        .listen((QuerySnapshot snapshot) {
+      notification.value = snapshot.docs.length;
+      // Cette fonction s'exécute à CHAQUE changement
+
+      // 1. Afficher les changements dans les documents
+      for (var change in snapshot.docChanges) {
+        switch (change.type) {
+          case DocumentChangeType.added:
+            var data = change.doc.data() as Map<String, dynamic>;
+            String content = data['content'] ?? '';
+            print("✏️ Message modifié: ${content}");
+            showSimpleNotification(message: data);
+
+
+            // showSimpleNotification(message: '')
+            // _onMessageAdded(change.doc);
+            break;
+          case DocumentChangeType.modified:
+            var data = change.doc.data() as Map<String, dynamic>;
+            String content = data['content'] ?? '';
+            print("✏️ Message modifié: ${content}");
+            // _onMessageModified(change.doc);
+            showSimpleNotification(message: data);
+            break;
+          case DocumentChangeType.removed:
+            print("❌ Message supprimé: ${change.doc.data()}");
+            // _onMessageRemoved(change.doc);
+            break;
+        }
+      }
+    }
+    );}
+
   Future<void> getUserInfoocally() async {
     final prefs = await SharedPreferences.getInstance();
     var jsonString = prefs.getString('userinfo');
@@ -225,6 +302,7 @@ class AuthController extends GetxController {
     print(AppUser.info!.email);
     print(AppUser.info!.photoUrl);
     print("userMap.id");
+    setupMessagesListener();
     Get.offAll(()=>EntryPoint());
    //Get.offAll(()=>CloudinaryExample());
   }

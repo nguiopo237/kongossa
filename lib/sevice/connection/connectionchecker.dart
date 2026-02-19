@@ -21,7 +21,7 @@ class Connexioncheck{
     }
   }
 
-  static getConnectivity() {
+  static getConnectivity(context) {
     s.subscription = Connectivity().onConnectivityChanged.listen(
           (List<ConnectivityResult> results) async {
         // Prendre le premier résultat de la liste
@@ -34,16 +34,16 @@ class Connexioncheck{
           if (!s.isDeviceConnected.value && s.isAlertSet.value == false) {
 
             // c.snackbar(message: "noconnection".tr,type: SnackbarType.warning);
-            ScaffoldMessenger.of(Get.context!).showSnackBar(SnackBar(
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               backgroundColor: Colors.grey,
               duration: Duration(seconds: 60),
               content: Text("noconnection".tr),
             ));
           } else {
-            ScaffoldMessenger.of(Get.context!)
+            ScaffoldMessenger.of(context)
                 .hideCurrentSnackBar(reason: SnackBarClosedReason.swipe);
             print("connection on");
-            ScaffoldMessenger.of(Get.context!).showSnackBar(SnackBar(
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               backgroundColor: Colors.green,
               duration: Duration(seconds: 5),
               content: Text("Connexion retablie".tr),

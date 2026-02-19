@@ -4,7 +4,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:video_player/video_player.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -24,9 +23,9 @@ class TikTokVideoPlayer extends StatefulWidget {
   final String username;
   final String description;
   final String music;
-  final String ?uid;
-  final String ?mail;
-  final String ?bio;
+  final String? uid;
+  final String? mail;
+  final String? bio;
   final int likes;
   final bool isLiked;
   final String id;
@@ -35,7 +34,7 @@ class TikTokVideoPlayer extends StatefulWidget {
   final String profileImage;
   final List<dynamic>? alllike;
 
-   TikTokVideoPlayer({
+  const TikTokVideoPlayer({
     Key? key,
     required this.videoUrl,
     required this.username,
@@ -43,23 +42,28 @@ class TikTokVideoPlayer extends StatefulWidget {
     required this.music,
     this.likes = 0,
     this.isLiked = false,
-    required this.id ,
+    required this.id,
     this.comments = 0,
     this.shares = 0,
-    this.alllike ,
-    required this.profileImage, this.uid, this.mail, this.bio,
+    this.alllike,
+    required this.profileImage,
+    this.uid,
+    this.mail,
+    this.bio,
   }) : super(key: key);
 
   @override
   _TikTokVideoPlayerState createState() => _TikTokVideoPlayerState();
 }
 
-class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with TickerProviderStateMixin  {
+class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
+    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
 
   @override
-  bool get wantKeepAlive => true; //
+  bool get wantKeepAlive => true;
+
   late VideoPlayerController _controller;
-  Future<void> _initializeVideoPlayerFuture = Future.value();
+  Future<void>? _initializeVideoPlayerFuture;
   bool _isMuted = false;
   bool _isLiked = false;
   bool _showPlayPauseIcon = false;
@@ -71,20 +75,26 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with TickerProvid
   bool _isControllerReady = false;
   bool _isUsingCache = false;
   late AnimationController _pulseController;
-  PostUpdateService service = PostUpdateService();
-
+  final PostUpdateService service = PostUpdateService();
+  StreamSubscription? _visibilitySubscription;
+  bool _isDisposed = false;
+  Timer? _replayTimer;
 
   @override
   void initState() {
     super.initState();
     _likeCount = widget.likes;
-    print("mon lien");
-    print(widget.videoUrl);
-    print("mon lien");
+    _isLiked = widget.alllike?.contains(AppUser.info?.googleId) ?? false;
+
+    debugPrint("📹 Initialisation vidéo: ${widget.videoUrl}");
+
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
-    );
+    )..addListener(() {
+      if (mounted) setState(() {});
+    });
+
     _initializePlayer();
   }
 
@@ -93,146 +103,146 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with TickerProvid
     return url.trim().replaceAll(RegExp(r'^[\[\]"]+|[\[\]"]+$'), '');
   }
 
-  /// Vérifie si la vidéo est en cache et retourne le fichier si disponible
+  /// Vérifie si la vidéo est en cache
   Future<File?> _getCachedVideo() async {
-    final cleanUrl = _cleanUrl(widget.videoUrl);
-    print("check video ");
-    print(cleanUrl);
-    print("check video ");
-    final file = await DefaultCacheManager().getFileFromCache(cleanUrl);
-    if ( file!=null) {
-      debugPrint('✅ Vidéo trouvée en caches');
-      print(file.file);
-      print(file.file.path);
-      debugPrint('✅ Vidéo trouvée en caches');
-      return file.file;
-    }else{
-      debugPrint('✅ Vidéo pas trouvée en caches');
+    try {
+      final cleanUrl = _cleanUrl(widget.videoUrl);
+      final fileInfo = await DefaultCacheManager().getFileFromCache(cleanUrl);
 
+      if (fileInfo != null && fileInfo.file.existsSync()) {
+        debugPrint('✅ Vidéo trouvée en cache');
+        return fileInfo.file;
+      }
+      debugPrint('❌ Vidéo non trouvée en cache');
+      return null;
+    } catch (e) {
+      debugPrint('❌ Erreur vérification cache: $e');
       return null;
     }
-
-
   }
 
-  /// Télécharge la vidéo en arrière-plan pour le cache futur
+  /// Télécharge la vidéo pour le cache
   Future<void> _downloadVideoForCache() async {
     try {
       final cleanUrl = _cleanUrl(widget.videoUrl);
       await DefaultCacheManager().downloadFile(cleanUrl);
       debugPrint('⬇️ Vidéo téléchargée pour le cache');
-      _refreshWithCachedVersion();
     } catch (e) {
       debugPrint('❌ Échec téléchargement cache: $e');
     }
   }
 
-  /// Initialise le lecteur avec priorité au cache
+  /// Initialise le lecteur vidéo
   Future<void> _initializePlayer() async {
+    if (_isDisposed) return;
 
     try {
       final cleanUrl = _cleanUrl(widget.videoUrl);
-      _controller = VideoPlayerController.networkUrl(Uri.parse(cleanUrl));
+
       if (cleanUrl.isEmpty) {
         throw Exception('URL vidéo vide');
       }
 
-      // ÉTAPE 1: Vérifier le cache en PRIORITÉ
+      // Vérifier le cache d'abord
       final cachedFile = await _getCachedVideo();
 
-      // ÉTAPE 2: Initialiser le contrôleur (cache d'abord, réseau ensuite)
-      if (cachedFile != null) {
-        // ✅ VIDÉO EN CACHE - Lecture immédiate
-        _controller = VideoPlayerController.file(cachedFile!);
+      if (cachedFile != null && mounted) {
+        // Lecture depuis le cache
+        _controller = VideoPlayerController.file(cachedFile);
         _isUsingCache = true;
-        _controller.addListener(() {
-          if (_controller.value.position == _controller.value.duration) {
-            // La vidéo est finie, ne pas la rejouer automatiquement
-            // Option 1: Ne rien faire (rester sur la dernière frame)
-            // Option 2: Chercher une action personnalisée
-            _onVideoEnded();
-          }
-        });
-
         debugPrint('🎬 Lecture depuis le CACHE');
       } else {
-        // ⚠️ VIDÉO NON CACHÉE - Lecture en ligne + téléchargement
-        _controller = VideoPlayerController.networkUrl(Uri.parse(cleanUrl),);
+        // Lecture depuis le réseau
+        _controller = VideoPlayerController.networkUrl(Uri.parse(cleanUrl));
         _isUsingCache = false;
-        _controller.addListener(() {
-          if (_controller.value.position == _controller.value.duration) {
-            // La vidéo est finie, ne pas la rejouer automatiquement
-            // Option 1: Ne rien faire (rester sur la dernière frame)
-            // Option 2: Chercher une action personnalisée
-            _onVideoEnded();
-          }
-        });
         debugPrint('🌐 Lecture depuis le RÉSEAU');
 
-        // Déclencher le téléchargement en arrière-plan pour la prochaine fois
+        // Téléchargement en arrière-plan
         _downloadVideoForCache();
       }
 
-      // ÉTAPE 3: Initialiser le lecteur
+      // Ajouter les listeners
+      _controller.addListener(_onVideoControllerListener);
+
+      // Initialiser
       _initializeVideoPlayerFuture = _controller.initialize().then((_) {
-        if (mounted) {
+        if (mounted && !_isDisposed) {
           setState(() {
             _controller.setLooping(false);
             _controller.setVolume(_isMuted ? 0 : 1);
-            _controller.play();
             _isControllerReady = true;
           });
+        }
+      }).catchError((error) {
+        debugPrint('💥 Erreur initialisation: $error');
+        if (mounted && !_isDisposed) {
+          _handleInitializationError();
         }
       });
 
     } catch (e) {
       debugPrint('💥 ERREUR CRITIQUE: $e');
-      _handleInitializationError();
+      if (mounted && !_isDisposed) {
+        _handleInitializationError();
+      }
     }
   }
 
-  // Future<bool> _onLikeButtonTapped(bool isLiked) async {
-  //
-  // }
+  void _onVideoControllerListener() {
+    if (!mounted || _isDisposed) return;
 
+    // Détecter la fin de la vidéo
+    if (_controller.value.position == _controller.value.duration &&
+        _controller.value.isPlaying == false) {
+      // Vidéo terminée, on laisse l'UI gérer l'affichage du bouton replay
+      setState(() {});
+    }
+  }
 
   /// Gestionnaire d'erreur avec fallback
   void _handleInitializationError() {
-    // Vidéo de secours
-    const fallbackUrl = 'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4';
+    const fallbackUrl =
+        'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4';
+
     _controller = VideoPlayerController.networkUrl(Uri.parse(fallbackUrl));
+    _controller.addListener(_onVideoControllerListener);
+
     _initializeVideoPlayerFuture = _controller.initialize().then((_) {
-      if (mounted) {
+      if (mounted && !_isDisposed) {
         setState(() {
           _controller.setLooping(false);
           _controller.setVolume(_isMuted ? 0 : 1);
-          _controller.play();
           _isControllerReady = true;
         });
       }
     });
   }
 
-  /// Rafraîchir le lecteur si une meilleure source devient disponible
+  /// Passe à la version en cache si disponible
   Future<void> _refreshWithCachedVersion() async {
-    if (_isUsingCache) return; // Déjà en cache
+    if (_isUsingCache || !mounted || _isDisposed) return;
 
     final cachedFile = await _getCachedVideo();
-    if (cachedFile != null && mounted) {
+    if (cachedFile != null && mounted && !_isDisposed) {
+      final oldPosition = _controller.value.position;
+      final wasPlaying = _controller.value.isPlaying;
+
       final newController = VideoPlayerController.file(cachedFile);
       await newController.initialize();
 
-
-      if (mounted) {
+      if (mounted && !_isDisposed) {
         setState(() {
           final oldController = _controller;
           _controller = newController;
+          _controller.addListener(_onVideoControllerListener);
           _controller.setLooping(false);
           _controller.setVolume(_isMuted ? 0 : 1);
-          _controller.play();
+          _controller.seekTo(oldPosition);
+          if (wasPlaying) _controller.play();
           _isControllerReady = true;
           _isUsingCache = true;
-          _initializeVideoPlayerFuture = Future.value();
+
+          oldController.removeListener(_onVideoControllerListener);
           oldController.dispose();
         });
 
@@ -241,502 +251,384 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> with TickerProvid
     }
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    _doubleTapTimer?.cancel();
-    super.dispose();
-  }
-
   void _toggleLike() {
+    if (!mounted) return;
+
     setState(() {
       _showHeartAnimation = true;
-      _isLiked =!widget.isLiked;
-
-      service.toggleLike(postId: widget.id,isLiked:  _isLiked,like: widget.likes );
-      // _likeCount += _isLiked ? 1 : -1;
+      _isLiked = !_isLiked;
+      _likeCount += _isLiked ? 1 : -1;
     });
+
+    service.toggleLike(
+      postId: widget.id,
+      isLiked: _isLiked,
+      like: widget.likes,
+    );
   }
 
-  _handleDoubleTap() {
+  void _handleDoubleTap(TapDownDetails details) {
+    if (!mounted) return;
+
     setState(() {
+      _heartPosition = details.localPosition;
       _showHeartAnimation = true;
+
       if (!_isLiked) {
         _isLiked = true;
         _likeCount += 1;
+        _pulseController.forward().then((_) => _pulseController.reset());
       }
-      setState(() {
-        _isLiked = !widget.isLiked;
-        if (_isLiked) {
-          _pulseController.forward().then((_) => _pulseController.reset());
-        }
-      });
-      service.toggleLike(postId: widget.id,isLiked:  _isLiked,like: widget.likes );
-      // service.toggleLike(widget.id, _isLiked);
-      // return _isLiked;
     });
+
+    service.toggleLike(
+      postId: widget.id,
+      isLiked: true,
+      like: widget.likes,
+    );
 
     _doubleTapTimer?.cancel();
     _doubleTapTimer = Timer(const Duration(milliseconds: 800), () {
-      setState(() {
-        _showHeartAnimation = false;
-      });
+      if (mounted) {
+        setState(() {
+          _showHeartAnimation = false;
+        });
+      }
     });
   }
 
+  void _onVideoEnded() {
+    debugPrint('📹 Vidéo terminée');
+    // L'UI affichera automatiquement le bouton replay
+  }
 
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _doubleTapTimer?.cancel();
+    _replayTimer?.cancel();
+    _visibilitySubscription?.cancel();
+    _pulseController.dispose();
 
-void _onVideoEnded() {
-  print('📹 Vidéo terminée - pas de boucle');
-  // Vous pouvez afficher un message, un bouton, etc.
-  // Mais NE PAS relancer _controller.play() automatiquement
-}
+    if (_controller.value.isInitialized) {
+      _controller.removeListener(_onVideoControllerListener);
+      _controller.dispose();
+    }
 
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    // final Size screenSize = MediaQuery.of(context).size;
-    // super.build(context);
+    super.build(context); // Pour AutomaticKeepAliveClientMixin
+
     return Scaffold(
-        resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: false,
+      backgroundColor: Colors.black,
       body: VisibilityDetector(
-      key: Key(widget.videoUrl),
-      onVisibilityChanged: (visibilityInfo) {
-        if (!_isControllerReady) return;
+        key: Key('visibility_${widget.id}'),
+        onVisibilityChanged: (visibilityInfo) {
+          if (!_isControllerReady || _isDisposed) return;
 
-        final visibleFraction = visibilityInfo.visibleFraction * 100;
-        print("visibleFraction");
-        print(visibleFraction);
-        print("visibleFraction");
-        if (visibleFraction==0.0) {
-          _controller.pause();
-        } else {
-          _controller.play();
-          // Essayer de passer en cache quand la vidéo est visible
-          _refreshWithCachedVersion();
-        }
-      },
-      child: GestureDetector(
-        onDoubleTapDown: (details) {
-          setState(() {
-            _heartPosition = details.localPosition;
-          });
-        },
-        onDoubleTap: _handleDoubleTap,
-        onTap: () {
-          if (!_isControllerReady) return;
+          final visibleFraction = visibilityInfo.visibleFraction;
 
-          setState(() {
+          if (visibleFraction < 0.1) {
+            // Vidéo presque invisible
             if (_controller.value.isPlaying) {
               _controller.pause();
-            } else {
+            }
+          } else {
+            // Vidéo visible
+            if (!_controller.value.isPlaying) {
               _controller.play();
             }
-            _showPlayPauseIcon = true;
-          });
-
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (mounted) {
-              setState(() {
-                _showPlayPauseIcon = false;
-              });
-            }
-          });
+            // Essayer de passer en cache
+            _refreshWithCachedVersion();
+          }
         },
-        child: Stack(
-          children: [
-            // 📹 VIDEO PLAYER
-            FutureBuilder(
-              future: _initializeVideoPlayerFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.done &&
-                    _controller.value.isInitialized) {
-                  return SizedBox.expand(
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        FittedBox(
-                          fit: BoxFit.cover,
-                          child: SizedBox(
-                            width: _controller.value.size.width,
-                            height: _controller.value.size.height,
-                            child: VideoPlayer(_controller),
-                          ),
-                        ),
-                        _buildReplayButton(),
-                      ],
-                    ),
-                  );
-                } else {
-                  return Container(
-                    color: Colors.black,
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const CircularProgressIndicator(
-                            color: Colors.white,
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            _isUsingCache
-                                ? 'Chargement du cache...'
-                                : 'Chargement...',
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-              },
-            ),
+        child: GestureDetector(
+          onDoubleTapDown: (details) => _handleDoubleTap(details),
+          onTap: () {
+            if (!_isControllerReady || _isDisposed) return;
 
-            // 🎬 OVERLAY GRADIENT
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withOpacity(0.7),
-                  ],
-                  stops: const [0.7, 1.0],
-                ),
-              ),
-            ),
+            setState(() {
+              if (_controller.value.isPlaying) {
+                _controller.pause();
+              } else {
+                _controller.play();
+              }
+              _showPlayPauseIcon = true;
+            });
 
-            // 🔊 MUTE BUTTON
-            Positioned(
-              top:   widget.username!=""?60: 1.h,
-              right: 16,
-              child: GestureDetector(
-                onTap: () {
-                  if (!_isControllerReady) return;
-                  setState(() {
-                    _isMuted = !_isMuted;
-                    _controller.setVolume(_isMuted ? 0 : 1);
-                  });
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.4),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    _isMuted ? Icons.volume_off : Icons.volume_up,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-              ),
-            ),
+            _replayTimer?.cancel();
+            _replayTimer = Timer(const Duration(milliseconds: 500), () {
+              if (mounted) {
+                setState(() {
+                  _showPlayPauseIcon = false;
+                });
+              }
+            });
+          },
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // 📹 VIDÉO
+              _buildVideoPlayer(),
 
-            // ▶️ PLAY/PAUSE OVERLAY
-            if (_showPlayPauseIcon && _isControllerReady)
-              Center(
-                child: AnimatedOpacity(
-                  opacity: _showPlayPauseIcon ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 300),
-                  child: Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      _controller.value.isPlaying ? Icons.play_arrow : Icons.pause,
-                      color: Colors.white,
-                      size: 40,
-                    ),
-                  ),
-                ),
-              ),
+              // 🎬 OVERLAY GRADIENT
+              _buildGradientOverlay(),
 
-            // ❤️ DOUBLE TAP HEART ANIMATION
-            if (_showHeartAnimation&&widget.username!="")
-              Positioned(
-                left: _heartPosition.dx - 30,
-                top: _heartPosition.dy - 30,
-                child: TweenAnimationBuilder(
-                  tween: Tween(begin: 0.0, end: 1.0),
-                  duration: const Duration(milliseconds: 800),
-                  curve: Curves.easeOutBack,
-                  builder: (context, opacity, child) {
-                    final safeOpacity = opacity.clamp(0.0, 1.0);
-                    return Opacity(
-                      opacity: safeOpacity,
-                      child: Transform.scale(
-                        scale: safeOpacity,
-                        child: const Icon(
-                          Icons.favorite,
-                          color: Colors.red,
-                          size: 60,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
+              // 🔊 BOUTON MUTE
+              if (widget.username.isNotEmpty) _buildMuteButton(),
 
-            // 📱 RIGHT SIDE ACTIONS
-            if (widget.username!="")
-              Positioned(
-                right: 1.w,
-                bottom: 1.h,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // PROFILE IMAGE WITH FOLLOW
-                    GestureDetector(
-                      onTap: () {},
-                      child: Column(
-                        children: [
-                          InkWell(onTap: () {
-                            Get.to(PremiumProfileScreen (
-                              userId: widget.uid ,
-                              avatarUrl: widget.profileImage,
-                              displayName: widget.username?? 'Utilisateur',
-                              username: widget.username ?? 'Utilisateur',
-                              mail: widget.mail,
-                              bio: "${widget.bio ??"Créateur de contenu | Digital Creator ✨\nCollaborations"}  📩 ${widget.mail}",
+              // ▶️ OVERLAY PLAY/PAUSE
+              if (_showPlayPauseIcon && _isControllerReady)
+                _buildPlayPauseOverlay(),
 
-                            ));
-                          },
+              // ❤️ ANIMATION DOUBLE TAP
+              if (_showHeartAnimation && widget.username.isNotEmpty)
+                _buildHeartAnimation(),
 
-                            child: Container(
-                              width: 50,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 2,
-                                ),
-                              ),
-                              child: CustomImage(
-                                source: widget.profileImage,
-                                type: ImageType.circle,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _isFollowing = !_isFollowing;
-                              });
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _isFollowing
-                                    ? Colors.transparent
-                                    : const Color(0xFFFF6B6B),
-                                border: _isFollowing
-                                    ? Border.all(color: Colors.white, width: 1)
-                                    : null,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                _isFollowing ? 'Suivi' : '+',
-                                style: GoogleFonts.montserrat(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
+              // 📱 ACTIONS CÔTÉ DROIT
+              if (widget.username.isNotEmpty) _buildRightActions(),
 
-                    // ❤️ LIKE BUTTON
-                    _buildActionButton(
-                      icon: widget.alllike!.contains(AppUser.info!.googleId)? Icons.favorite : Icons.favorite_border,
-                      color: widget.alllike!.contains(AppUser.info!.googleId)? Colors.red : Colors.white,
-                      label: _formatCount(widget.likes),
-                      onTap: _toggleLike,
-                    ),
-                    const SizedBox(height: 16),
+              // 📝 INFORMATIONS CÔTÉ GAUCHE
+              if (widget.username.isNotEmpty) _buildLeftInfo(),
 
-                    // 💬 COMMENT BUTTON
-                    _buildActionButton(
-                      icon: Icons.chat_bubble_outline,
-                      color: Colors.white,
-                      label: _formatCount(widget.comments),
-                      onTap: () {
-                        Future.microtask((){
-
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,  
-                            backgroundColor: Colors.transparent,
-
-                            shape:  RoundedRectangleBorder(
-                                borderRadius: BorderRadiusGeometry.vertical(
-                                  top: Radius.circular(30),
-                                )),// ou true avec hauteur
-                            // fixe
-                            builder: (context) => ClipRRect(
-                              borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-                              child: SizedBox(
-                                  height: Get.height/1.3,
-                                  child: CommentModal(videoId: widget.id, videoTitle: '',)),
-                            ),
-                          );
-                        });
-
-                        // _controller.pause();
-                        // WidgetComponent.getmodal(isScrollControlled: true,sectionview: SizedBox(
-                        //     height: Get.height/1.4,
-                        //     child: CommentModal(videoId: widget.id, videoTitle: '',)));
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // 📤 SHARE BUTTON
-                    _buildActionButton(
-                      icon: Icons.reply,
-                      color: Colors.white,
-                      label: _formatCount(widget.shares),
-                      onTap: () {},
-                    ),
-                    const SizedBox(height: 16),
-
-                    // 🎵 MUSIC DISC
-                    Container(
-                      width: 45,
-                      height: 45,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                      child: ClipOval(
-                        child: CustomImage(
-                          source: widget.profileImage,
-                          type: ImageType.circle,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-            // 📝 VIDEO INFO BOTTOM LEFT
-            if (widget.username!="")
-              Positioned(
-                left: 1.w,
-                bottom: 1.h,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // USERNAME
-                    GestureDetector(
-                      onTap: () {},
-                      child: Row(
-                        children: [
-                          Text(
-                            '@${widget.username}',
-                            style: GoogleFonts.montserrat(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFF6B6B),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'Suivre',
-                              style: GoogleFonts.montserrat(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-
-                    // DESCRIPTION
-                    SizedBox(
-                      width: Get.width * 0.7,
-                      child: Text(
-                        widget.description,
-                        style: GoogleFonts.montserrat(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    // MUSIC INFO
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.music_note,
-                          color: Colors.white,
-                          size: 14,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          widget.music,
-                          style: GoogleFonts.montserrat(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-            // ⏹️ BOTTOM PROGRESS BAR
-            if (_isControllerReady)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: VideoProgressIndicator(
-                  _controller,
-                  allowScrubbing: true,
-                  padding: const EdgeInsets.all(0),
-                  colors: const VideoProgressColors(
-                    playedColor: Color(0xFFFF6B6B),
-                    bufferedColor: Colors.grey,
-                    backgroundColor: Colors.white24,
-                  ),
-                ),
-              ),
-          ],
+              // ⏹️ BARRE DE PROGRESSION
+              if (_isControllerReady) _buildProgressBar(),
+            ],
+          ),
         ),
       ),
-    ),);
+    );
+  }
+
+  Widget _buildVideoPlayer() {
+    return FutureBuilder(
+      future: _initializeVideoPlayerFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.done &&
+            _controller.value.isInitialized) {
+          return SizedBox.expand(
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: _controller.value.size.width,
+                height: _controller.value.size.height,
+                child: Stack(
+                  children: [
+                    VideoPlayer(_controller),
+                    _buildReplayButton(),
+                  ],
+                ),
+              ),
+            ),
+          );
+        } else {
+          return Container(
+            color: Colors.black,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(
+                    color: Colors.white,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _isUsingCache ? 'Chargement du cache...' : 'Chargement...',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+      },
+    );
+  }
+
+  Widget _buildGradientOverlay() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.transparent,
+            Colors.black.withOpacity(0.7),
+          ],
+          stops: const [0.7, 1.0],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMuteButton() {
+    return Positioned(
+      top: widget.username.isNotEmpty ? 60 : 1.h,
+      right: 16,
+      child: GestureDetector(
+        onTap: () {
+          if (!_isControllerReady || _isDisposed) return;
+          setState(() {
+            _isMuted = !_isMuted;
+            _controller.setVolume(_isMuted ? 0 : 1);
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.4),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            _isMuted ? Icons.volume_off : Icons.volume_up,
+            color: Colors.white,
+            size: 20,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlayPauseOverlay() {
+    return Center(
+      child: AnimatedOpacity(
+        opacity: _showPlayPauseIcon ? 1.0 : 0.0,
+        duration: const Duration(milliseconds: 300),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.5),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            _controller.value.isPlaying ? Icons.play_arrow : Icons.pause,
+            color: Colors.white,
+            size: 40,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeartAnimation() {
+    return Positioned(
+      left: _heartPosition.dx - 30,
+      top: _heartPosition.dy - 30,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.0, end: 1.0),
+        duration: const Duration(milliseconds: 800),
+        curve: Curves.easeOutBack,
+        builder: (context, value, child) {
+          return Opacity(
+            opacity: value.clamp(0.0, 1.0),
+            child: Transform.scale(
+              scale: value,
+              child: const Icon(
+                Icons.favorite,
+                color: Colors.red,
+                size: 60,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildRightActions() {
+    return Positioned(
+      right: 1.w,
+      bottom: 1.h,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildProfileSection(),
+          const SizedBox(height: 20),
+          _buildActionButton(
+            icon: _isLiked ? Icons.favorite : Icons.favorite_border,
+            color: _isLiked ? Colors.red : Colors.white,
+            label: _formatCount(_likeCount),
+            onTap: _toggleLike,
+          ),
+          const SizedBox(height: 16),
+          _buildActionButton(
+            icon: Icons.chat_bubble_outline,
+            color: Colors.white,
+            label: _formatCount(widget.comments),
+            onTap: _openComments,
+          ),
+          const SizedBox(height: 16),
+          _buildActionButton(
+            icon: Icons.reply,
+            color: Colors.white,
+            label: _formatCount(widget.shares),
+            onTap: () {},
+          ),
+          const SizedBox(height: 16),
+          _buildMusicDisc(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileSection() {
+    return GestureDetector(
+      onTap: _navigateToProfile,
+      child: Column(
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+            ),
+            child: CustomImage(
+              source: widget.profileImage,
+              type: ImageType.circle,
+            ),
+          ),
+          const SizedBox(height: 4),
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _isFollowing = !_isFollowing;
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 4,
+              ),
+              decoration: BoxDecoration(
+                color: _isFollowing
+                    ? Colors.transparent
+                    : const Color(0xFFFF6B6B),
+                border: _isFollowing
+                    ? Border.all(color: Colors.white, width: 1)
+                    : null,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                _isFollowing ? 'Suivi' : '+',
+                style: GoogleFonts.montserrat(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildActionButton({
@@ -748,6 +640,7 @@ void _onVideoEnded() {
     return GestureDetector(
       onTap: onTap,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             padding: const EdgeInsets.all(8),
@@ -755,11 +648,7 @@ void _onVideoEnded() {
               color: Colors.black.withOpacity(0.4),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 26,
-            ),
+            child: Icon(icon, color: color, size: 26),
           ),
           const SizedBox(height: 4),
           Text(
@@ -775,6 +664,172 @@ void _onVideoEnded() {
     );
   }
 
+  Widget _buildMusicDisc() {
+    return Container(
+      width: 45,
+      height: 45,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 2),
+      ),
+      child: ClipOval(
+        child: CustomImage(
+          source: widget.profileImage,
+          type: ImageType.circle,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLeftInfo() {
+    return Positioned(
+      left: 1.w,
+      bottom: 1.h,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: _navigateToProfile,
+            child: Row(
+              children: [
+                Text(
+                  '@${widget.username}',
+                  style: GoogleFonts.montserrat(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF6B6B),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'Suivre',
+                    style: GoogleFonts.montserrat(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          SizedBox(
+            width: Get.width * 0.7,
+            child: Text(
+              widget.description,
+              style: GoogleFonts.montserrat(
+                color: Colors.white,
+                fontSize: 14,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.music_note, color: Colors.white, size: 14),
+              const SizedBox(width: 4),
+              Text(
+                widget.music,
+                style: GoogleFonts.montserrat(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgressBar() {
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: VideoProgressIndicator(
+        _controller,
+        allowScrubbing: true,
+        padding: const EdgeInsets.all(0),
+        colors: const VideoProgressColors(
+          playedColor: Color(0xFFFF6B6B),
+          bufferedColor: Colors.grey,
+          backgroundColor: Colors.white24,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReplayButton() {
+    return ValueListenableBuilder<VideoPlayerValue>(
+      valueListenable: _controller,
+      builder: (context, value, child) {
+        if (value.position == value.duration && !value.isPlaying) {
+          return Container(
+            color: Colors.black.withOpacity(0.5),
+            child: Center(
+              child: IconButton(
+                icon: const Icon(Icons.replay, size: 50, color: Colors.white),
+                onPressed: () {
+                  _controller.seekTo(Duration.zero);
+                  _controller.play();
+                },
+              ),
+            ),
+          );
+        }
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  void _openComments() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+      ),
+      builder: (context) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        child: SizedBox(
+          height: Get.height / 1.3,
+          child: CommentModal(
+            videoId: widget.id,
+            videoTitle: '',
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _navigateToProfile() {
+    Get.to(() => PremiumProfileScreen(
+      userId: widget.uid,
+      avatarUrl: widget.profileImage,
+      displayName: widget.username,
+      username: widget.username,
+      mail: widget.mail,
+      bio: widget.bio ??
+          "Créateur de contenu | Digital Creator ✨\nCollaborations 📩 ${widget.mail}",
+    ));
+  }
+
   String _formatCount(int count) {
     if (count >= 1000000) {
       return '${(count / 1000000).toStringAsFixed(1)}M';
@@ -782,35 +837,5 @@ void _onVideoEnded() {
       return '${(count / 1000).toStringAsFixed(1)}K';
     }
     return count.toString();
-  }
-
-  Widget _buildReplayButton() {
-    // Ajouter un listener pour détecter la fin de la vidéo
-    return ValueListenableBuilder(
-      valueListenable: _controller,
-      builder: (context, VideoPlayerValue value, child) {
-        // Si la vidéo est finie, afficher un bouton de replay
-        if (value.position == value.duration && value.isPlaying == false) {
-          return Container(
-            color: Colors.black.withOpacity(0.5),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Center(
-                  child: IconButton(
-                    icon: Icon(Icons.replay, size: 50, color: Colors.white),
-                    onPressed: () {
-                      _controller.seekTo(Duration.zero);
-                      _controller.play();
-                    },
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-        return SizedBox.shrink();
-      },
-    );
   }
 }

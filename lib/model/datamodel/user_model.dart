@@ -52,6 +52,7 @@ class AppUser {
   Map<String, dynamic> toFirestore() {
     return {
       'googleId': googleId,
+      'uid': uid,
       'displayName': displayName,
       'bio': bio,
       'email': email,

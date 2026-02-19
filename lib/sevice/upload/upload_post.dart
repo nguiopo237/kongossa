@@ -185,6 +185,78 @@ class PostUpdateService {
   }
 
 
+  Future<void> addfollowuser({
+    required String postId,
+  }) async {
+    try {
+      // 1. Vérifier l'utilisateur cible
+      QuerySnapshot targetUserQuery = await Users
+          .where('googleId', isEqualTo: postId.trim())
+          .limit(1)
+          .get();
+
+      if (targetUserQuery.docs.isEmpty) {
+        print("❌ Utilisateur cible non trouvé");
+        return;
+      }
+
+      // 2. Vérifier l'utilisateur courant
+      String? currentUserId = AppUser.info?.googleId;
+      if (currentUserId == null) {
+        print("❌ Utilisateur non connecté");
+        return;
+      }
+
+      if (currentUserId == postId.trim()) {
+        print("⚠️ Auto-follow impossible");
+        return;
+      }
+
+      // 3. Récupérer le document cible
+      final targetDoc = targetUserQuery.docs.first;
+      final targetData = targetDoc.data() as Map<String, dynamic>;
+
+      // 4. Gérer la liste des followers
+      List<String> followers = [];
+
+      // Récupérer la liste existante
+      if (targetData.containsKey('allfollow') && targetData['allfollow'] != null) {
+        if (targetData['allfollow'] is List) {
+          followers = List<String>.from(targetData['allfollow'].map((e) => e.toString()));
+        }
+      }
+
+      // 5. Vérifier et mettre à jour
+      bool isFollowing = followers.contains(currentUserId);
+
+      if (isFollowing) {
+        followers.remove(currentUserId);
+      } else {
+        followers.add(currentUserId);
+      }
+
+      // 6. Mettre à jour Firestore
+      await Users.doc(targetDoc.id).update({
+        'allfollow': followers,
+        'followersCount': followers.length,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+
+      print(isFollowing
+          ? "👎 Vous ne suivez plus cet utilisateur"
+          : "👍 Vous suivez maintenant cet utilisateur");
+
+    } catch (e, stackTrace) {
+      print('❌ Erreur: $e');
+      print(stackTrace);
+    }
+  }
+
+
+
+
+
+
   final String uniqueId =
       '${DateTime.now().millisecondsSinceEpoch}_${AppUser.info!.uid}_${WidgetComponent.generateRandomString(6)}';
 

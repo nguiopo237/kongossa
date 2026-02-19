@@ -92,4 +92,4 @@ class PostModel {
   });
 }
 
-enum MediaType { image, video }
+enum MediaType { image, video, multiple }

@@ -144,7 +144,7 @@ class _EntryPointState extends State<EntryPoint>
                         return  CreatePostPremiumScreen();
                       }
                       if (authController.indexpage.value == 3) {
-                        return  MembersPage(
+                        return  MembersPageTikTok (
 
                         );
                       }   if (authController.indexpage.value == 4) {
