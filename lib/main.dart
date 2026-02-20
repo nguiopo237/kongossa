@@ -12,6 +12,7 @@ import 'package:kongossa/screens/onboding/onboding_screen.dart';
 import 'package:kongossa/screens/splashscreen/splaschsreen.dart';
 import 'package:kongossa/sevice/controlleur/authentification/auth_controlleur.dart';
 import 'package:kongossa/sevice/controlleur/init_controlleur/init_controlleur.dart';
+import 'package:kongossa/sevice/controlleur/notification/chat_notificationservice/one_signalservice.dart';
 import 'package:kongossa/sevice/controlleur/notification/firebase_messaging_service.dart';
 import 'package:kongossa/sevice/controlleur/notification/local_notifications_service.dart';
 import 'package:kongossa/utils/test2.0.dart';
@@ -27,6 +28,8 @@ CollectionReference Users = FirebaseFirestore.instance.collection('user');
 CollectionReference Posts = FirebaseFirestore.instance.collection('postcarduser');
 CollectionReference Sms = FirebaseFirestore.instance.collection('message');
 CollectionReference notif = FirebaseFirestore.instance.collection('notification');
+
+String? currentPlayerId;
 
 // Callback pour WorkManager (s'exécute en arrière-plan)
 @pragma('vm:entry-point')
@@ -60,6 +63,9 @@ void callbackDispatcher() {
     }
   });
 }
+
+FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+FlutterLocalNotificationsPlugin();
 
 // Fonction pour vérifier les messages non lus
 Future<void> checkUnreadMessages() async {
@@ -109,6 +115,48 @@ Future<void> checkUnreadMessages() async {
   }
 }
 
+Future<void> showSimpleNotification({required Map<String, dynamic> message}) async {
+  const AndroidNotificationDetails androidPlatformChannelSpecifics =
+  AndroidNotificationDetails(
+    'simple_channel',
+    'Notifications Simples',
+    channelDescription: 'Canal pour les notifications simples',
+    importance: Importance.max,
+    priority: Priority.high,
+    ticker: 'ticker',
+  );
+}
+
+Future<void> setupMessagesListener() async {
+  print("🔍 Vérification des messages non lus arriere...");
+  notif
+      .where("receiveId", isEqualTo: AppUser.info!.googleId)
+      .orderBy("timestamp", descending: false)
+      .snapshots()
+      .listen((QuerySnapshot snapshot) {
+
+    for (var change in snapshot.docChanges) {
+      switch (change.type) {
+        case DocumentChangeType.added:
+          var data = change.doc.data() as Map<String, dynamic>;
+          String content = data['content'] ?? '';
+          print("✏️ Message modifié: ${content}");
+          showSimpleNotification(message: data);
+          break;
+        case DocumentChangeType.modified:
+          var data = change.doc.data() as Map<String, dynamic>;
+          String content = data['content'] ?? '';
+          print("✏️ Message modifié: ${content}");
+          showSimpleNotification(message: data);
+          break;
+        case DocumentChangeType.removed:
+          print("❌ Message supprimé: ${change.doc.data()}");
+          break;
+      }
+    }
+  });
+}
+
 // Fonction de nettoyage
 Future<void> performCleanup() async {
   try {
@@ -130,13 +178,16 @@ Future<void> performCleanup() async {
       print("✅ ${oldMessages.docs.length} anciens messages supprimés arriere");
     }
 
-    // Autres tâches de nettoyage si nécessaire
     print("✅ Nettoyage terminé arriere");
 
   } catch (e) {
     print("❌ Erreur performCleanup arriere: $e");
   }
 }
+
+
+
+
 
 // Fonction de synchronisation
 Future<void> syncData() async {
@@ -145,9 +196,6 @@ Future<void> syncData() async {
 
     String? currentUserId = await getCurrentUserId();
     if (currentUserId == null) return;
-
-    // Votre logique de synchronisation ici
-    // Par exemple, mettre à jour les statuts, etc.
 
     print("✅ Synchronisation terminée arriere");
 
@@ -160,7 +208,7 @@ Future<void> syncData() async {
 Future<String?> getCurrentUserId() async {
   try {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getString('userinfo'); // Adaptez selon votre clé
+    return prefs.getString('userinfo');
   } catch (e) {
     print("❌ Erreur getCurrentUserId arriere: $e");
     return null;
@@ -172,7 +220,6 @@ Future<void> showBackgroundNotification(int count, Map<String, int>? senderCount
   try {
     FlutterLocalNotificationsPlugin flip = FlutterLocalNotificationsPlugin();
 
-    // Créer un message détaillé
     String body = 'Vous avez $count nouveau(x) message(s) arriere';
 
     if (senderCounts != null && senderCounts.isNotEmpty) {
@@ -223,7 +270,6 @@ Future<void> showBackgroundNotification(int count, Map<String, int>? senderCount
 // Fonction pour planifier toutes les tâches
 Future<void> scheduleAllBackgroundTasks() async {
   try {
-    // Vérifier les messages toutes les 15 minutes
     await Workmanager().registerPeriodicTask(
       "1",
       "checkMessagesTask",
@@ -237,7 +283,6 @@ Future<void> scheduleAllBackgroundTasks() async {
       initialDelay: Duration(minutes: 1),
     );
 
-    // Nettoyage une fois par jour
     await Workmanager().registerPeriodicTask(
       "cleanupTask",
       "cleanupTask",
@@ -247,7 +292,6 @@ Future<void> scheduleAllBackgroundTasks() async {
       ),
     );
 
-    // Synchronisation toutes les 30 minutes
     await Workmanager().registerPeriodicTask(
       "syncDataTask",
       "syncDataTask",
@@ -270,35 +314,239 @@ Future<void> cancelAllBackgroundTasks() async {
   print("🛑 Toutes les tâches annulées arriere");
 }
 
-
-// Dans votre main.dart, dans la classe où vous avez initializeOneSignal()
-
-void _showCustomNotification(OSNotification notification) {
-  // Afficher une notification personnalisée dans l'application
-  print('📱 Affichage personnalisé: ${notification.title}');
-
-  // Option 1: Utiliser un ScaffoldMessenger si vous avez un contexte
-  // Mais attention, _showCustomNotification n'a pas accès au contexte ici
-
-  // Option 2: Émettre un événement pour être géré ailleurs
-  notificationStreamController.add(notification);
-}
-
-// Créer un StreamController pour gérer les notifications
+// StreamController pour gérer les notifications
 final StreamController<OSNotification> notificationStreamController =
 StreamController<OSNotification>.broadcast();
 
-// Getter pour le stream
 Stream<OSNotification> get notificationStream => notificationStreamController.stream;
 
+// Clé globale pour la navigation
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+// Variable pour suivre l'overlay actuel
+OverlayEntry? _currentOverlayEntry;
+
+// Fonction pour personnaliser l'affichage des notifications OneSignal
+void _showCustomNotification(OSNotification notification) {
+  print('📱 Affichage personnalisé: ${notification.title}');
+
+  // Récupérer toutes les données
+  final title = notification.title ?? 'Nouvelle notification';
+  final body = notification.body ?? '';
+  final additionalData = notification.additionalData ?? {};
+
+  // Analyser le type de notification
+  final type = additionalData['type'] ?? 'unknown';
+  final senderName = additionalData['senderName'] ?? 'Quelqu\'un';
+
+  // PERSONNALISATION SELON LE TYPE
+  String displayTitle = title;
+  String displayBody = body;
+  IconData icon = Icons.notifications;
+  Color color = Colors.blue;
+
+  switch (type) {
+    case 'like':
+      displayTitle = '❤️ Nouveau like';
+      displayBody = '$senderName a aimé votre publication';
+      icon = Icons.favorite;
+      color = Colors.red;
+      break;
+
+    case 'comment':
+      displayTitle = '💬 Nouveau commentaire';
+      displayBody = '$senderName a commenté votre post';
+      icon = Icons.comment;
+      color = Colors.green;
+      break;
+
+    case 'follow':
+      displayTitle = '👥 Nouvel abonné';
+      displayBody = '$senderName a commencé à vous suivre';
+      icon = Icons.person_add;
+      color = Colors.purple;
+      break;
+
+    case 'chat_message':
+      displayTitle = '✉️ Nouveau message';
+      displayBody = '$senderName: $body';
+      icon = Icons.message;
+      color = Colors.orange;
+      break;
+  }
+
+  // CHOISIR UN SEUL MODE D'AFFICHAGE (Overlay est plus élégant)
+  _showCustomOverlayNotification(notification, displayTitle, displayBody, icon, color);
+
+  // Émettre via le StreamController
+  notificationStreamController.add(notification);
+}
+
+// Overlay personnalisé (élégant)
+// NOUVELLE VERSION - Avec images !
+void _showCustomOverlayNotification(
+    OSNotification notification,
+    String title,
+    String body,
+    IconData icon,
+    Color color
+    ) {
+  final context = navigatorKey.currentContext;
+  if (context == null) return;
+
+  // Récupérer l'URL de l'image depuis les données supplémentaires
+  final additionalData = notification.additionalData ?? {};
+  final imageUrl = additionalData['imageUrl'];
+  final senderPhoto = additionalData['senderPhoto'];
+  print("voici kesdsd  :   ${additionalData['imageUrl']}");
+
+  // Supprimer l'overlay précédent s'il existe
+  _currentOverlayEntry?.remove();
+
+  _currentOverlayEntry = OverlayEntry(
+    builder: (context) => Positioned(
+      top: 50,
+      left: 10,
+      right: 10,
+      child: Material(
+        color: Colors.transparent,
+        child: GestureDetector(
+          onTap: () {
+            _currentOverlayEntry?.remove();
+            _currentOverlayEntry = null;
+            _handleNotificationClick(notification);
+          },
+          child: Container(
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Image à gauche (photo de profil ou icône)
+                if (senderPhoto != null && senderPhoto.isNotEmpty)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(25),
+                    child: Image.network(
+                      senderPhoto,
+                      width: 50,
+                      height: 50,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        // En cas d'erreur de chargement, afficher l'icône par défaut
+                        return Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(icon, color: Colors.white, size: 30),
+                        );
+                      },
+                    ),
+                  )
+                else
+                // Pas de photo, afficher l'icône du TYPE (❤️, 💬, etc.)
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, color: Colors.white, size: 30),
+                  ),
+
+                SizedBox(width: 12),
+
+                // Contenu texte
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        body,
+                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+
+                      // Image supplémentaire si présente
+                      if (imageUrl != null && imageUrl.isNotEmpty) ...[
+                        SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            imageUrl,
+                            height: 80,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                height: 80,
+                                color: Colors.grey[300],
+                                child: Center(
+                                  child: Text('Image non disponible'),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                // Bouton fermer
+                GestureDetector(
+                  onTap: () {
+                    _currentOverlayEntry?.remove();
+                    _currentOverlayEntry = null;
+                  },
+                  child: Icon(Icons.close, color: Colors.white70, size: 20),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  Overlay.of(context).insert(_currentOverlayEntry!);
+
+  // Auto-disparition après 5 secondes
+  Future.delayed(Duration(seconds: 5), () {
+    _currentOverlayEntry?.remove();
+    _currentOverlayEntry = null;
+  });
+}
 
 void _configureNotificationHandlers() {
   // Quand l'app est en premier plan
   OneSignal.Notifications.addForegroundWillDisplayListener((event) {
     print('📱 Notification reçue en premier plan: ${event.notification.jsonRepresentation()}');
-
-    // Vous pouvez personnaliser l'affichage ici
-    event.preventDefault(); // Empêcher l'affichage automatique
+    event.preventDefault();
     _showCustomNotification(event.notification);
   });
 
@@ -308,29 +556,24 @@ void _configureNotificationHandlers() {
     _handleNotificationClick(event.notification);
   });
 
-  // Récupérer l'ID du joueur (identifiant unique du device)
+  // Récupérer l'ID du joueur
   OneSignal.User.getOnesignalId().then((id) {
     if (id != null) {
       print('🆔 OneSignal User ID: $id');
-      // Sauvegarder cet ID pour envoyer des notifications à ce device
     }
   });
 }
-// Dans votre main.dart, ajoutez cette fonction
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 void _handleNotificationClick(OSNotification notification) {
   print('👆 Notification cliquée: ${notification.title}');
 
-  // Récupérer les données supplémentaires
   final additionalData = notification.additionalData ?? {};
   print('📦 Données: $additionalData');
 
-  // Naviguer vers l'écran approprié selon le type de notification
   final type = additionalData['type'];
   final postId = additionalData['postId'];
   final commentId = additionalData['commentId'];
 
-  // Utiliser le navigatorKey pour naviguer
   final context = navigatorKey.currentContext;
   if (context != null) {
     if (type == 'like' && postId != null) {
@@ -340,59 +583,46 @@ void _handleNotificationClick(OSNotification notification) {
     } else if (type == 'follow') {
       navigatorKey.currentState?.pushNamed('/profile', arguments: additionalData['userId']);
     } else {
-      // Par défaut, aller à l'écran des notifications
       navigatorKey.currentState?.pushNamed('/notifications');
     }
   }
 }
 
-
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialiser le formatage des dates
   await initializeDateFormatting('fr_FR', null);
-
-  // Initialiser Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Configuration Firestore
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
   );
 
-  // Initialiser les notifications locales
   final localNotificationsService = LocalNotificationsService.instance();
   await localNotificationsService.init();
 
-  // Initialiser Firebase Messaging
   final firebaseMessagingService = FirebaseMessagingService.instance();
   await firebaseMessagingService.init(localNotificationsService: localNotificationsService);
 
-  // Initialiser les contrôleurs
   AppControllers.initialize();
 
-  // Initialiser WorkManager
-  await Workmanager().initialize(
-    callbackDispatcher,
-    isInDebugMode: true, // Mettre false en production
-  );
+  // await Workmanager().initialize(
+  //   callbackDispatcher,
+  //   isInDebugMode: true,
+  // );
 
-  // Planifier les tâches si l'utilisateur est connecté
-  String? userId = await getCurrentUserId();
-  if (userId != null) {
-    await scheduleAllBackgroundTasks();
-  }
+  // String? userId = await getCurrentUserId();
+  // if (userId != null) {
+  //   await scheduleAllBackgroundTasks();
+  // }
 
-  // Configurer l'orientation
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
       .then((_) {
-        OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
-        OneSignal.initialize("f29d87f5-87f2-4d83-b47c-93bf3b08ac0c");
-        OneSignal.Notifications.requestPermission(true);
-        _configureNotificationHandlers();
+    OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+    OneSignal.initialize(OneSignalService.apiKey);
+    OneSignal.Notifications.requestPermission(true);
+    _configureNotificationHandlers();
     FocusManager.instance.primaryFocus?.unfocus();
     runApp(MyApp());
   });
@@ -406,6 +636,7 @@ class MyApp extends StatelessWidget {
     return ResponsiveSizer(
       builder: (context, orientation, screenType) {
         return GetMaterialApp(
+          navigatorKey: navigatorKey,
           title: 'Kongossa',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
@@ -439,7 +670,7 @@ class MyApp extends StatelessWidget {
             ),
             useMaterial3: true,
           ),
-          enableLog: false,
+          // enableLog: false,
           defaultGlobalState: true,
           onInit: () => authController.getUserInfoocally(),
           home: SplashScreen(),

@@ -320,6 +320,7 @@ class _MembersPageTikTokState extends State<MembersPageTikTok> with SingleTicker
             // print('Membre cliqué: ${member.googleId}');
             Get.to(() => ChatPageTikTok(
               receiverId: member.googleId,
+              onesignalId: member.onesignalId,
               receiverName: member.displayName ?? member.username,
               receiverPhoto: member.photoUrl,
             ));

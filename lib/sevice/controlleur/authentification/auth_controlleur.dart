@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../main.dart';
@@ -157,6 +158,7 @@ class AuthController extends GetxController {
         final userData = {
           "email": googleAccount.email,
           "googleId": googleAccount.id,
+          "userI": querySnapshot.docs.first.id,
           "name": googleAccount.displayName,
           "photoUrl": googleAccount.photoUrl,
           "createdAt": FieldValue.serverTimestamp(),
@@ -181,6 +183,7 @@ class AuthController extends GetxController {
           "photoUrl": googleAccount.photoUrl,
           "lastLogin": FieldValue.serverTimestamp(),
           "updatedAt": FieldValue.serverTimestamp(),
+          "userI": userId,
         });
 
         print("🔄 Utilisateur existant mis à jour");
@@ -188,7 +191,7 @@ class AuthController extends GetxController {
       }
 
       // 5. Optionnel: Stocker l'ID utilisateur localement
-       await storeUserInfoocally(googleAccount);
+       await storeUserInfoocally(dataInfo: googleAccount,id:userId );
 
       // 6. Optionnel: Naviguer vers l'écran principal
       // Get.offAllNamed('/home');
@@ -201,7 +204,7 @@ class AuthController extends GetxController {
   }
 
   // Méthode utilitaire pour stocker l'ID localement
-  Future<void> storeUserInfoocally(GoogleSignInAccount dataInfo) async {
+  Future<void> storeUserInfoocally({required GoogleSignInAccount dataInfo,required String id}) async {
     final prefs = await SharedPreferences.getInstance();
 
 
@@ -211,6 +214,8 @@ class AuthController extends GetxController {
       'id': dataInfo.id,
       'photoUrl': dataInfo.photoUrl,
       'serverAuthCode': dataInfo.serverAuthCode,
+      'userI': id,
+
     };
 
 
@@ -267,7 +272,7 @@ class AuthController extends GetxController {
             var data = change.doc.data() as Map<String, dynamic>;
             String content = data['content'] ?? '';
             print("✏️ Message modifié: ${content}");
-            showSimpleNotification(message: data);
+            // showSimpleNotification(message: data);
 
 
             // showSimpleNotification(message: '')
@@ -278,7 +283,7 @@ class AuthController extends GetxController {
             String content = data['content'] ?? '';
             print("✏️ Message modifié: ${content}");
             // _onMessageModified(change.doc);
-            showSimpleNotification(message: data);
+            // showSimpleNotification(message: data);
             break;
           case DocumentChangeType.removed:
             print("❌ Message supprimé: ${change.doc.data()}");
@@ -289,11 +294,60 @@ class AuthController extends GetxController {
     }
     );}
 
+  Future<void> _savePlayerIdToFirestore(String playerId) async {
+    try {
+      // Si l'utilisateur est connecté
+      if (AppUser.info != null && AppUser.info!.googleId != null) {
+        await Users.doc(AppUser.info!.userI).update({
+          'onesignalId': playerId,
+          'onesignalIdUpdatedAt': FieldValue.serverTimestamp(),
+        });
+        print('✅ Player ID sauvegardé dans Firestore pour ${AppUser.info!.displayName}');
+      }
+    } catch (e) {
+      print('❌ Erreur sauvegarde Firestore: $e');
+    }
+  }
+
+
+  Future<void> getOneSignalPlayerId() async {
+    try {
+      // Récupérer l'ID OneSignal
+      String? onesignalId = await OneSignal.User.getOnesignalId();
+
+      if (onesignalId != null) {
+        currentPlayerId = onesignalId;
+        print('🆔 OneSignal Player ID récupéré: $onesignalId');
+
+        // Option 1: Sauvegarder dans SharedPreferences
+        // await _savePlayerIdToPrefs(onesignalId);
+        //
+        // // Option 2: Sauvegarder dans Firestore si utilisateur connecté
+        await _savePlayerIdToFirestore(onesignalId);
+
+
+        // Option 3: Mettre à jour dans votre contrôleur
+        if (AppUser.info != null) {
+          AppUser.info!.onesignalId = onesignalId;
+        }
+      } else {
+        print('⏳ Player ID pas encore disponible, nouvelle tentative...');
+        // Réessayer après 2 secondes
+        Future.delayed(Duration(seconds: 2), () {
+          getOneSignalPlayerId();
+        });
+      }
+    } catch (e) {
+      print('❌ Erreur récupération Player ID: $e');
+    }
+  }
+
   Future<void> getUserInfoocally() async {
     final prefs = await SharedPreferences.getInstance();
     var jsonString = prefs.getString('userinfo');
     if (jsonString == null || jsonString.isEmpty) {
       print('ℹ️ Aucune donnée utilisateur trouvée localement');
+
       return  Get.offAll(()=>OnbodingScreen());
 
     }
@@ -302,8 +356,10 @@ class AuthController extends GetxController {
     print("userMap.id");
     print(AppUser.info!.email);
     print(AppUser.info!.photoUrl);
+    print(AppUser.info!.userI);
     print("userMap.id");
-    setupMessagesListener();
+    // setupMessagesListener();
+    getOneSignalPlayerId();
     Get.offAll(()=>EntryPoint());
    //Get.offAll(()=>CloudinaryExample());
   }

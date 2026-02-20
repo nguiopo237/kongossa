@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 import '../../main.dart';
 import '../../model/datamodel/message_model.dart';
 import '../../presentation/component/widget/message_bulble.dart';
+import '../../sevice/controlleur/notification/chat_notificationservice/one_signalservice.dart';
 import '../../sevice/controlleur/notification/fcm_service.dart';
 
 class ChatPageTikTok extends StatefulWidget {
@@ -17,6 +18,7 @@ class ChatPageTikTok extends StatefulWidget {
   final String receiverName;
   final String? receiverPhoto;
   final bool isOnline;
+  final String? onesignalId;
 
   const ChatPageTikTok({
     Key? key,
@@ -24,13 +26,15 @@ class ChatPageTikTok extends StatefulWidget {
     required this.receiverName,
     this.isOnline = true,
     this.receiverPhoto,
+    this.onesignalId,
   }) : super(key: key);
 
   @override
   State<ChatPageTikTok> createState() => _ChatPageTikTokState();
 }
 
-class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStateMixin {
+class _ChatPageTikTokState extends State<ChatPageTikTok>
+    with TickerProviderStateMixin {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
@@ -68,20 +72,23 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
     }
   }
 
-
-
   Future<void> markMessagesAsRead(String senderId) async {
     try {
       print("🔄 Marquage des messages de $senderId comme lus...");
 
       // Récupérer tous les messages non lus de cet expéditeur
-      QuerySnapshot snapshot = await Sms
-          .where("senderId", whereIn: [AppUser.info!.googleId, widget.receiverId])
-          .where("receiveId", whereIn: [widget.receiverId, AppUser.info!.googleId])
-          .where("isRead", isEqualTo: false)
-          .orderBy("timestamp", descending: false)
-
-          .get();
+      QuerySnapshot snapshot =
+          await Sms.where(
+                "senderId",
+                whereIn: [AppUser.info!.googleId, widget.receiverId],
+              )
+              .where(
+                "receiveId",
+                whereIn: [widget.receiverId, AppUser.info!.googleId],
+              )
+              .where("isRead", isEqualTo: false)
+              .orderBy("timestamp", descending: false)
+              .get();
 
       if (snapshot.docs.isEmpty) {
         print("✅ Aucun message non lu de $senderId");
@@ -97,13 +104,10 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
       }
 
       print("✅ Tous les messages de $senderId ont été marqués comme lus");
-
     } catch (e) {
       print("❌ Erreur lors du marquage des messages: $e");
     }
   }
-
-
 
   @override
   void dispose() {
@@ -118,11 +122,13 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
   // Une seule fonction de scroll
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      ).catchError((_) {});
+      _scrollController
+          .animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          )
+          .catchError((_) {});
     }
   }
 
@@ -150,7 +156,7 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
           ),
 
           _buildTikTokMessageInput(),
-          SizedBox(height: 2.h,)
+          SizedBox(height: 2.h),
         ],
       ),
     );
@@ -177,9 +183,9 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
                     : null,
                 child: widget.receiverPhoto == null
                     ? Text(
-                  widget.receiverName[0].toUpperCase(),
-                  style: const TextStyle(color: Colors.white),
-                )
+                        widget.receiverName[0].toUpperCase(),
+                        style: const TextStyle(color: Colors.white),
+                      )
                     : null,
               ),
               if (widget.isOnline)
@@ -248,14 +254,22 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
   // Liste des messages optimisée
   Widget _buildMessagesList() {
     return StreamBuilder<QuerySnapshot>(
-      stream: Sms
-          .where("senderId", whereIn: [AppUser.info!.googleId, widget.receiverId])
-          .where("receiveId", whereIn: [widget.receiverId, AppUser.info!.googleId])
-          .orderBy("timestamp", descending: false)
-          .snapshots(),
+      stream:
+          Sms.where(
+                "senderId",
+                whereIn: [AppUser.info!.googleId, widget.receiverId],
+              )
+              .where(
+                "receiveId",
+                whereIn: [widget.receiverId, AppUser.info!.googleId],
+              )
+              .orderBy("timestamp", descending: false)
+              .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: Colors.pink));
+          return const Center(
+            child: CircularProgressIndicator(color: Colors.pink),
+          );
         }
 
         if (snapshot.hasError) {
@@ -265,7 +279,10 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
               children: [
                 Icon(Icons.error_outline, color: Colors.red[400]),
                 const SizedBox(height: 8),
-                Text('Erreur de chargement', style: TextStyle(color: Colors.grey[400])),
+                Text(
+                  'Erreur de chargement',
+                  style: TextStyle(color: Colors.grey[400]),
+                ),
               ],
             ),
           );
@@ -282,7 +299,8 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
             senderId: data['senderId'] ?? '',
             receiveId: data['receiveId'] ?? '',
             content: data['content'] ?? data['text'] ?? '',
-            timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            timestamp:
+                (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
           );
         }).toList();
 
@@ -302,7 +320,10 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
               children: [
                 Center(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.grey[900]!.withOpacity(0.8),
                       borderRadius: BorderRadius.circular(20),
@@ -314,10 +335,12 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
                   ),
                 ),
                 const SizedBox(height: 16),
-                ...group.messages.map((message) => MessageBubble(
-                  message: message,
-                  isMe: message.senderId == AppUser.info!.googleId,
-                )),
+                ...group.messages.map(
+                  (message) => MessageBubble(
+                    message: message,
+                    isMe: message.senderId == AppUser.info!.googleId,
+                  ),
+                ),
               ],
             );
           },
@@ -334,8 +357,15 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
           Container(
             width: 100,
             height: 100,
-            decoration: BoxDecoration(color: Colors.grey[900], shape: BoxShape.circle),
-            child: const Icon(Icons.chat_bubble_outline, size: 40, color: Colors.grey),
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.chat_bubble_outline,
+              size: 40,
+              color: Colors.grey,
+            ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -355,7 +385,7 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
   // Input message optimisé
   Widget _buildTikTokMessageInput() {
     return Container(
-      padding:  EdgeInsets.symmetric(vertical: 2.h),
+      padding: EdgeInsets.symmetric(vertical: 2.h),
       color: Colors.grey[900],
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -372,7 +402,6 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
                 children: [
                   Expanded(
                     child: TextField(
-
                       controller: _messageController,
                       // focusNode: _focusNode,
                       style: const TextStyle(color: Colors.black),
@@ -382,7 +411,9 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
                         hintText: 'Message...',
                         hintStyle: TextStyle(color: Colors.grey[600]),
                         border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                        ),
                       ),
                     ),
                   ),
@@ -401,7 +432,9 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
                 height: 45,
                 decoration: BoxDecoration(
                   gradient: _isTyping
-                      ? const LinearGradient(colors: [Colors.pink, Colors.purple])
+                      ? const LinearGradient(
+                          colors: [Colors.pink, Colors.purple],
+                        )
                       : null,
                   color: _isTyping ? null : Colors.grey[850],
                   shape: BoxShape.circle,
@@ -457,18 +490,25 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            ...['Rechercher', 'Effacer', 'Bloquer'].map((label) => ListTile(
-              leading: Icon(
-                label == 'Rechercher' ? Icons.search :
-                label == 'Effacer' ? Icons.delete_outline : Icons.block,
-                color: label == 'Bloquer' ? Colors.red : Colors.white,
+            ...['Rechercher', 'Effacer', 'Bloquer'].map(
+              (label) => ListTile(
+                leading: Icon(
+                  label == 'Rechercher'
+                      ? Icons.search
+                      : label == 'Effacer'
+                      ? Icons.delete_outline
+                      : Icons.block,
+                  color: label == 'Bloquer' ? Colors.red : Colors.white,
+                ),
+                title: Text(
+                  label,
+                  style: TextStyle(
+                    color: label == 'Bloquer' ? Colors.red : Colors.white,
+                  ),
+                ),
+                onTap: () => Navigator.pop(context),
               ),
-              title: Text(
-                label,
-                style: TextStyle(color: label == 'Bloquer' ? Colors.red : Colors.white),
-              ),
-              onTap: () => Navigator.pop(context),
-            )),
+            ),
             const SizedBox(height: 20),
           ],
         ),
@@ -501,19 +541,31 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
               {'icon': Icons.photo, 'label': 'Photo', 'color': Colors.blue},
               {'icon': Icons.videocam, 'label': 'Vidéo', 'color': Colors.green},
               {'icon': Icons.mic, 'label': 'Audio', 'color': Colors.purple},
-              {'icon': Icons.description, 'label': 'Document', 'color': Colors.orange},
-            ].map((item) => ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: (item['color'] as Color).withOpacity(0.2),
-                  shape: BoxShape.circle,
+              {
+                'icon': Icons.description,
+                'label': 'Document',
+                'color': Colors.orange,
+              },
+            ].map(
+              (item) => ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: (item['color'] as Color).withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    item['icon'] as IconData,
+                    color: item['color'] as Color,
+                  ),
                 ),
-                child: Icon(item['icon'] as IconData, color: item['color'] as Color),
+                title: Text(
+                  item['label'] as String,
+                  style: const TextStyle(color: Colors.white),
+                ),
+                onTap: () => Navigator.pop(context),
               ),
-              title: Text(item['label'] as String, style: const TextStyle(color: Colors.white)),
-              onTap: () => Navigator.pop(context),
-            )),
+            ),
             const SizedBox(height: 20),
           ],
         ),
@@ -549,12 +601,37 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
         "photo": widget.receiverPhoto,
       });
 
+      OneSignalService.sendNotificationToAlls(
+        title: AppUser.info!.displayName,
+        message: _messageController.text,
+        // bigPicture: AppUser.info!.photoUrl,
+
+        // bigPicture: AppUser.info!.photoUrl,
+        // priority: 7,
+        // contentAvailable: true,
+        data: {
+          "name": "essaie de lire",
+          "type": "chat_message",
+          "timestamp": DateTime.now().toIso8601String(),
+          "userId": AppUser.info!.googleId,
+          "senderName": AppUser.info!.displayName,
+          "senderPhoto": AppUser.info!.photoUrl, // // Si vous avez l'ID
+        },
+        // subtitle: "Message de ${AppUser.info!.displayName}",
+        // imageUrl: AppUser.info!.photoUrl,
+        // androidAccentColor: 0xFF2196F3,
+        // playerId: widget.onesignalId!,     // Ble
+
+      );
+
       _messageController.clear();
       // _focusNode.unfocus();
-
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Erreur lors de l\'envoi'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('Erreur lors de l\'envoi'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }

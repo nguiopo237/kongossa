@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AppUser {
   String uid;
+  String userI;
   String googleId;
   String displayName;
   String email;
@@ -11,6 +12,7 @@ class AppUser {
   DateTime updatedAt;
   String? phoneNumber;
   String? bio;
+  String? onesignalId;
   bool isEmailVerified;
 
   AppUser({
@@ -24,6 +26,7 @@ class AppUser {
     required this.updatedAt,
     this.phoneNumber,
     this.bio,
+    required this.userI,
     this.isEmailVerified = false,
   });
 
@@ -35,6 +38,7 @@ class AppUser {
 
     return AppUser(
       uid: doc.id,
+      userI: data['userI'] ?? '',
       googleId: data['googleId'] ?? '',
       displayName: data['displayName'] ?? '',
       email: data['email'] ?? '',
@@ -53,6 +57,7 @@ class AppUser {
     return {
       'googleId': googleId,
       'uid': uid,
+      'userI': userI,
       'displayName': displayName,
       'bio': bio,
       'email': email,
@@ -68,7 +73,8 @@ class AppUser {
   // Depuis Google Sign-In
   factory AppUser.fromGoogleSignIn(Map<String, dynamic> googleData) {
     return AppUser(
-      uid: '', // À générer
+      userI:googleData['userI'] ,
+      uid: googleData['id'] , // À générer
       googleId: googleData['id'] ?? '',
       displayName: googleData['displayName'] ?? '',
       email: googleData['email'] ?? '',

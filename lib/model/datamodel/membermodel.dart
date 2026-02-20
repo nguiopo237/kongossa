@@ -17,6 +17,7 @@ class MemberModel {
   final int followingCount;
   final bool isVerified;
   final DateTime? createdAt;
+  final String? onesignalId;
 
   MemberModel({
     required this.uid,
@@ -32,6 +33,7 @@ class MemberModel {
     this.followingCount = 0,
     this.isVerified = false,
     this.createdAt,
+    this.onesignalId,
     required this.googleId,
   });
 
@@ -47,6 +49,7 @@ class MemberModel {
       isOnline: data['isOnline'] ?? false,
       lastSeen: (data['lastSeen'] as Timestamp?)?.toDate(),
       status: data['status'],
+      onesignalId: data['onesignalId'],
       interests: List<String>.from(data['interests'] ?? []),
       followersCount: data['followersCount'] ?? 0,
       followingCount: data['followingCount'] ?? 0,
@@ -64,6 +67,7 @@ class MemberModel {
       'email': email,
       'googleId': googleId,
       'isOnline': isOnline,
+      'onesignalId': onesignalId,
       'lastSeen': lastSeen != null ? Timestamp.fromDate(lastSeen!) : null,
       'status': status,
       'interests': interests,
