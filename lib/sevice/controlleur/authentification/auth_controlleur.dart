@@ -333,9 +333,9 @@ class AuthController extends GetxController {
       } else {
         print('⏳ Player ID pas encore disponible, nouvelle tentative...');
         // Réessayer après 2 secondes
-        Future.delayed(Duration(seconds: 2), () {
-          getOneSignalPlayerId();
-        });
+        // Future.delayed(Duration(seconds: 2), () {
+        //   getOneSignalPlayerId();
+        // });
       }
     } catch (e) {
       print('❌ Erreur récupération Player ID: $e');
@@ -441,7 +441,7 @@ class AuthController extends GetxController {
     PhoneAuthCredential credential,
   ) async {
     try {
-      final UserCredential userCredential = await _auth.signInWithCredential(
+      await _auth.signInWithCredential(
         credential,
       );
 

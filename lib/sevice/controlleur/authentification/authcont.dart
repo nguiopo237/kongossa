@@ -177,11 +177,7 @@ class AuthController extends GetxController {
       'lastLogin': FieldValue.serverTimestamp(),
     };
 
-    // Exemple avec Firestore (si vous l'utilisez)
-    // await FirebaseFirestore.instance
-    //   .collection('users')
-    //   .doc(user.uid)
-    //   .set(userData, SetOptions(merge: true));
+
   }
 
   // --- MESSAGES D'ERREUR ---

@@ -1,4 +1,4 @@
-import 'dart:io';
+ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart'; // Optionnel
@@ -19,6 +19,7 @@ class CustomImage extends StatelessWidget {
   final double borderRadius;
   final Color? backgroundColor;
   final Color? placeholderColor;
+  final void Function()? onpress;
   final List<BoxShadow>? boxShadow;
 
   const CustomImage({
@@ -37,6 +38,7 @@ class CustomImage extends StatelessWidget {
     this.useOldImageOnUrlChange = false,
     this.borderRadius = 0,
     this.backgroundColor,
+    this.onpress,
     this.placeholderColor,
     this.boxShadow,
   });
@@ -193,35 +195,38 @@ class CustomImage extends StatelessWidget {
   }
 
   Widget _buildCachedNetworkImage({BoxFit? customFit}) {
-    return CachedNetworkImage(
-      imageUrl: source,
-      width: width,
-      height: height,
-      fit: customFit ?? fit,
-      color: color,
-      alignment: alignment,
-      placeholder: (context, url) {
-        return placeholder ?? _buildDefaultPlaceholder();
-      },
-      errorWidget: (context, url, error) {
-        return errorWidget ?? _buildErrorPlaceholder();
-      },
-      fadeInDuration: fadeInDuration ? const Duration(milliseconds: 300) : Duration.zero,
-      fadeOutDuration: fadeOutDuration ?? const Duration(milliseconds: 300),
-      fadeInCurve: Curves.easeIn,
-      fadeOutCurve: Curves.easeOut,
-      useOldImageOnUrlChange: useOldImageOnUrlChange,
-      imageBuilder: borderRadius > 0 && type == ImageType.network
-          ? (context, imageProvider) => Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(borderRadius),
-          image: DecorationImage(
-            image: imageProvider,
-            fit: customFit ?? fit,
+    return InkWell(
+      onTap: onpress,
+      child: CachedNetworkImage(
+        imageUrl: source,
+        width: width,
+        height: height,
+        fit: customFit ?? fit,
+        color: color,
+        alignment: alignment,
+        placeholder: (context, url) {
+          return placeholder ?? _buildDefaultPlaceholder();
+        },
+        errorWidget: (context, url, error) {
+          return errorWidget ?? _buildErrorPlaceholder();
+        },
+        fadeInDuration: fadeInDuration ? const Duration(milliseconds: 300) : Duration.zero,
+        fadeOutDuration: fadeOutDuration ?? const Duration(milliseconds: 300),
+        fadeInCurve: Curves.easeIn,
+        fadeOutCurve: Curves.easeOut,
+        useOldImageOnUrlChange: useOldImageOnUrlChange,
+        imageBuilder: borderRadius > 0 && type == ImageType.network
+            ? (context, imageProvider) => Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(borderRadius),
+            image: DecorationImage(
+              image: imageProvider,
+              fit: customFit ?? fit,
+            ),
           ),
-        ),
-      )
-          : null,
+        )
+            : null,
+      ),
     );
   }
 
@@ -259,7 +264,7 @@ class CustomImage extends StatelessWidget {
       width: width,
       height: height,
       color: Colors.grey.shade200,
-      child: const Column(
+      child:  Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(

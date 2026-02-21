@@ -15,6 +15,7 @@ import '../main.dart';
 import '../model/datamodel/profil_model.dart';
 import '../presentation/component/widget/avatar_premuim.dart';
 
+import '../sevice/controlleur/thmbvideo/thum_video.dart';
 import '../sevice/theme/theme_profil.dart';
 import '../sevice/upload/upload_post.dart';
 import 'collaboration/friend.dart';
@@ -635,7 +636,7 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
                   final postDoc = documents[index];
                   final postData = postDoc.data() as Map<String, dynamic>;
 
-                  final userData = _getSafeMap(postData['userData']);
+                  _getSafeMap(postData['userData']);
                   final postContent = _getSafeMap(postData['postData']);
 
                   final allike = _getSafeList(postContent['allike']);
@@ -726,7 +727,8 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
         children: [
           // Affichage selon le type
           if (post.mediaType == MediaType.video)
-            _buildVideoThumbnail(post.mediaUrl)
+        Thumbvideo(videoUrl: post.mediaUrl,)
+
           else
             _buildImageThumbnail(post.mediaUrl),
 

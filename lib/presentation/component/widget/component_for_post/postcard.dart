@@ -1,28 +1,20 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:expandable_text/expandable_text.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_utils/src/extensions/internacionalization.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:kongossa/presentation/component/widget/cloudinaryvideoplayer.dart';
-import 'package:kongossa/presentation/component/widget/iconsvg.dart';
-import 'package:like_button/like_button.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../../config_App/colorsApp.dart';
-import '../../../../config_App/image.dart';
 import '../../../../model/datamodel/user_model.dart';
 import '../../../../sevice/upload/upload_cloud.dart';
 import '../../../../sevice/upload/upload_post.dart';
-import '../../image_component/image.dart';
 import '../../style/custum_text.dart';
 import '../../video_component/comment_video.dart';
 import '../../video_component/tiktok_player_video.dart';
 import '../widget_component.dart';
-import 'like_button.dart';
 
 class PremiumPostcard extends StatefulWidget {
   final String? image;
@@ -154,7 +146,8 @@ class _PremiumPostcardState extends State<PremiumPostcard> with TickerProviderSt
         _pulseController.forward().then((_) => _pulseController.reset());
       }
     });
-    service.toggleLike(postId: widget.id,isLiked:  _isLiked,like: widget.likes );
+
+    service.toggleLike(postId: widget.id, );
 
     // service.toggleLike(widget.id, _isLiked);
     return _isLiked;

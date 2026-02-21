@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 
-import '../../../sevice/call_API/google_authentification/Auth_call.dart';
 import '../../../sevice/controlleur/authentification/auth_controlleur.dart';
-import '../../authentification.dart';
 import 'sign_in_form.dart';
 
 void showCustomDialog(BuildContext context, {required ValueChanged onValue}) {

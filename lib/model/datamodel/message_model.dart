@@ -7,16 +7,20 @@ String messagemodelToJson(Messagemodel data) => json.encode(data.toJson());
 
 class Messagemodel {
   String? content;
+  String? messageType;
   String? id;
   String? receiveId;
   String? senderId;
+  String? isRead;
   DateTime? timestamp;
 
   Messagemodel({
     this.content,
     this.id,
+    this.messageType = "text",
     this.receiveId,
     this.senderId,
+    this.isRead,
     this.timestamp,
   });
 
@@ -26,11 +30,14 @@ class Messagemodel {
     receiveId: json["receiveId"],
     senderId: json["senderId"],
     timestamp: json["timestamp"],
+    messageType: json["messageType"],
+    isRead: json["isRead"],
   );
 
   Map<String, dynamic> toJson() => {
     "content": content,
     "id": id,
+    "messageType": messageType,
     "receiveId": receiveId,
     "senderId": senderId,
     "timestamp": timestamp,

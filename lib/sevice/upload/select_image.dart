@@ -26,6 +26,7 @@ class SelectImage {
    if (pickedFiles.isNotEmpty) {
      return pickedFiles;
    }
+   return null;
  }
  static Future<List<XFile>?>uploadMultipleVideo() async {
    List<XFile>? item = [];
@@ -39,6 +40,7 @@ class SelectImage {
      item.add(pickedFiles);
      return item;
    }
+   return null;
  }
 
 

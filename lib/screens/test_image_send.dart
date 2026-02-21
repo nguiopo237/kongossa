@@ -509,7 +509,7 @@ class _CloudinaryExampleState extends State<CloudinaryExample> {
               ),
               itemCount: _imageUrls.length,
               itemBuilder: (context, index) {
-                final url = _imageUrls[index];
+
                 final result = index < _uploadResults.length
                     ? _uploadResults[index]
                     : null;

@@ -28,6 +28,7 @@ class TikTokVideoPlayer extends StatefulWidget {
   final String? bio;
   final int likes;
   final bool isLiked;
+  final bool start;
   final String id;
   final int comments;
   final int shares;
@@ -45,6 +46,7 @@ class TikTokVideoPlayer extends StatefulWidget {
     required this.id,
     this.comments = 0,
     this.shares = 0,
+    this.start = false,
     this.alllike,
     required this.profileImage,
     this.uid,
@@ -170,6 +172,8 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
           setState(() {
             _controller.setLooping(false);
             _controller.setVolume(_isMuted ? 0 : 1);
+           widget.start==false?_controller.pause():_controller.play();
+
             _isControllerReady = true;
           });
         }
@@ -235,7 +239,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
           final oldController = _controller;
           _controller = newController;
           _controller.addListener(_onVideoControllerListener);
-          _controller.setLooping(false);
+          _controller.setLooping(widget.start==false?false:true);
           _controller.setVolume(_isMuted ? 0 : 1);
           _controller.seekTo(oldPosition);
           if (wasPlaying) _controller.play();
@@ -262,8 +266,8 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
 
     service.toggleLike(
       postId: widget.id,
-      isLiked: _isLiked,
-      like: widget.likes,
+      // isLiked: _isLiked,
+      // like: widget.likes,
     );
   }
 
@@ -283,8 +287,8 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
 
     service.toggleLike(
       postId: widget.id,
-      isLiked: true,
-      like: widget.likes,
+      // isLiked: true,
+      // like: widget.likes,
     );
 
     _doubleTapTimer?.cancel();
@@ -332,7 +336,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
 
           final visibleFraction = visibilityInfo.visibleFraction;
 
-          if (visibleFraction < 0.1) {
+          if (visibleFraction < 1) {
             // Vidéo presque invisible
             if (_controller.value.isPlaying) {
               _controller.pause();
@@ -341,6 +345,9 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
             // Vidéo visible
             if (!_controller.value.isPlaying) {
               _controller.play();
+              print("visibleFraction");
+              print(visibleFraction);
+              print("visibleFraction");
             }
             // Essayer de passer en cache
             _refreshWithCachedVersion();

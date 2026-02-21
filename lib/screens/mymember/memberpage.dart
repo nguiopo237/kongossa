@@ -8,6 +8,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import '../../main.dart';
 import '../../model/datamodel/membermodel.dart';
 import '../../model/datamodel/user_model.dart';
+import '../../presentation/component/image_component/image.dart';
 import '../../sevice/controlleur/splashcontrolleur/splashscreen_controlleur.dart';
 import '../../sevice/member_service/member_service.dart';
 import 'chatpage.dart';
@@ -334,33 +335,12 @@ class _MembersPageTikTokState extends State<MembersPageTikTok> with SingleTicker
                 // Avatar avec style TikTok
                 Stack(
                   children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: member.isOnline
-                            ? Border.all(color: Colors.pink, width: 2)
-                            : null,
-                      ),
-                      child: CircleAvatar(
-                        radius: 28,
-                        backgroundImage: member.photoUrl != null
-                            ? NetworkImage(member.photoUrl!)
-                            : null,
-                        backgroundColor: Colors.grey[800],
-                        child: member.photoUrl == null
-                            ? Text(
-                          (member.displayName ?? member.username)[0]
-                              .toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        )
-                            : null,
-                      ),
+                    CustomImage(
+                      // ignore: dead_code
+                      source: member.photoUrl.toString()??"",
+                      type: ImageType.circle,
+                      width: 40,
+                      height: 40,
                     ),
                     if (member.isOnline)
                       Positioned(

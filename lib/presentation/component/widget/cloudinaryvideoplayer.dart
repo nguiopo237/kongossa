@@ -2,15 +2,14 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flick_video_player/flick_video_player.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import 'package:get/get.dart';
+
 
 import 'package:responsive_sizer/responsive_sizer.dart';
-import 'package:smooth_video_progress/smooth_video_progress.dart';
+
 
 import 'package:video_player/video_player.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -20,8 +19,7 @@ import '../../../config_App/colorsApp.dart';
 import '../../../config_App/image.dart';
 
 class Videoplayerpost extends StatefulWidget {
-  //Url to play video
-  // final PostModel postModel;
+
   final String videoUrl;
   final String urlimage;
   final bool full;
@@ -158,21 +156,16 @@ class _VideoplayerpostState extends State<Videoplayerpost> with AutomaticKeepAli
     files = await DefaultCacheManager().getFileFromCache(widget.videoUrl);
     if (files == null || files!.file == null) {
       // Téléchargez la vidéo si elle n'est pas dans le cache
-      var response = await DefaultCacheManager().downloadFile(widget.videoUrl);
+      await DefaultCacheManager().downloadFile(widget.videoUrl);
       print("video en cours de telechargement");
       _controller = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl))
         ..initialize().then((_) {
           // Ensure the first frame is shown after the video is initialized, even before the play button has been pressed.
           setState(() {});
         });
-      if (response != null) {
         initializePlayer();
         print("Téléchargement réussi");
         // Le téléchargement a réussi, vous pouvez maintenant lire la vidéo
-      } else {
-        print("Erreur lors du téléchargement");
-        // Gérez l'erreur de téléchargement
-      }
     } else {
       // Chargez la vidéo depuis le cache
       print("video deja  telecharger");
@@ -370,7 +363,7 @@ class _VideoplayerpostState extends State<Videoplayerpost> with AutomaticKeepAli
               decoration: BoxDecoration(
                 image: DecorationImage(
                   image: NetworkImage(
-                    widget.urlimage != null ? "${widget.videoUrl}" : "",
+                    "${widget.videoUrl}",
                   ),
                   fit: BoxFit.fill,
                 ),

@@ -2,19 +2,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:kongossa/presentation/component/style/custum_text.dart';
+
 import 'package:kongossa/presentation/component/widget/select_media.dart';
 import 'package:kongossa/presentation/component/widget/widget_component.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:get/get.dart';
-import 'package:rive/rive.dart' show RiveAnimation;
+
 
 import '../../../config_App/colorsApp.dart';
 import '../../../config_App/image.dart';
 import '../../../main.dart';
 import '../../../model/datamodel/user_model.dart';
-import '../../../model/menu.dart';
-import '../../../model/rive_model.dart';
+
 import '../image_component/image.dart';
 import 'component_for_post/create_post_widget.dart';
 import 'notification_button.dart';
@@ -144,47 +143,6 @@ class ProfessionalAppBar extends StatelessWidget {
   }
 
   // Bouton de création avec animation
-  Widget _buildCreatePostButton() {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      height: 6.h,
-      width: 6.h,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [ColorApp.primary1, ColorApp.primary2],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: ColorApp.primary1.withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap:
-              onCreatePost ??
-              () {
-                WidgetComponent.getmodal(
-                  sectionview: Container(
-                    height: Get.height,
-                    child: CreatePostPremiumScreen(),
-                  ),
-                );
-              },
-          borderRadius: BorderRadius.circular(15),
-          child: Center(
-            child: Icon(Icons.add_rounded, color: Colors.white, size: 22.sp),
-          ),
-        ),
-      ),
-    );
-  }
 
   // Profil utilisateur premium
   Widget _buildUserProfile() {
@@ -251,7 +209,7 @@ class ProfessionalAppBar extends StatelessWidget {
                     )
                   : CustomImage(
                       source: document["photoUrl"]!,
-                      type: ImageType.network,
+                      type: ImageType.cachedNetwork,
                       width: 8.w,
                       height: 8.w,
                       fit: BoxFit.cover,

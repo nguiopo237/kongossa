@@ -99,7 +99,6 @@ class SmsController extends GetxController {
   // --- CONNEXION AVEC CREDENTIAL ---
   Future<void> _signInWithPhoneCredential(PhoneAuthCredential credential) async {
     try {
-      final UserCredential userCredential =
       await _auth.signInWithCredential(credential);
 
       // Succès

@@ -112,8 +112,8 @@ class PostUpdateService {
   // ============================================
   Future<void> toggleLike({
     required String postId,
-    bool? isLiked,
-    required int like
+    // bool? isLiked,
+    // required int like
   }) async {
     try {
       DocumentReference postRef = _firestore
@@ -132,8 +132,6 @@ class PostUpdateService {
 
       // Récupérer l'utilisateur actuel
       String? currentUserId = AppUser.info?.googleId;
-      String? currentUserName = AppUser.info?.displayName;
-      String? currentUserAvatar = AppUser.info?.photoUrl;
 
       if (currentUserId == null) {
         print("Utilisateur non connecté");

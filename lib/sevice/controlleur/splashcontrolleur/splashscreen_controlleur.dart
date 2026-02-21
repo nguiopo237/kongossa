@@ -29,6 +29,16 @@ class SplashController extends GetxController {
     initializeApp();
   }
 
+  List<String> assets = [
+    'assets/Backgrounds/up.png',
+    'assets/Backgrounds/up2.png',
+    'assets/Backgrounds/up3.png',
+    'assets/Backgrounds/up4.png',
+    'assets/Backgrounds/up5.png',
+    'assets/Backgrounds/up6.png',
+  ];
+
+
   DateTime getSafeDateTime(dynamic timestamp) {
     try {
       if (timestamp is Timestamp) {
@@ -121,7 +131,7 @@ class SplashController extends GetxController {
               )
                   : CustomImage(
                 source: document["photoUrl"]!,
-                type: ImageType.network,
+                type: ImageType.cachedNetwork,
                 width: width!.w,
                 height: height!.w,
                 fit: BoxFit.cover,

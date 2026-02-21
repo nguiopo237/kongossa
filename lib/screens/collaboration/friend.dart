@@ -273,6 +273,10 @@ class _FriendFeedScreenState extends State<FriendFeedScreen> {
             itemCount: videos.length,
             controller:_pageController,
             restorationId: restorationId,
+            allowImplicitScrolling: true,
+            // onPageChanged: (value) {
+            //   _pageController.jumpToPage(widget.indexed);
+            // },
 
             itemBuilder: (context, index) {
               final video = videos[index];
@@ -281,22 +285,24 @@ class _FriendFeedScreenState extends State<FriendFeedScreen> {
               return Padding(
                 padding:  EdgeInsets.only(bottom: 10.h),
                 child: TikTokVideoPlayer(
-                  id: video['postId'].toString(),
-                  videoUrl:  video['videoUrl'].toString(),
-                  username: video['username'] ?? '',
-                  description: video['description'] ?? '',
-                  music: video['music'] ?? 'Son original',
-                  likes: List.from(video['alllike']).length,
-                  isLiked: video['islike'],
-                  comments: List.from(video['comment']).length,
-                  alllike:  List.from(video['alllike']),
-                  shares: widget.indexed,
-                  profileImage: video['profileImage'] ?? '',
-                  uid :video['uid'],
-                  mail :video['email'],
-                  bio :video['bio'],
+                id: video['postId'].toString(),
+                videoUrl:  video['videoUrl'].toString(),
+                username: video['username'] ?? '',
+                description: video['description'] ?? '',
+                music: video['music'] ?? 'Son original',
+                likes: List.from(video['alllike']).length,
+                isLiked: video['islike'],
+                comments: List.from(video['comment']).length,
+                alllike:  List.from(video['alllike']),
+                shares: widget.indexed,
+                profileImage: video['profileImage'] ?? '',
+                uid :video['uid'],
+                mail :video['email'],
+                bio :video['bio'],
+                  start: true,
 
-                ),
+
+              ),
               );
             },
           );

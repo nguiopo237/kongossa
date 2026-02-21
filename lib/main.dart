@@ -13,6 +13,7 @@ import 'package:kongossa/screens/splashscreen/splaschsreen.dart';
 import 'package:kongossa/sevice/controlleur/authentification/auth_controlleur.dart';
 import 'package:kongossa/sevice/controlleur/init_controlleur/init_controlleur.dart';
 import 'package:kongossa/sevice/controlleur/notification/chat_notificationservice/one_signalservice.dart';
+import 'package:kongossa/sevice/controlleur/notification/configservice.dart';
 import 'package:kongossa/sevice/controlleur/notification/firebase_messaging_service.dart';
 import 'package:kongossa/sevice/controlleur/notification/local_notifications_service.dart';
 import 'package:kongossa/utils/test2.0.dart';
@@ -116,15 +117,6 @@ Future<void> checkUnreadMessages() async {
 }
 
 Future<void> showSimpleNotification({required Map<String, dynamic> message}) async {
-  const AndroidNotificationDetails androidPlatformChannelSpecifics =
-  AndroidNotificationDetails(
-    'simple_channel',
-    'Notifications Simples',
-    channelDescription: 'Canal pour les notifications simples',
-    importance: Importance.max,
-    priority: Priority.high,
-    ticker: 'ticker',
-  );
 }
 
 Future<void> setupMessagesListener() async {
@@ -618,14 +610,30 @@ void main() async {
   // }
 
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
-      .then((_) {
-    OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
-    OneSignal.initialize(OneSignalService.apiKey);
-    OneSignal.Notifications.requestPermission(true);
-    _configureNotificationHandlers();
-    FocusManager.instance.primaryFocus?.unfocus();
+      .then((_) async {
+
+   // await OneSignalKeyManager.getOneSignalAppId();
+
+
+    final configService = ConfigService();
+    final oneSignalAppId = await configService.getOneSignalAppId();
+    print("oneSignalAppId");
+    print(oneSignalAppId);
+    print("oneSignalAppId");
+
+    if (oneSignalAppId != null && oneSignalAppId.isNotEmpty) {
+      OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+      OneSignal.initialize(oneSignalAppId); // Utilisation de la clé récupérée
+      OneSignal.Notifications.requestPermission(true);
+      _configureNotificationHandlers();
+    } else {
+      print('❌ Impossible de récupérer l\'App ID OneSignal');
+      // Option: afficher un message à l'utilisateur ou réessayer
+    // }
+
+  }
     runApp(MyApp());
-  });
+      });
 }
 
 class MyApp extends StatelessWidget {

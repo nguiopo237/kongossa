@@ -3,10 +3,9 @@ import 'dart:convert';
 
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 
+import '../configservice.dart';
+
 class OneSignalService {
-  static const String appId = "f29d87f5-87f2-4d83-b47c-93bf3b08ac0c";
-  static const String apiKey =
-      "os_v2_app_6koyp5mh6jgyhnd4so7twcfmbswfsuux7pyuck4lpk4kbpr2v6b76tzdqjkkkc6xesajmvo4ghb3zzgszmpvt73447shx2uwnj2ce4a"; // À sécuriser !
 
   // Envoyer une notification à tous les utilisateurs
   static Future<bool> sendNotificationToAll({
@@ -19,10 +18,10 @@ class OneSignalService {
         Uri.parse('https://api.onesignal.com/notifications'),
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
-          'Authorization': 'Key $apiKey',
+          'Authorization': 'Key ${ConfigService.onesignalkey}',
         },
         body: json.encode({
-          'app_id': appId,
+          'app_id': ConfigService.oneSignalAppId,
           'included_segments': ['All'], // Tous les utilisateurs
           'headings': {'en': title},
           'contents': {'en': message},
@@ -77,7 +76,7 @@ class OneSignalService {
 
       // Construction du payload
       Map<String, dynamic> payload = {
-        'app_id': appId,
+        'app_id': ConfigService.oneSignalAppId,
         'included_segments': ['All'], // Envoyer à tous
         'headings': {'en': title},
         'contents': {'en': message},
@@ -121,7 +120,7 @@ class OneSignalService {
         Uri.parse('https://api.onesignal.com/notifications'),
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
-          'Authorization': 'Basic $apiKey',
+          'Authorization': 'Basic ${ConfigService.onesignalkey}',
         },
         body: json.encode(payload),
       );
@@ -161,10 +160,10 @@ class OneSignalService {
         Uri.parse('https://api.onesignal.com/notifications'),
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
-          'Authorization': 'Key $apiKey',
+          'Authorization': 'Key ${ConfigService.onesignalkey}',
         },
         body: json.encode({
-          'app_id': appId,
+          'app_id': ConfigService.oneSignalAppId,
           'include_player_ids': [playerId],  // ID OneSignal de l'utilisateur
           'headings': {'en': title},
           'contents': {'en': message},
@@ -191,7 +190,7 @@ class OneSignalService {
     final formattedDate = sendAt.toUtc().toIso8601String();
 
     final payload = {
-      'app_id': appId,
+      'app_id': ConfigService.oneSignalAppId,
       'headings': {'en': title},
       'contents': {'en': message},
       'send_after': formattedDate,
@@ -208,7 +207,7 @@ class OneSignalService {
         Uri.parse('https://api.onesignal.com/notifications'),
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
-          'Authorization': 'Key $apiKey',
+          'Authorization': 'Key ${ConfigService.onesignalkey}',
         },
         body: json.encode(payload),
       );

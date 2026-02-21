@@ -90,11 +90,7 @@ class WidgetComponent {
  }
 
   void _toggleLike(item,index,videoId) {
-    // setState(() {
-    print(index);
-  final  _isLiked = !item['isLiked'];
-    // item['likes'] +=item['isLiked'] ? 1 : -1;
-    // });
+
     service.toggleLikecomment(commentId: item['id'],postId: videoId,like: item['likes'] );
 
   }

@@ -131,16 +131,12 @@ class _EntryPointState extends State<EntryPoint>
                     // child: FriendFeedScreen(),
                     child: Obx(() {
                       if (authController.indexpage.value == 0) {
-                        return HomePage();
+                        return ModernHomePage();
                       }
                       if (authController.indexpage.value == 1) {
                         return FriendFeedScreen();
 
-                         WidgetsBinding.instance.addPostFrameCallback((_) {
-                           if (Get.context != null) {
-                             Get.to(() => FriendFeedScreen());
-                           }
-                         });
+
                       }
                       if (authController.indexpage.value == 2) {
                         return  CreatePostPremiumScreen();
@@ -160,7 +156,7 @@ class _EntryPointState extends State<EntryPoint>
 
                         );
                       }
-                      return HomePage(); // ou un autre widget par défaut
+                      return ModernHomePage(); // ou un autre widget par défaut
                     }),
                   ),
                 ),

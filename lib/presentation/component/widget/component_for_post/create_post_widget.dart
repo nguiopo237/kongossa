@@ -7,11 +7,9 @@ import 'package:get/get_utils/src/extensions/internacionalization.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'dart:async'; // Ajouté pour le Timer
 
-import '../../../../config_App/colorsApp.dart';
 import '../../../../main.dart';
 import '../../../../model/datamodel/user_model.dart';
 import '../../../../sevice/connection/connectionchecker.dart';
-import '../../../../sevice/controlleur/authentification/auth_controlleur.dart';
 import '../../../../sevice/upload/compress_video.dart';
 import '../../../../sevice/upload/select_image.dart';
 import '../../../../sevice/upload/upload_cloud.dart';
