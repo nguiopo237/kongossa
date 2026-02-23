@@ -61,6 +61,9 @@ class TikTokVideoPlayer extends StatefulWidget {
 class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
     with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
 
+  // 🌟 AJOUT 1: GlobalKey pour référencer cette instance
+  static final GlobalKey<_TikTokVideoPlayerState> fullscreenKey = GlobalKey();
+
   @override
   bool get wantKeepAlive => true;
 
@@ -172,7 +175,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
           setState(() {
             _controller.setLooping(false);
             _controller.setVolume(_isMuted ? 0 : 1);
-           widget.start==false?_controller.pause():_controller.play();
+            widget.start==false?_controller.pause():_controller.play();
 
             _isControllerReady = true;
           });
@@ -306,6 +309,29 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
     // L'UI affichera automatiquement le bouton replay
   }
 
+  // 🌟 AJOUT 2: Méthode pour ouvrir le plein écran
+  void _openFullscreen() {
+    // Mettre en pause la vidéo actuelle
+    // if (_controller.value.isPlaying) {
+    //   _controller.pause();
+    // }
+
+    // Ouvrir le plein écran avec la MÊME instance via Get.to
+    Get.to(
+          () => FullscreenVideoPlayer(
+        controller: _controller,
+        state: this,
+      ),
+      transition: Transition.fadeIn,
+      duration: const Duration(milliseconds: 300),
+    )?.then((_) {
+      // Au retour, rien à faire car on garde le même contrôleur
+      if (mounted && !_isDisposed) {
+        setState(() {}); // Rafraîchir l'UI si nécessaire
+      }
+    });
+  }
+
   @override
   void dispose() {
     _isDisposed = true;
@@ -402,6 +428,18 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
               // 📝 INFORMATIONS CÔTÉ GAUCHE
               if (widget.username.isNotEmpty) _buildLeftInfo(),
 
+              // 🌟 AJOUT 3: BOUTON PLEIN ÉCRAN MODIFIÉ
+              if(widget.start==false)
+              Positioned(
+                right: 1.w,
+                bottom: 1.h,
+                child: IconButton(
+                  onPressed: _openFullscreen,
+                  icon: Icon(Icons.fullscreen, color: Colors.white),
+                  iconSize: 30,
+                ),
+              ),
+
               // ⏹️ BARRE DE PROGRESSION
               if (_isControllerReady) _buildProgressBar(),
             ],
@@ -426,7 +464,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
                 child: Stack(
                   children: [
                     VideoPlayer(_controller),
-                    _buildReplayButton(),
+                    // _buildReplayButton(),
                   ],
                 ),
               ),
@@ -844,5 +882,256 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
       return '${(count / 1000).toStringAsFixed(1)}K';
     }
     return count.toString();
+  }
+}
+
+// 🌟 AJOUT 4: NOUVEAU WIDGET POUR LE PLEIN ÉCRAN
+class FullscreenVideoPlayer extends StatelessWidget {
+  final VideoPlayerController controller;
+  final _TikTokVideoPlayerState state;
+
+  const FullscreenVideoPlayer({
+    Key? key,
+    required this.controller,
+    required this.state,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    // S'assurer que la vidéo joue en plein écran
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!controller.value.isPlaying) {
+        controller.play();
+      }
+    });
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Vidéo en plein écran
+          Center(
+            child: AspectRatio(
+              aspectRatio: controller.value.aspectRatio,
+              child: VideoPlayer(controller),
+            ),
+          ),
+
+          // Overlay gradient (optionnel)
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withOpacity(0.7),
+                ],
+                stops: const [0.7, 1.0],
+              ),
+            ),
+          ),
+
+          // Bouton de fermeture
+
+
+          // Actions de droite (likes, commentaires, etc.)
+          // Positioned(
+          //   right: 20,
+          //   bottom: 40,
+          //   child: Column(
+          //     mainAxisSize: MainAxisSize.min,
+          //     children: [
+          //       _buildActionButton(
+          //         icon: state._isLiked ? Icons.favorite : Icons.favorite_border,
+          //         color: state._isLiked ? Colors.red : Colors.white,
+          //         label: state._formatCount(state._likeCount),
+          //         onTap: () => state._toggleLike(),
+          //       ),
+          //       const SizedBox(height: 16),
+          //       _buildActionButton(
+          //         icon: Icons.chat_bubble_outline,
+          //         color: Colors.white,
+          //         label: state._formatCount(state.widget.comments),
+          //         onTap: () {
+          //           controller.pause();
+          //           state._openComments();
+          //         },
+          //       ),
+          //       const SizedBox(height: 16),
+          //       _buildActionButton(
+          //         icon: Icons.reply,
+          //         color: Colors.white,
+          //         label: state._formatCount(state.widget.shares),
+          //         onTap: () {},
+          //       ),
+          //     ],
+          //   ),
+          // ),
+          //
+          // // Informations de gauche
+          // Positioned(
+          //   left: 20,
+          //   bottom: 40,
+          //   child: Column(
+          //     crossAxisAlignment: CrossAxisAlignment.start,
+          //     children: [
+          //       Text(
+          //         '@${state.widget.username}',
+          //         style: GoogleFonts.montserrat(
+          //           color: Colors.white,
+          //           fontSize: 18,
+          //           fontWeight: FontWeight.w700,
+          //         ),
+          //       ),
+          //       const SizedBox(height: 8),
+          //       SizedBox(
+          //         width: Get.width * 0.6,
+          //         child: Text(
+          //           state.widget.description,
+          //           style: GoogleFonts.montserrat(
+          //             color: Colors.white,
+          //             fontSize: 14,
+          //           ),
+          //           maxLines: 3,
+          //           overflow: TextOverflow.ellipsis,
+          //         ),
+          //       ),
+          //       const SizedBox(height: 8),
+          //       Row(
+          //         children: [
+          //           const Icon(Icons.music_note, color: Colors.white, size: 14),
+          //           const SizedBox(width: 4),
+          //           Text(
+          //             state.widget.music,
+          //             style: GoogleFonts.montserrat(
+          //               color: Colors.white,
+          //               fontSize: 13,
+          //             ),
+          //           ),
+          //         ],
+          //       ),
+          //     ],
+          //   ),
+          // ),
+
+          // Barre de progression
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: VideoProgressIndicator(
+              controller,
+              allowScrubbing: true,
+              padding: const EdgeInsets.all(0),
+              colors: const VideoProgressColors(
+                playedColor: Color(0xFFFF6B6B),
+                bufferedColor: Colors.grey,
+                backgroundColor: Colors.white24,
+              ),
+            ),
+          ),
+
+          // Tap pour play/pause
+          GestureDetector(
+            onTap: () {
+              if (controller.value.isPlaying) {
+                controller.pause();
+              } else {
+                controller.play();
+              }
+
+              // Afficher brièvement l'icône play/pause
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Icon(
+                    controller.value.isPlaying ? Icons.play_arrow : Icons.pause,
+                    color: Colors.white,
+                    size: 30,
+                  ),
+                  duration: const Duration(milliseconds: 500),
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                ),
+              );
+            },
+          ),
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 30),
+              onPressed: () {
+                // Mettre en pause avant de fermer
+                // controller.pause();
+                print("youss");
+                Get.back();
+              },
+            ),
+          ),
+
+          // Bouton mute
+          Positioned(
+            top: 40,
+            right: 20,
+            child: GestureDetector(
+              onTap: () {
+                state.setState(() {
+                  state._isMuted = !state._isMuted;
+                  controller.setVolume(state._isMuted ? 0 : 1);
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.4),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  state._isMuted ? Icons.volume_off : Icons.volume_up,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+            ),
+          ),
+
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required Color color,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.4),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 28),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: GoogleFonts.montserrat(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -11,7 +11,7 @@ class Messagemodel {
   String? id;
   String? receiveId;
   String? senderId;
-  String? isRead;
+  bool? isRead;
   DateTime? timestamp;
 
   Messagemodel({

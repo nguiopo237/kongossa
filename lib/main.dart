@@ -69,55 +69,54 @@ FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
 
 // Fonction pour vérifier les messages non lus
-Future<void> checkUnreadMessages() async {
-  try {
-    print("🔍 Vérification des messages non lus arriere...");
+// Future<void> checkUnreadMessages() async {
+//   try {
+//     print("🔍 Vérification des messages non lus arriere...");
+//
+//     // Récupérer l'ID utilisateur depuis SharedPreferences
+//     // String? currentUserId = await getCurrentUserId();
+//
+//     if (currentUserId == null) {
+//       print("⚠️ Utilisateur non connecté, vérification ignorée arriere");
+//       return;
+//     }
+//
+//     // Récupérer les messages non lus
+//     var snapshot = await Sms
+//         .where("receiveId", isEqualTo: currentUserId)
+//         .where("isRead", isEqualTo: false)
+//         .get();
+//
+//     int unreadCount = snapshot.docs.length;
+//
+//     if (unreadCount > 0) {
+//       print("🔔 $unreadCount message(s) non lu(s) arriere");
+//
+//       // Grouper par expéditeur pour plus de détails
+//       Map<String, int> senderCounts = {};
+//       for (var doc in snapshot.docs) {
+//         var data = doc.data() as Map<String, dynamic>;
+//         String sender = data['namesenderId'] ?? 'Inconnu';
+//         senderCounts[sender] = (senderCounts[sender] ?? 0) + 1;
+//       }
+//
+//       print("👥 Par expéditeur: arriere");
+//       senderCounts.forEach((sender, count) {
+//         print("   • $sender: $count");
+//       });
+//
+//       // Envoyer une notification
+//       await showBackgroundNotification(unreadCount, senderCounts);
+//     } else {
+//       print("✅ Aucun nouveau message arriere");
+//     }
+//
+//   } catch (e) {
+//     print("❌ Erreur checkUnreadMessages arriere: $e");
+//   }
+// }
 
-    // Récupérer l'ID utilisateur depuis SharedPreferences
-    String? currentUserId = await getCurrentUserId();
 
-    if (currentUserId == null) {
-      print("⚠️ Utilisateur non connecté, vérification ignorée arriere");
-      return;
-    }
-
-    // Récupérer les messages non lus
-    var snapshot = await Sms
-        .where("receiveId", isEqualTo: currentUserId)
-        .where("isRead", isEqualTo: false)
-        .get();
-
-    int unreadCount = snapshot.docs.length;
-
-    if (unreadCount > 0) {
-      print("🔔 $unreadCount message(s) non lu(s) arriere");
-
-      // Grouper par expéditeur pour plus de détails
-      Map<String, int> senderCounts = {};
-      for (var doc in snapshot.docs) {
-        var data = doc.data() as Map<String, dynamic>;
-        String sender = data['namesenderId'] ?? 'Inconnu';
-        senderCounts[sender] = (senderCounts[sender] ?? 0) + 1;
-      }
-
-      print("👥 Par expéditeur: arriere");
-      senderCounts.forEach((sender, count) {
-        print("   • $sender: $count");
-      });
-
-      // Envoyer une notification
-      await showBackgroundNotification(unreadCount, senderCounts);
-    } else {
-      print("✅ Aucun nouveau message arriere");
-    }
-
-  } catch (e) {
-    print("❌ Erreur checkUnreadMessages arriere: $e");
-  }
-}
-
-Future<void> showSimpleNotification({required Map<String, dynamic> message}) async {
-}
 
 Future<void> setupMessagesListener() async {
   print("🔍 Vérification des messages non lus arriere...");
@@ -133,13 +132,13 @@ Future<void> setupMessagesListener() async {
           var data = change.doc.data() as Map<String, dynamic>;
           String content = data['content'] ?? '';
           print("✏️ Message modifié: ${content}");
-          showSimpleNotification(message: data);
+          // showSimpleNotification(message: data);
           break;
         case DocumentChangeType.modified:
           var data = change.doc.data() as Map<String, dynamic>;
           String content = data['content'] ?? '';
           print("✏️ Message modifié: ${content}");
-          showSimpleNotification(message: data);
+          // showSimpleNotification(message: data);
           break;
         case DocumentChangeType.removed:
           print("❌ Message supprimé: ${change.doc.data()}");
@@ -186,8 +185,8 @@ Future<void> syncData() async {
   try {
     print("🔄 Synchronisation des données... arriere");
 
-    String? currentUserId = await getCurrentUserId();
-    if (currentUserId == null) return;
+    // String? currentUserId = await getCurrentUserId();
+    // if (currentUserId == null) return;
 
     print("✅ Synchronisation terminée arriere");
 
@@ -197,15 +196,15 @@ Future<void> syncData() async {
 }
 
 // Fonction pour obtenir l'ID utilisateur depuis SharedPreferences
-Future<String?> getCurrentUserId() async {
-  try {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getString('userinfo');
-  } catch (e) {
-    print("❌ Erreur getCurrentUserId arriere: $e");
-    return null;
-  }
-}
+// Future<String?> getCurrentUserId() async {
+//   try {
+//     SharedPreferences prefs = await SharedPreferences.getInstance();
+//     return prefs.getString('userinfo');
+//   } catch (e) {
+//     print("❌ Erreur getCurrentUserId arriere: $e");
+//     return null;
+//   }
+// }
 
 // Fonction pour afficher une notification améliorée
 Future<void> showBackgroundNotification(int count, Map<String, int>? senderCounts) async {
@@ -647,10 +646,12 @@ class MyApp extends StatelessWidget {
           navigatorKey: navigatorKey,
           title: 'Kongossa',
           debugShowCheckedModeBanner: false,
+
           theme: ThemeData(
             scaffoldBackgroundColor: const Color(0xFFEEF1F8),
             primarySwatch: Colors.deepOrange,
             fontFamily: "Intel",
+
             elevatedButtonTheme: ElevatedButtonThemeData(
               style: ElevatedButton.styleFrom(
                 foregroundColor: Colors.white,

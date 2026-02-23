@@ -1,22 +1,31 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:kongossa/presentation/component/widget/widget_component.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:timeago/timeago.dart' as timeago;
 import 'package:uuid/uuid.dart';
 import 'package:path/path.dart' as path;
+import 'package:mime/mime.dart';
 
 import 'package:kongossa/config_App/image.dart';
 import 'package:kongossa/model/datamodel/user_model.dart';
+import 'package:voice_message_package/voice_message_package.dart';
 import '../../main.dart';
 import '../../model/datamodel/message_model.dart';
 import '../../presentation/component/image_component/image.dart';
+import '../../presentation/component/video_component/tiktok_player_video.dart';
+import '../../presentation/component/widget/audio_message.dart';
 import '../../presentation/component/widget/message_bulble.dart';
+import '../../presentation/component/widget/record_widget.dart';
 import '../../sevice/controlleur/notification/chat_notificationservice/one_signalservice.dart';
+import '../../sevice/controlleur/thmbvideo/thum_video.dart';
 import '../../sevice/upload/select_image.dart';
 import '../../sevice/upload/upload_cloud.dart';
 
@@ -68,9 +77,9 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
     markMessagesAsRead(widget.receiverId);
     // _scrollController.addListener(_onScroll);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToBottom();
-    });
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   _scrollToBottom();
+    // });
   }
 
   void _onScroll() {
@@ -88,17 +97,10 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
 
   Future<void> markMessagesAsRead(String senderId) async {
     try {
-      QuerySnapshot snapshot =
-          await Sms.where(
-                "senderId",
-                whereIn: [AppUser.info!.googleId, widget.receiverId],
-              )
-              .where(
-                "receiveId",
-                whereIn: [widget.receiverId, AppUser.info!.googleId],
-              )
-              .where("isRead", isEqualTo: false)
-              .get();
+      QuerySnapshot snapshot = await Sms.where(
+        "receiveId",
+        isEqualTo: AppUser.info!.googleId,
+      ).where("isRead", isEqualTo: false).get();
 
       for (var doc in snapshot.docs) {
         await doc.reference.update({'isRead': true});
@@ -125,6 +127,8 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
       );
     }
   }
+  
+  bool see =false;
 
   @override
   Widget build(BuildContext context) {
@@ -152,6 +156,49 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
               Expanded(child: _buildMessagesList()),
               if (_isSendingImage) _buildImageSendingIndicator(),
               _buildMessageInput(),
+              Padding(
+                padding:  EdgeInsets.only(bottom: 3.h,right: 3.w),
+                child: AudioRecordButton(
+                  see: see,
+                  onSendAudio: (audioPath) async {
+
+                    if( audioPath!=null){
+                    setState(() {
+                      see =false;
+                      _isSendingImage =true;
+                    });
+                    }
+                    try {
+                      // Upload vers Cloudinary
+                      final url = await UniversalCloudinaryUploader().uploadAnyFile(
+                        filePath: audioPath,
+                        folder: "kogossa_app/chat/audio",
+                        fileName: 'audio_${uuid.v4()}.m4a',
+                      );
+
+                      if (url != null) {
+                        await _sendMediaMessage(url, 'audio');
+                        setState(() {
+                          _isSendingImage =false;
+                        });
+                        print("media send ");
+
+                        // Supprimer le fichier temporaire
+                        final file = File(audioPath);
+                        if (await file.exists()) {
+                          await file.delete();
+                        }
+                      }
+                    } catch (e) {
+                      Get.snackbar('Erreur', 'Échec de l\'envoi audio');
+                    }
+                  },
+                  onCancel: () {
+                    Get.snackbar('Annulé', 'Enregistrement annulé');
+                  },
+                ),
+              ),
+
             ],
           ),
           if (_isScrollToBottomVisible)
@@ -288,6 +335,7 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
             receiveId: data['receiveId'] ?? '',
             messageType: data['messageType'] ?? '',
             content: data['content'] ?? data['text'] ?? '',
+            isRead: data['isRead'] ??false,
             timestamp:
                 (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
           );
@@ -310,7 +358,16 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
 
             if (message.messageType == 'image') {
               return _buildImageMessage(message, isMe);
-            } else {
+            }
+            if (message.messageType == 'video') {
+              return Text("yello");
+              return _buildVideoMessage(message, isMe);
+            }
+            if (message.messageType == 'audio') {
+              // return Text("yello");
+              return _buildVoiceMessage(message, isMe);
+            }
+            else {
               return _buildTextMessage(message, isMe);
             }
           },
@@ -320,31 +377,128 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
   }
 
   Widget _buildImageMessage(Messagemodel message, bool isMe) {
-    return Container(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: Container(
-        constraints: BoxConstraints(maxWidth: 70.w),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isMe
-                ? Colors.pink.withOpacity(0.3)
-                : Colors.grey.withOpacity(0.3),
+    return InkWell(
+      onTap: () {
+        WidgetComponent.getmodal(
+          sectionview: Container(
+            height: Get.height,
+            width: Get.width,
+          child: Scaffold(
+            appBar: AppBar(
+
+            ),
+            body:  Stack(
+              fit: StackFit.expand,
+              children: [
+                CustomImage(
+                  source: message.content!,
+                  type: ImageType.cachedNetwork,
+                  height: 40.h,
+                  width: 70.w,
+                  fit: BoxFit.cover,
+                ),
+              //  IconButton(onPressed: () => Get.back(), icon: Icon(Icons.close,color: Colors.black,))
+              ],
+            ),
           ),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: CustomImage(
-            source: message.content!,
-            type: ImageType.cachedNetwork,
-            height: 40.h,
-            width: 70.w,
-            fit: BoxFit.cover,
+          ),
+        );
+      },
+      child: Container(
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        child: Container(
+          constraints: BoxConstraints(maxWidth: 70.w),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isMe
+                  ? Colors.pink.withOpacity(0.3)
+                  : Colors.grey.withOpacity(0.3),
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: CustomImage(
+              source: message.content!,
+              type: ImageType.cachedNetwork,
+              height: 40.h,
+              width: 70.w,
+              fit: BoxFit.cover,
+            ),
           ),
         ),
       ),
     );
+  }
+  Widget _buildVideoMessage(Messagemodel message, bool isMe) {
+    return InkWell(
+      onTap: () {
+        _openFullscreenVideo(message.content!);
+      },
+      child: Container(
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        child: Container(
+          width: 70.w, // ✅ Largeur fixe
+          constraints: BoxConstraints(
+            maxHeight: 300, // ✅ Hauteur maximale
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isMe
+                  ? Colors.pink.withOpacity(0.3)
+                  : Colors.grey.withOpacity(0.3),
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: AspectRatio(
+              aspectRatio: 16 / 9, // ✅ RATIO STANDARD POUR VIDÉO
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Thumbvideo(
+                    videoUrl: message.content!,
+                  ),
+                  Container(
+                    color: Colors.black.withOpacity(0.2),
+                  ),
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.play_arrow,
+                      color: Colors.white,
+                      size: 30,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+// Ajoutez cette méthode utilitaire si vous avez la durée
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = twoDigits(duration.inMinutes.remainder(60));
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+
+    if (duration.inHours > 0) {
+      final hours = twoDigits(duration.inHours);
+      return '$hours:$minutes:$seconds';
+    } else {
+      return '$minutes:$seconds';
+    }
   }
 
   Widget _buildTextMessage(Messagemodel message, bool isMe) {
@@ -368,9 +522,27 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
                 : const Radius.circular(20),
           ),
         ),
-        child: Text(
-          message.content!,
-          style: const TextStyle(color: Colors.white, fontSize: 15),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              message.content!,
+              style: const TextStyle(color: Colors.white, fontSize: 15),
+            ),
+            FittedBox(
+              child: Row(
+                children: [
+                  Text(
+                    // timeago.format(message.timestamp!, locale: 'fr_short'),
+                    "${message.timestamp!.hour.toString().padLeft(2, '0')}:${message.timestamp!.minute.toString().padLeft(2, '0')}",
+                    style: const TextStyle(color: Colors.white, fontSize: 15),
+                  ),
+                  SizedBox(width: 1.w,),
+                  Icon(message.isRead==false?Icons.check_sharp:Icons.checklist,color: message.isRead==true? Colors.blue:Colors.grey,)
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -481,6 +653,11 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
                   Expanded(
                     child: TextField(
                       controller: _messageController,
+                      onTap: () {
+                        setState(() {
+                          see = false;
+                        });
+                      },
                       style: const TextStyle(color: Colors.black),
                       decoration: InputDecoration(
                         hintText: 'Message...',
@@ -494,12 +671,137 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
                   ),
                   IconButton(
                     icon: Icon(Icons.attach_file, color: Colors.grey[400]),
-                    onPressed: _pickImage,
+                    // onPressed: _pickImage,
+                    onPressed: () {
+                      void _showMediaSelectionSheet() {
+                        Get.bottomSheet(
+                          Container(
+                            padding: EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.vertical(top: Radius
+                                  .circular(20)),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Handle bar (optionnel)
+                                Container(
+                                  width: 40,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                                SizedBox(height: 16),
+
+                                // Titre
+                                Text(
+                                  'Choisir le type de message',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                SizedBox(height: 20),
+
+                                // Options
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    _buildMediaOption(
+                                      icon: Icons.audiotrack,
+                                      label: 'Audio',
+                                      color: Colors.blue,
+
+                                      onTap: () {
+                                        _pickImage("Audio");
+                                      },
+                                      // onTap: _sendAudio,
+                                    ),
+                                    _buildMediaOption(
+                                      icon: Icons.videocam,
+                                      label: 'Vidéo',
+                                      color: Colors.red,
+                                      onTap: () {
+                                        _pickImage("video");
+                                      },
+                                      // onTap: _sendVideo,
+                                    ),
+                                    _buildMediaOption(
+                                      icon: Icons.image,
+                                      label: 'image',
+                                      color: Colors.green,
+                                      onTap: () {
+                                        // _sendMessage();
+                                        _pickImage("image");
+                                      }, // Votre méthode existante
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 20),
+
+                                // Bouton annuler
+                                TextButton(
+                                  onPressed: () => Get.back(),
+                                  child: Text(
+                                    'Annuler',
+                                    style: TextStyle(color: Colors.grey),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+
+// Widget pour chaque option
+
+
+// Méthodes à implémenter
+                      void _sendAudio() {
+                        // Logique pour envoyer un message audio
+                        print("🎤 Envoi d'un message audio");
+                        // TODO: Implémenter l'enregistrement audio ou la sélection
+                      }
+
+                      void _sendVideo() {
+                        // Logique pour envoyer une vidéo
+                        print("📹 Envoi d'une vidéo");
+                        // TODO: Implémenter la sélection vidéo
+                      }
+                      _showMediaSelectionSheet();
+                    },
+                  ),
+                  IconButton(
+                    icon: Icon( see==true?Icons.mic_off:Icons.mic, color: Colors.grey[400]),
+
+                    onPressed: () {
+
+                      if(see==true){
+                        setState(() {
+                          see = false;
+                        });
+                      }else{
+                        FocusManager.instance.primaryFocus?.unfocus();
+                        setState(() {
+                          see = true;
+                        });
+                      }
+
+
+                    },
+                    onLongPress: () {
+
+                    },
                   ),
                 ],
               ),
             ),
           ),
+
+
           const SizedBox(width: 8),
           Container(
             width: 45,
@@ -518,24 +820,45 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
     );
   }
 
-  Future<void> _pickImage() async {
-    final XFile? pickedFile = await _imagePicker.pickImage(
+  Future<void> _pickImage(String type) async {
+    XFile? pickedFile;
+    if(type=="image"){
+     pickedFile = await _imagePicker.pickImage(
       source: ImageSource.gallery,
       maxWidth: 1024,
       maxHeight: 1024,
       imageQuality: 80,
     );
-
+    }
+    if(type=="video"){
+      pickedFile = await _imagePicker.pickVideo(
+        source: ImageSource.gallery,
+        // maxWidth: 1024,
+        // maxHeight: 1024,
+        // imageQuality: 80,
+      );
+    }
+    if(type=="Audio"){
+      pickedFile = await _imagePicker.pickMedia(
+        // maxWidth: 1024,
+        // maxHeight: 1024,
+        // imageQuality: 80,
+      );
+    }
     if (pickedFile != null) {
       setState(() => _isSendingImage = true);
+      final extension = path.extension(pickedFile.path).toLowerCase();
+      final mimeType = lookupMimeType(pickedFile.path);
+
+      print('🔍 Détection: extension=$extension, mimeType=$mimeType');
       try {
         final url = await UniversalCloudinaryUploader().uploadAnyFile(
           filePath: pickedFile.path,
           folder: "kogossa_app/chat",
-          fileName: '${uuid.v4()}.jpg',
+          fileName: '${uuid.v4()}${extension}',
         );
         if (url != null) {
-          await _sendMediaMessage(url, 'image');
+          await _sendMediaMessage(url, type);
         }
       } finally {
         setState(() => _isSendingImage = false);
@@ -584,4 +907,104 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
       "messageType": type,
     });
   }
-}
+
+
+
+
+  Widget _buildVoiceMessage(Messagemodel message, bool isMe) {
+    return Container(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: AudioMessage(
+        key: ValueKey('audio_${message.id}'),
+        audioUrl: message.content!,
+        isMe: isMe,
+        messageId: message.id,
+        onPlayed: () {
+          if (message.isRead == false) {
+            _markAudioAsPlayed(message.id!);
+          }
+        },
+        // onStop: () {
+        //   print("🛑 Audio arrêté manuellement");
+        //   // Optionnel: faire quelque chose quand l'audio s'arrête
+        // },
+      ),
+    );
+  }
+
+// Marquer l'audio comme écouté
+  Future<void> _markAudioAsPlayed(String messageId) async {
+    await Sms.doc(messageId).update({'isRead': true});
+  }
+
+
+  Widget _buildMediaOption({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        Get.back(); // Fermer le bottom sheet
+        onTap(); // Appeler la méthode
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 30,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openFullscreenVideo(String videoUrl) {
+    Get.to(
+          () => Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.close, color: Colors.white),
+            onPressed: () => Get.back(),
+          ),
+        ),
+        body: Center(
+          child:  TikTokVideoPlayer(
+
+            id: "1",
+            start: true,
+            videoUrl: videoUrl!,
+            username: '',
+            description: '',
+            music: '',
+            profileImage: '',
+          ),
+        ),
+      ),
+      transition: Transition.fade,
+    );
+  }
+  }

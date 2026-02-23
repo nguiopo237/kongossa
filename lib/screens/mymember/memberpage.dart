@@ -3,6 +3,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kongossa/presentation/component/style/custum_text.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../main.dart';
@@ -20,13 +21,15 @@ class MembersPageTikTok extends StatefulWidget {
   State<MembersPageTikTok> createState() => _MembersPageTikTokState();
 }
 
-class _MembersPageTikTokState extends State<MembersPageTikTok> with SingleTickerProviderStateMixin {
+class _MembersPageTikTokState extends State<MembersPageTikTok>
+    with SingleTickerProviderStateMixin {
   final MemberService _memberService = Get.find<MemberService>();
   final TextEditingController _searchController = TextEditingController();
   late TabController _tabController;
   final ScrollController _scrollController = ScrollController();
 
   String _searchQuery = '';
+
   String get currentUserId => AppUser.info?.googleId ?? '';
 
   @override
@@ -103,9 +106,9 @@ class _MembersPageTikTokState extends State<MembersPageTikTok> with SingleTicker
                     prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
-                      icon: Icon(Icons.close, color: Colors.grey[600]),
-                      onPressed: () => _searchController.clear(),
-                    )
+                            icon: Icon(Icons.close, color: Colors.grey[600]),
+                            onPressed: () => _searchController.clear(),
+                          )
                         : null,
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(vertical: 15),
@@ -122,10 +125,7 @@ class _MembersPageTikTokState extends State<MembersPageTikTok> with SingleTicker
                 Container(
                   decoration: BoxDecoration(
                     border: Border(
-                      bottom: BorderSide(
-                        color: Colors.grey[900]!,
-                        width: 1,
-                      ),
+                      bottom: BorderSide(color: Colors.grey[900]!, width: 1),
                     ),
                   ),
                   child: TabBar(
@@ -135,7 +135,9 @@ class _MembersPageTikTokState extends State<MembersPageTikTok> with SingleTicker
                     indicatorColor: Colors.white,
                     indicatorWeight: 3,
                     // CORRECTION: indicatorPadding doit être plus petit
-                    indicatorPadding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    indicatorPadding: const EdgeInsets.symmetric(
+                      horizontal: 8.0,
+                    ),
                     // Alternative: si vous voulez plus d'espace, utilisez isScrollable
                     // isScrollable: true,
                     tabs: const [
@@ -146,10 +148,7 @@ class _MembersPageTikTokState extends State<MembersPageTikTok> with SingleTicker
                   ),
                 ),
                 // Ligne de séparation supplémentaire si nécessaire
-                Container(
-                  height: 0.5,
-                  color: Colors.grey[900],
-                ),
+                Container(height: 0.5, color: Colors.grey[900]),
               ],
             ),
           ),
@@ -161,33 +160,44 @@ class _MembersPageTikTokState extends State<MembersPageTikTok> with SingleTicker
               children: [
                 // Tous les membres
                 _buildMembersList(
-                  stream: Users
-                      .where("googleId", isNotEqualTo: AppUser.info?.googleId)
-                      .snapshots()
-                      .map((snapshot) => snapshot.docs
-                      .map((doc) => MemberModel.fromFirestore(doc))
-                      .toList()),
+                  stream:
+                      Users.where(
+                        "googleId",
+                        isNotEqualTo: AppUser.info?.googleId,
+                      ).snapshots().map(
+                        (snapshot) => snapshot.docs
+                            .map((doc) => MemberModel.fromFirestore(doc))
+                            .toList(),
+                      ),
                 ),
 
                 // Membres en ligne
                 _buildMembersList(
-                  stream: Users
-                      .where("googleId", isNotEqualTo: AppUser.info?.googleId)
-                      .where("isOnline", isEqualTo: true)
-                      .snapshots()
-                      .map((snapshot) => snapshot.docs
-                      .map((doc) => MemberModel.fromFirestore(doc))
-                      .toList()),
+                  stream:
+                      Users.where(
+                            "googleId",
+                            isNotEqualTo: AppUser.info?.googleId,
+                          )
+                          .where("isOnline", isEqualTo: true)
+                          .snapshots()
+                          .map(
+                            (snapshot) => snapshot.docs
+                                .map((doc) => MemberModel.fromFirestore(doc))
+                                .toList(),
+                          ),
                 ),
 
                 // Abonnements - À CORRIGER selon votre logique métier
                 _buildMembersList(
-                  stream: Users
-                      .where("googleId", isNotEqualTo: AppUser.info?.googleId)
-                      .snapshots()
-                      .map((snapshot) => snapshot.docs
-                      .map((doc) => MemberModel.fromFirestore(doc))
-                      .toList()),
+                  stream:
+                      Users.where(
+                        "googleId",
+                        isNotEqualTo: AppUser.info?.googleId,
+                      ).snapshots().map(
+                        (snapshot) => snapshot.docs
+                            .map((doc) => MemberModel.fromFirestore(doc))
+                            .toList(),
+                      ),
                 ),
               ],
             ),
@@ -252,9 +262,10 @@ class _MembersPageTikTokState extends State<MembersPageTikTok> with SingleTicker
         final filteredMembers = _searchQuery.isEmpty
             ? members
             : members.where((member) {
-          final name = (member.displayName ?? member.username).toLowerCase();
-          return name.contains(_searchQuery.toLowerCase());
-        }).toList();
+                final name = (member.displayName ?? member.username)
+                    .toLowerCase();
+                return name.contains(_searchQuery.toLowerCase());
+              }).toList();
 
         // Aucun membre trouvé
         if (filteredMembers.isEmpty) {
@@ -263,15 +274,15 @@ class _MembersPageTikTokState extends State<MembersPageTikTok> with SingleTicker
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  _searchQuery.isEmpty ? Icons.people_outline : Icons.search_off,
+                  _searchQuery.isEmpty
+                      ? Icons.people_outline
+                      : Icons.search_off,
                   size: 64,
                   color: Colors.grey[800],
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  _searchQuery.isEmpty
-                      ? 'Aucun membre'
-                      : 'Aucun résultat',
+                  _searchQuery.isEmpty ? 'Aucun membre' : 'Aucun résultat',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -307,24 +318,21 @@ class _MembersPageTikTokState extends State<MembersPageTikTok> with SingleTicker
   Widget _buildTikTokMemberCard(MemberModel member) {
     return Container(
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: Colors.grey[900]!,
-            width: 1,
-          ),
-        ),
+        border: Border(bottom: BorderSide(color: Colors.grey[900]!, width: 1)),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
             // print('Membre cliqué: ${member.googleId}');
-            Get.to(() => ChatPageTikTok(
-              receiverId: member.googleId,
-              onesignalId: member.onesignalId,
-              receiverName: member.displayName ?? member.username,
-              receiverPhoto: member.photoUrl,
-            ));
+            Get.to(
+              () => ChatPageTikTok(
+                receiverId: member.googleId,
+                onesignalId: member.onesignalId,
+                receiverName: member.displayName ?? member.username,
+                receiverPhoto: member.photoUrl,
+              ),
+            );
           },
           splashColor: Colors.grey[800],
           highlightColor: Colors.transparent,
@@ -337,7 +345,7 @@ class _MembersPageTikTokState extends State<MembersPageTikTok> with SingleTicker
                   children: [
                     CustomImage(
                       // ignore: dead_code
-                      source: member.photoUrl.toString()??"",
+                      source: member.photoUrl.toString() ?? "",
                       type: ImageType.circle,
                       width: 40,
                       height: 40,
@@ -412,52 +420,88 @@ class _MembersPageTikTokState extends State<MembersPageTikTok> with SingleTicker
                           Expanded(
                             child: Container(
                               // color: Colors.orange,
-
                               child: StreamBuilder<QuerySnapshot>(
-                                stream: Sms
-                                    .where("senderId", whereIn: [AppUser.info!.googleId, member.googleId])
-                                    .where("receiveId", whereIn: [member.googleId, AppUser.info!.googleId])
-                                    .orderBy("timestamp", descending: false)
-                                    .snapshots(),
+                                stream:
+                                    Sms.
+                                    where(
+                                          "senderId",
+                                          whereIn: [
+                                            AppUser.info!.googleId,
+                                            member.googleId,
+                                          ],
+                                        )
+                                        .where(
+                                          "receiveId",
+                                          whereIn: [
+                                            member.googleId,
+                                            AppUser.info!.googleId,
+                                          ],
+                                        )
+
+                                        .orderBy("timestamp", descending: false)
+                                        .snapshots(),
                                 builder: (context, snapshot) {
-                                  if (snapshot.connectionState == ConnectionState.waiting) {
-                                    return const Center(child: CircularProgressIndicator(color: Colors.pink));
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const Center(
+                                      child: CircularProgressIndicator(
+                                        color: Colors.pink,
+                                      ),
+                                    );
                                   }
 
                                   if (snapshot.hasError) {
                                     return Center(
                                       child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
                                         children: [
-                                          Icon(Icons.error_outline, color: Colors.red[400]),
+                                          Icon(
+                                            Icons.error_outline,
+                                            color: Colors.red[400],
+                                          ),
                                           const SizedBox(height: 8),
-                                          Text('Erreur de chargement', style: TextStyle(color: Colors.grey[400])),
+                                          Text(
+                                            'Erreur de chargement',
+                                            style: TextStyle(
+                                              color: Colors.grey[400],
+                                            ),
+                                          ),
                                         ],
                                       ),
                                     );
                                   }
 
-                                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                                  if (!snapshot.hasData ||
+                                      snapshot.data!.docs.isEmpty) {
                                     return Text("");
                                   }
 
-                                 final messages = snapshot.data!.docs.last;
-                                  final unreadDocs = snapshot.data!.docs.where((doc) {
-                                    var data = doc.data() as Map<String, dynamic>;
-                                    return data['isRead'] == false;
+                                  final messages = snapshot.data!.docs.last;
+                                  final unreadDocs = snapshot.data!.docs.where((
+                                    doc,
+                                  ) {
+                                    var data =
+                                        doc.data() as Map<String, dynamic>;
+                                    return data['isRead'] == false && data['receiveId'] ==  AppUser.info!.googleId;
                                   }).toList();
 
                                   // Compter
                                   int unreadCount = unreadDocs.length;
 
-                                  print("📊 Total des messages: ${snapshot.data!.docs.length}");
+                                  print(
+                                    "📊 Total des messages: ${snapshot.data!.docs.length}",
+                                  );
                                   print("🔴 Messages non lus: $unreadCount");
 
                                   // Afficher les messages non lus
                                   print("\n📩 MESSAGES NON LUS:");
                                   for (var doc in unreadDocs) {
-                                    var data = doc.data() as Map<String, dynamic>;
-                                    print("  • ${data['namesenderId']}: ${data['content']}");
+                                    var data =
+                                        doc.data() as Map<String, dynamic>;
+                                    print(
+                                      "  • ${data['namesenderId']}: ${data['content']}",
+                                    );
                                   }
 
                                   // int countUnread = item.where((element) => element["isRead"] == false).toList().length;
@@ -465,8 +509,10 @@ class _MembersPageTikTokState extends State<MembersPageTikTok> with SingleTicker
                                   // print("📊 Messages non lus: $countUnread");
                                   // Scroll automatique quand de nouveaux messages arrivent
 
-                                  DateTime dateTime = messages['timestamp'] != null
-                                      ? (messages['timestamp'] as Timestamp).toDate()
+                                  DateTime dateTime =
+                                      messages['timestamp'] != null
+                                      ? (messages['timestamp'] as Timestamp)
+                                            .toDate()
                                       : DateTime.now();
                                   return Row(
                                     children: [
@@ -481,57 +527,58 @@ class _MembersPageTikTokState extends State<MembersPageTikTok> with SingleTicker
                                                 overflow: TextOverflow.ellipsis,
                                                 maxLines: 1,
                                                 style: TextStyle(
-                                                  fontSize: messages["senderId"]==AppUser.info!.googleId?12.sp:16.sp,
-                                                  color: messages["senderId"]==AppUser.info!.googleId? Colors.grey[600]:Colors.blue,
-                                                  fontWeight:  messages["senderId"]==AppUser.info!.googleId?FontWeight.bold: FontWeight.w500,
+                                                  fontSize:
+                                                      messages["senderId"] ==
+                                                          AppUser.info!.googleId
+                                                      ? 12.sp
+                                                      : 16.sp,
+                                                  color:
+                                                      messages["senderId"] ==
+                                                          AppUser.info!.googleId
+                                                      ? Colors.grey[600]
+                                                      : Colors.blue,
+                                                  fontWeight:
+                                                      messages["senderId"] ==
+                                                          AppUser.info!.googleId
+                                                      ? FontWeight.bold
+                                                      : FontWeight.w500,
                                                 ),
                                               ),
                                             ),
                                             const SizedBox(width: 12),
                                             // if (!member.isOnline && member.lastSeen != null)
-                                              Text(
-                                                timeago.format(dateTime),
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.grey[700],
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
+
                                           ],
                                         ),
                                       ),
-                                      if(unreadCount!=0)
-                                      Align(alignment: Alignment.topRight,
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 6,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey[900],
-                                            borderRadius: BorderRadius.circular(20),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(
-                                                Icons.chat_bubble,
-                                                size: 16,
-                                                color: Colors.red,
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Text(
+
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          children: [
+                                            if (unreadCount != 0)
+                                            CircleAvatar(
+                                              backgroundColor: Colors.red,
+                                              radius: 12,
+                                              child: CustomText(
                                                 unreadCount.toString(),
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.grey[400],
-                                                ),
+                                                type: TextType.button,
+                                                style: TextStyle(color: Colors.white),
                                               ),
-                                            ],
-                                          ),
+                                            ),
+
+                                            Text(
+                                              timeago.format(dateTime),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey[700],
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+
+
+                                          ],
                                         ),
-                                      ),
                                     ],
                                   );
                                 },
@@ -547,7 +594,6 @@ class _MembersPageTikTokState extends State<MembersPageTikTok> with SingleTicker
                           //     fontWeight: FontWeight.w500,
                           //   ),
                           // ),
-
                         ],
                       ),
                     ],
@@ -555,7 +601,6 @@ class _MembersPageTikTokState extends State<MembersPageTikTok> with SingleTicker
                 ),
 
                 // Bouton message style TikTok
-
               ],
             ),
           ),

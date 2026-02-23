@@ -575,20 +575,23 @@ class _ModernHomePageState extends State<ModernHomePage>
   }
 
   Widget _buildPostvideo(dynamic media, id) {
-    return Container(
-      height: 50.h,
+    return InkWell(
 
-      width: double.infinity,
-      margin: EdgeInsets.symmetric(vertical: 1.h),
-      color: Colors.grey.shade300,
-      child: ClipRRect(
-        child: TikTokVideoPlayer(
-          id: id,
-          videoUrl: media!,
-          username: '',
-          description: '',
-          music: '',
-          profileImage: '',
+      child: Container(
+        height: 50.h,
+        width: double.infinity,
+        margin: EdgeInsets.symmetric(vertical: 1.h),
+        color: Colors.grey.shade300,
+        child: ClipRRect(
+          child: TikTokVideoPlayer(
+
+            id: id,
+            videoUrl: media!,
+            username: '',
+            description: '',
+            music: '',
+            profileImage: '',
+          ),
         ),
       ),
     );

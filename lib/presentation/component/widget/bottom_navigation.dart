@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:ui';
 
-import '../../../sevice/controlleur/authentification/auth_controlleur.dart'; // pour ImageFilter
+import '../../../main.dart';
+import '../../../model/datamodel/user_model.dart';
+import '../../../sevice/controlleur/authentification/auth_controlleur.dart';
+import '../style/custum_text.dart'; // pour ImageFilter
 
 class KongossaTikTokNavBar extends StatefulWidget {
   @override
@@ -40,7 +43,7 @@ class _KongossaTikTokNavBarState extends State<KongossaTikTokNavBar>
     {
       'icon': Icons.chat_bubble_outline,
       'activeIcon': Icons.chat_bubble,
-      'label': 'Bavardages',
+      'label': 'Messages',
       'index': '3',
       'gradient': [Color(0xFFFF6B6B), Color(0xFF6C5CE7), Color(0xFFFF6B6B)],
     },
@@ -187,12 +190,45 @@ class _KongossaTikTokNavBarState extends State<KongossaTikTokNavBar>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              isSelected ? item['activeIcon'] : item['icon'],
-              color: isSelected
-                  ? Colors.white
-                  : Color(0xFF4A4A4A).withOpacity(0.8),
-              size: isSelected ? 26 : 22,
+            Stack(
+              children: [
+                Icon(
+                  isSelected ? item['activeIcon'] : item['icon'],
+                  color: isSelected
+                      ? Colors.white
+                      : Color(0xFF4A4A4A).withOpacity(0.8),
+                  size: isSelected ? 26 : 22,
+                ),
+
+                StreamBuilder(
+                  stream: Sms
+
+                      .where('receiveId', isEqualTo: AppUser.info!.googleId)
+                      .where('isRead', isEqualTo: false)
+                      .snapshots(),
+                  builder: (context, asyncSnapshot) {
+                  final  totalUnreadMessages = asyncSnapshot.data?.docs.length ?? 0;
+                  print( asyncSnapshot.data?.docs.length);
+                  // asyncSnapshot.data?.docs.map((e) => print(e["content"]),).toList();
+                    return Positioned(
+                      right: 0,
+                      child: Visibility(
+                        visible: totalUnreadMessages!=0&&index==3,
+                        child: CircleAvatar(
+                          backgroundColor: Colors.red,
+                          radius: 8,
+                          child: CustomText(
+                            totalUnreadMessages.toString(),
+                            type: TextType.button,
+
+                            style: TextStyle(color: Colors.white,fontSize: 10),
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                ),
+              ],
             ),
             if (isSelected) ...[
               SizedBox(width: 8),
