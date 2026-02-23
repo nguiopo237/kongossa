@@ -1,6 +1,7 @@
 // lib/presentation/component/widget/audio_message.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:voice_message_package/voice_message_package.dart';
 import '../../../sevice/record/audio_manager.dart';
 
@@ -17,7 +18,7 @@ class AudioMessage extends StatefulWidget {
     required this.isMe,
     this.messageId,
     this.onPlayed,
-    this.maxDuration = const Duration(seconds: 60),
+    this.maxDuration = const Duration(seconds: 700),
   }) : super(key: key);
 
   @override
@@ -187,24 +188,27 @@ class _AudioMessageState extends State<AudioMessage> with AutomaticKeepAliveClie
     super.build(context);
 
     // 🔥 On affiche TOUJOURS le VoiceMessageView, même en chargement
-    return Container(
-      constraints: BoxConstraints(
-        maxWidth: MediaQuery.of(context).size.width * 0.7,
-        minHeight: 40,
-      ),
-      child: VoiceMessageView(
-        controller: _voiceController ?? _createDummyController(),
-        innerPadding: 8,
-        cornerRadius: 16,
-        backgroundColor: widget.isMe
-            ? Colors.pink.withOpacity(0.3)
-            : Colors.grey.shade800,
-        pauseIcon: Icon(Icons.stop,color: Colors.white,),
-        // 🔥 On injecte notre bouton personnalisé
-        playIcon: _buildPlayButton(),
-        // 🔥 Optionnel : désactiver le tap pendant le chargement
-        // onPlay: _isDownloading ? null : null, // Le controller gère déjà le play
-      ),
+    return Row(
+      children: [
+        Expanded(child: SizedBox(width: 2.w,)),
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: VoiceMessageView(
+
+            controller: _voiceController ?? _createDummyController(),
+            innerPadding: 8,
+            cornerRadius: 16,
+            backgroundColor: widget.isMe
+                ? Colors.pink.withOpacity(0.3)
+                : Colors.grey.shade800,
+            pauseIcon: Icon(Icons.stop,color: Colors.white,),
+            // 🔥 On injecte notre bouton personnalisé
+            playIcon: _buildPlayButton(),
+            // 🔥 Optionnel : désactiver le tap pendant le chargement
+            // onPlay: _isDownloading ? null : null, // Le controller gère déjà le play
+          ),
+        ),
+      ],
     );
   }
 
