@@ -10,6 +10,7 @@ class MemberModel {
   final String? email;
   final String googleId;
   final bool isOnline;
+  final bool isPremium;
   final DateTime? lastSeen;
   final String? status;
   final List<String>? interests;
@@ -29,6 +30,7 @@ class MemberModel {
     this.lastSeen,
     this.status,
     this.interests,
+    this.isPremium =false,
     this.followersCount = 0,
     this.followingCount = 0,
     this.isVerified = false,
@@ -46,6 +48,7 @@ class MemberModel {
       photoUrl: data['photoUrl'],
       email: data['email'],
       googleId: data['googleId'],
+      isPremium: data['isPremium'] ?? false,
       isOnline: data['isOnline'] ?? false,
       lastSeen: (data['lastSeen'] as Timestamp?)?.toDate(),
       status: data['status'],
@@ -66,6 +69,7 @@ class MemberModel {
       'photoUrl': photoUrl,
       'email': email,
       'googleId': googleId,
+      'isPremium': isPremium,
       'isOnline': isOnline,
       'onesignalId': onesignalId,
       'lastSeen': lastSeen != null ? Timestamp.fromDate(lastSeen!) : null,

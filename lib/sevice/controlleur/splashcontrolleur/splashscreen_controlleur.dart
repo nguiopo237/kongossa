@@ -22,6 +22,7 @@ class SplashController extends GetxController {
   StreamSubscription? subscription;
   RxBool isDeviceConnected = false.obs;
   RxBool isAlertSet = false.obs;
+  RxList reply = [].obs;
 
   @override
   void onInit() {

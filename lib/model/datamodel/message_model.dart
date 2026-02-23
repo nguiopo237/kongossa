@@ -13,6 +13,7 @@ class Messagemodel {
   String? senderId;
   bool? isRead;
   DateTime? timestamp;
+  List? itemreply;
 
   Messagemodel({
     this.content,
@@ -21,6 +22,7 @@ class Messagemodel {
     this.receiveId,
     this.senderId,
     this.isRead,
+    this.itemreply,
     this.timestamp,
   });
 
@@ -30,6 +32,7 @@ class Messagemodel {
     receiveId: json["receiveId"],
     senderId: json["senderId"],
     timestamp: json["timestamp"],
+    itemreply: json["itemreply"]??[],
     messageType: json["messageType"],
     isRead: json["isRead"],
   );
@@ -39,6 +42,7 @@ class Messagemodel {
     "id": id,
     "messageType": messageType,
     "receiveId": receiveId,
+    "reply": itemreply,
     "senderId": senderId,
     "timestamp": timestamp,
   };

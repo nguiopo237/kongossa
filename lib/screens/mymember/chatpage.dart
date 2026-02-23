@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:kongossa/presentation/component/style/custum_text.dart';
 import 'package:kongossa/presentation/component/widget/widget_component.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
@@ -26,6 +27,7 @@ import '../../presentation/component/widget/audio_message.dart';
 import '../../presentation/component/widget/message_bulble.dart';
 import '../../presentation/component/widget/record_widget.dart';
 import '../../sevice/controlleur/notification/chat_notificationservice/one_signalservice.dart';
+import '../../sevice/controlleur/splashcontrolleur/splashscreen_controlleur.dart';
 import '../../sevice/controlleur/thmbvideo/thum_video.dart';
 import '../../sevice/upload/select_image.dart';
 import '../../sevice/upload/upload_cloud.dart';
@@ -65,6 +67,7 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
   bool _isSendingMedia = false;
   bool _showScrollButton = false;
   bool _showAudioRecord = false;
+  bool _isreply = false;
 
   // ✅ Callbacks pré-initialisés dans initState (évite recreation à chaque build)
   late final VoidCallback _onMicPress;
@@ -115,7 +118,8 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
   // ✅ Scroll optimisé - setState uniquement si changement réel
   void _onScroll() {
     if (!_scrollController.hasClients) return;
-    final showButton = _scrollController.position.pixels <
+    final showButton =
+        _scrollController.position.pixels <
         _scrollController.position.maxScrollExtent - 200;
     if (showButton != _showScrollButton) {
       setState(() => _showScrollButton = showButton);
@@ -156,7 +160,6 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
               Expanded(child: _buildMessagesList()),
               if (_isSendingMedia) const _SendingIndicator(),
               _buildMessageInput(),
-
             ],
           ),
           if (_showScrollButton) _buildScrollButton(),
@@ -199,13 +202,22 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
   );
 
   Widget _buildMessagesList() => StreamBuilder<QuerySnapshot>(
-    stream: Sms.where("senderId", whereIn: [AppUser.info!.googleId, widget.receiverId])
-        .where("receiveId", whereIn: [widget.receiverId, AppUser.info!.googleId])
-        .orderBy("timestamp", descending: false)
-        .snapshots(),
+    stream:
+        Sms.where(
+              "senderId",
+              whereIn: [AppUser.info!.googleId, widget.receiverId],
+            )
+            .where(
+              "receiveId",
+              whereIn: [widget.receiverId, AppUser.info!.googleId],
+            )
+            .orderBy("timestamp", descending: false)
+            .snapshots(),
     builder: (context, snapshot) {
       if (snapshot.connectionState == ConnectionState.waiting) {
-        return const Center(child: CircularProgressIndicator(color: Colors.pink));
+        return const Center(
+          child: CircularProgressIndicator(color: Colors.pink),
+        );
       }
       if (snapshot.hasError) return const _ChatErrorState();
       if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -214,6 +226,7 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
 
       // ✅ Conversion en liste - hors du builder pour éviter recreation
       final messages = _parseMessages(snapshot.data!.docs);
+      final doc = snapshot.data!.docs;
 
       // ✅ Scroll uniquement après premier build
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
@@ -228,19 +241,66 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
           right: 16,
         ),
         itemCount: messages.length,
-        cacheExtent: 1000, // ✅ Pré-rendu pour performance
+        cacheExtent: 1000,
+        // ✅ Pré-rendu pour performance
         itemBuilder: (context, index) {
           final message = messages[index];
           final isMe = message.senderId == AppUser.info!.googleId;
+          final id = snapshot.data!.docs[index].id;
 
           // ✅ ValueKey stable pour préserver l'état des widgets
-          return _MessageItem(
+          return Dismissible(
+            direction: DismissDirection.horizontal,
+
+            onDismissed: (direction) {
+              // 👈 4. VÉRIFIER LA DIRECTION POUR L'ACTION
+              if (direction == DismissDirection.startToEnd) {
+                // Glissé vers la DROITE
+
+                // Sms.doc(id).update({'isRead': true});
+                Sms.doc(id).delete();
+                print("Action gauche: supprimer");
+              } else if (direction == DismissDirection.endToStart) {
+                // Glissé vers la GAUCHE - LE SECOND BACKGROUND EST UTILISÉ ICI
+
+                // Sms.doc(id).delete();
+                print("Action droite: archiver/marquer comme lu");
+              }
+              // deleteMessage(id);
+            },
+            confirmDismiss: (direction) async {
+              s.reply.value = [
+                {"idoc": id, "message": message.content, "type": "text"},
+              ];
+
+              print("_reply.first");
+              print(s.reply.first["message"]);
+              print("_reply.first");
+              return false;
+            },
+
+            secondaryBackground: Container(
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 20),
+              color: Colors.red,
+              child: const Icon(Icons.replay_5, color: Colors.white),
+            ),
+            background: Container(
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 20),
+              color: Colors.red,
+              child: const Icon(Icons.delete, color: Colors.white),
+            ),
             key: ValueKey('msg_${message.id}'),
-            message: message,
-            isMe: isMe,
-            onAudioPlayed: message.isRead == false
-                ? () => _markAudioAsPlayed(message.id!)
-                : null,
+
+            child: _MessageItem(
+              key: ValueKey('msg_${message.id}'),
+              message: message,
+              isMe: isMe,
+              onAudioPlayed: message.isRead == false
+                  ? () => _markAudioAsPlayed(message.id!)
+                  : null,
+            ),
           );
         },
       );
@@ -258,7 +318,9 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
         messageType: data['messageType'] ?? '',
         content: data['content'] ?? data['text'] ?? '',
         isRead: data['isRead'] ?? false,
-        timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        itemreply: List.from(data['itemreply'] ?? []),
+        timestamp:
+            (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
       );
     }).toList();
   }
@@ -295,10 +357,10 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
 
   Future<void> markMessagesAsRead(String senderId) async {
     try {
-      final snapshot = await Sms
-          .where("receiveId", isEqualTo: AppUser.info!.googleId)
-          .where("isRead", isEqualTo: false)
-          .get();
+      final snapshot = await Sms.where(
+        "receiveId",
+        isEqualTo: AppUser.info!.googleId,
+      ).where("isRead", isEqualTo: false).get();
 
       for (final doc in snapshot.docs) {
         await doc.reference.update({'isRead': true});
@@ -350,8 +412,9 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
         "receiveId": widget.receiverId,
         "isRead": false,
         "messageType": "text",
+        if (s.reply.isNotEmpty) "itemreply": s.reply,
       });
-
+      s.reply.clear();
       OneSignalService.sendNotificationToAll(
         title: AppUser.info!.displayName,
         message: text,
@@ -432,7 +495,7 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
 
   void _openFullscreenVideo(String videoUrl) {
     Get.to(
-          () => Scaffold(
+      () => Scaffold(
         backgroundColor: Colors.black,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
@@ -486,10 +549,7 @@ class _AppBarTitle extends StatelessWidget {
             SizedBox(
               width: 40,
               height: 40,
-              child: CustomImage(
-                source: photo!,
-                type: ImageType.circle,
-              ),
+              child: CustomImage(source: photo!, type: ImageType.circle),
             ),
             if (isOnline)
               Positioned(
@@ -544,6 +604,7 @@ class _MessageInput extends StatefulWidget {
   final VoidCallback onMicPress;
   final VoidCallback onAttachPress;
   final VoidCallback onSend;
+
   final VoidCallback onTextFieldTap;
 
   const _MessageInput({
@@ -554,6 +615,7 @@ class _MessageInput extends StatefulWidget {
     required this.onMicPress,
     required this.onAttachPress,
     required this.onSend,
+
     required this.onTextFieldTap,
   });
 
@@ -562,49 +624,84 @@ class _MessageInput extends StatefulWidget {
 }
 
 class _MessageInputState extends State<_MessageInput> {
-
-  bool see =false;
+  bool see = false;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.grey[900],
-      padding: EdgeInsets.fromLTRB(
-        8, 8, 8, 8 + MediaQuery.of(context).padding.bottom,
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _MessageTextField(
-                  controller: widget.controller,
-                  focusNode: widget.focusNode,
-                  onTap: widget.onTextFieldTap,
+    return Obx(
+      () => Container(
+        color: Colors.grey[900],
+        padding: EdgeInsets.fromLTRB(
+          8,
+          8,
+          8,
+          8 + MediaQuery.of(context).padding.bottom,
+        ),
+        child: Column(
+          children: [
+            if (s.reply!.isNotEmpty)
+              Container(
+                color: Colors.black.withOpacity(0.3),
+                padding: EdgeInsets.all(8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Obx(
+                      () => _TextMessage(
+                        message: Messagemodel(
+                          // id: "1",
+                          id: s.reply!.first["idoc"],
+                          content: s.reply!.first["message"],
+                          isRead: false,
+                          messageType: "text",
+                          receiveId: widget.receiverId,
+                          timestamp: DateTime.now(),
+                        ),
+                        isMe: false,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        // widget.reply!.clear();
+                        s.reply.clear();
+                      },
+                      icon: Icon(Icons.close, color: Colors.white),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 8),
-              _Sendingfile(receiverId: widget.receiverId,),
-              _SendButtonmedia(see: see,  onPressed: () {
-
-                if(see==true){
-                  setState(() {
-                    see = false;
-                  });
-                }else{
-                  FocusManager.instance.primaryFocus?.unfocus();
-                  setState(() {
-                    see = true;
-                  });
-                }
-
-
-              },),
-              _SendButton(onPressed: widget.onSend),
-            ],
-          ),
-          SendVoice(see: see, receiverId: widget.receiverId,)
-        ],
+            Row(
+              children: [
+                Expanded(
+                  child: _MessageTextField(
+                    controller: widget.controller,
+                    focusNode: widget.focusNode,
+                    onTap: widget.onTextFieldTap,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _Sendingfile(receiverId: widget.receiverId),
+                _SendButtonmedia(
+                  see: see,
+                  onPressed: () {
+                    if (see == true) {
+                      setState(() {
+                        see = false;
+                      });
+                    } else {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                      setState(() {
+                        see = true;
+                      });
+                    }
+                  },
+                ),
+                _SendButton(onPressed: widget.onSend),
+              ],
+            ),
+            SendVoice(see: see, receiverId: widget.receiverId),
+          ],
+        ),
       ),
     );
   }
@@ -646,6 +743,7 @@ class _MessageTextField extends StatelessWidget {
 
 class _SendButton extends StatelessWidget {
   final VoidCallback onPressed;
+
   const _SendButton({required this.onPressed});
 
   @override
@@ -665,37 +763,38 @@ class _SendButton extends StatelessWidget {
   }
 }
 
-
 class _SendButtonmedia extends StatefulWidget {
   final VoidCallback onPressed;
   bool see;
-  _SendButtonmedia({required this.onPressed,  this.see =false});
+
+  _SendButtonmedia({required this.onPressed, this.see = false});
 
   @override
   State<_SendButtonmedia> createState() => _SendButtonmediaState();
 }
 
 class _SendButtonmediaState extends State<_SendButtonmedia> {
-
   // bool see =false;
 
   @override
   Widget build(BuildContext context) {
-    return  IconButton(
-      icon: Icon( widget.see==true?Icons.mic_off:Icons.mic, color: Colors.grey[400]),
+    return IconButton(
+      icon: Icon(
+        widget.see == true ? Icons.mic_off : Icons.mic,
+        color: Colors.grey[400],
+      ),
 
       onPressed: widget.onPressed,
-      onLongPress: () {
-
-      },
-    );}
+      onLongPress: () {},
+    );
+  }
 }
-
 
 class SendVoice extends StatefulWidget {
   bool see;
   final String receiverId;
-   SendVoice({super.key, required this.see, required this.receiverId});
+
+  SendVoice({super.key, required this.see, required this.receiverId});
 
   @override
   State<SendVoice> createState() => _SendVoiceState();
@@ -703,6 +802,7 @@ class SendVoice extends StatefulWidget {
 
 class _SendVoiceState extends State<SendVoice> {
   final uuid = const Uuid();
+
   Future<void> _sendMediaMessage(String url, String type) async {
     await Sms.add({
       "id": uuid.v4(),
@@ -716,17 +816,14 @@ class _SendVoiceState extends State<SendVoice> {
     });
   }
 
-
-
   @override
   Widget build(BuildContext context) {
-    return  AudioRecordButton(
+    return AudioRecordButton(
       see: widget.see,
       onSendAudio: (audioPath) async {
-
-        if( audioPath!=null){
+        if (audioPath != null) {
           setState(() {
-            widget.see =false;
+            widget.see = false;
             // _isSendingImage =true;
           });
         }
@@ -759,10 +856,8 @@ class _SendVoiceState extends State<SendVoice> {
         Get.snackbar('Annulé', 'Enregistrement annulé');
       },
     );
-
+  }
 }
-}
-
 
 // ────────────────────────────────────────────────────────────────────────────
 // Message Item - Dispatcheur avec ValueKey pour préserver l'état
@@ -788,7 +883,8 @@ class _MessageItem extends StatelessWidget {
         return _VideoMessage(message: message, isMe: isMe);
       case 'audio':
         return AudioMessage(
-          key: ValueKey('audio_${message.id}'), // ✅ Clé stable pour AudioMessage
+          key: ValueKey('audio_${message.id}'),
+          // ✅ Clé stable pour AudioMessage
           audioUrl: message.content!,
           isMe: isMe,
           messageId: message.id,
@@ -799,7 +895,6 @@ class _MessageItem extends StatelessWidget {
     }
   }
 }
-
 
 // ────────────────────────────────────────────────────────────────────────────
 // Text Message - const widget
@@ -831,6 +926,33 @@ class _TextMessage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
+            if (message.itemreply?.isNotEmpty ?? false)
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border(
+                    left: BorderSide(
+                      color: isMe ? Colors.pink : Colors.purple,
+                      width: 3,
+                    ),
+                  ),
+                ),
+                padding: EdgeInsets.all(8.0),
+                child: CustomText(
+                  message.itemreply!.first["message"],
+                  type: TextType.headlineSmall,
+                  style: TextStyle(color: Colors.white),
+                ),
+                // child: Text(
+                //   message.itemreply!.first["message"],
+                //   style: TextStyle(
+                //     fontSize: 16.sp,
+                //     fontWeight: FontWeight.bold,
+                //   ),
+                // ),
+              ),
+            SizedBox(height: 1.h,),
             Text(
               message.content!,
               style: const TextStyle(color: Colors.white, fontSize: 15),
@@ -844,7 +966,9 @@ class _TextMessage extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                   Icon(
-                    message.isRead == false ? Icons.check_sharp : Icons.checklist,
+                    message.isRead == false
+                        ? Icons.check_sharp
+                        : Icons.checklist,
                     color: message.isRead == true ? Colors.blue : Colors.grey,
                   ),
                 ],
@@ -952,9 +1076,10 @@ class _VideoMessage extends StatelessWidget {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: InkWell(onTap: () {
-              _openFullscreenVideo(message.content!);
-            },
+            child: InkWell(
+              onTap: () {
+                _openFullscreenVideo(message.content!);
+              },
               child: AspectRatio(
                 aspectRatio: 16 / 9,
                 child: Stack(
@@ -969,7 +1094,11 @@ class _VideoMessage extends StatelessWidget {
                         color: Colors.black.withOpacity(0.5),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.play_arrow, color: Colors.white, size: 30),
+                      child: const Icon(
+                        Icons.play_arrow,
+                        color: Colors.white,
+                        size: 30,
+                      ),
                     ),
                   ],
                 ),
@@ -987,7 +1116,7 @@ class _VideoMessage extends StatelessWidget {
 
   void _openFullscreenVideo(String videoUrl) {
     Get.to(
-          () => Scaffold(
+      () => Scaffold(
         backgroundColor: Colors.black,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
@@ -998,8 +1127,7 @@ class _VideoMessage extends StatelessWidget {
           ),
         ),
         body: Center(
-          child:  TikTokVideoPlayer(
-
+          child: TikTokVideoPlayer(
             id: "1",
             start: true,
             videoUrl: videoUrl!,
@@ -1121,7 +1249,10 @@ class _MediaOption extends StatelessWidget {
             child: Icon(icon, color: color, size: 30),
           ),
           const SizedBox(height: 8),
-          Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          ),
         ],
       ),
     );
@@ -1157,10 +1288,9 @@ class _SendingIndicator extends StatelessWidget {
   }
 }
 
-
-
 class _Sendingfile extends StatefulWidget {
   final String receiverId;
+
   const _Sendingfile({required this.receiverId});
 
   @override
@@ -1168,11 +1298,12 @@ class _Sendingfile extends StatefulWidget {
 }
 
 class _SendingfileState extends State<_Sendingfile> {
-  bool see =false;
+  bool see = false;
   final uuid = const Uuid();
   final ImagePicker _imagePicker = ImagePicker();
   bool _isSendingImage = false;
   final TextEditingController _messageController = TextEditingController();
+
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
 
@@ -1202,7 +1333,6 @@ class _SendingfileState extends State<_Sendingfile> {
     }
   }
 
-
   Future<void> _sendMediaMessage(String url, String type) async {
     print("widget.receiverId");
     print(widget.receiverId);
@@ -1219,14 +1349,12 @@ class _SendingfileState extends State<_Sendingfile> {
     });
   }
 
-
   Widget _buildMediaOption({
     required IconData icon,
     required String label,
     required Color color,
     required VoidCallback onTap,
-  })
-  {
+  }) {
     return GestureDetector(
       onTap: () {
         Get.back(); // Fermer le bottom sheet
@@ -1242,187 +1370,175 @@ class _SendingfileState extends State<_Sendingfile> {
               color: color.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 30,
-            ),
+            child: Icon(icon, color: color, size: 30),
           ),
           const SizedBox(height: 8),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
           ),
         ],
       ),
     );
   }
+
   @override
   Widget build(BuildContext context) {
-
-      return   IconButton(
-        icon: Icon(Icons.attach_file, color: Colors.grey[400]),
-        // onPressed: _pickImage,
-        onPressed: () {
-          void _showMediaSelectionSheet() {
-            Get.bottomSheet(
-              Container(
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius
-                      .circular(20)),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Handle bar (optionnel)
-                    Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    SizedBox(height: 16),
-
-                    // Titre
-                    Text(
-                      'Choisir le type de message',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 20),
-
-                    // Options
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildMediaOption(
-                          icon: Icons.audiotrack,
-                          label: 'Audio',
-                          color: Colors.blue,
-
-                          onTap: () {
-                            _pickImage("Audio");
-                          },
-                          // onTap: _sendAudio,
-                        ),
-                        _buildMediaOption(
-                          icon: Icons.videocam,
-                          label: 'Vidéo',
-                          color: Colors.red,
-                          onTap: () {
-                            _pickImage("video");
-                          },
-                          // onTap: _sendVideo,
-                        ),
-                        _buildMediaOption(
-                          icon: Icons.image,
-                          label: 'image',
-                          color: Colors.green,
-                          onTap: () {
-                            // _sendMessage();
-                            _pickImage("image");
-                          }, // Votre méthode existante
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 20),
-
-                    // Bouton annuler
-                    TextButton(
-                      onPressed: () => Get.back(),
-                      child: Text(
-                        'Annuler',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ),
-                  ],
-                ),
+    return IconButton(
+      icon: Icon(Icons.attach_file, color: Colors.grey[400]),
+      // onPressed: _pickImage,
+      onPressed: () {
+        void _showMediaSelectionSheet() {
+          Get.bottomSheet(
+            Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
-            );
-          }
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Handle bar (optionnel)
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  SizedBox(height: 16),
 
+                  // Titre
+                  Text(
+                    'Choisir le type de message',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 20),
 
+                  // Options
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildMediaOption(
+                        icon: Icons.audiotrack,
+                        label: 'Audio',
+                        color: Colors.blue,
 
+                        onTap: () {
+                          _pickImage("Audio");
+                        },
+                        // onTap: _sendAudio,
+                      ),
+                      _buildMediaOption(
+                        icon: Icons.videocam,
+                        label: 'Vidéo',
+                        color: Colors.red,
+                        onTap: () {
+                          _pickImage("video");
+                        },
+                        // onTap: _sendVideo,
+                      ),
+                      _buildMediaOption(
+                        icon: Icons.image,
+                        label: 'image',
+                        color: Colors.green,
+                        onTap: () {
+                          // _sendMessage();
+                          _pickImage("image");
+                        }, // Votre méthode existante
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 20),
 
-          void _sendAudio() {
-            // Logique pour envoyer un message audio
-            print("🎤 Envoi d'un message audio");
-            // TODO: Implémenter l'enregistrement audio ou la sélection
-          }
-
-          void _sendVideo() {
-            // Logique pour envoyer une vidéo
-            print("📹 Envoi d'une vidéo");
-            // TODO: Implémenter la sélection vidéo
-          }
-          _showMediaSelectionSheet();
-        },
-      );
-}
-
-    Future<void> _pickImage(String type) async {
-      XFile? pickedFile;
-      if(type=="image"){
-        pickedFile = await _imagePicker.pickImage(
-          source: ImageSource.gallery,
-          maxWidth: 1024,
-          maxHeight: 1024,
-          imageQuality: 80,
-        );
-      }
-      if(type=="video"){
-        pickedFile = await _imagePicker.pickVideo(
-          source: ImageSource.gallery,
-          // maxWidth: 1024,
-          // maxHeight: 1024,
-          // imageQuality: 80,
-        );
-      }
-      if(type=="Audio"){
-        pickedFile = await _imagePicker.pickMedia(
-          // maxWidth: 1024,
-          // maxHeight: 1024,
-          // imageQuality: 80,
-        );
-      }
-      if (pickedFile != null) {
-        setState(() => _isSendingImage = true);
-        final extension = path.extension(pickedFile.path).toLowerCase();
-        final mimeType = lookupMimeType(pickedFile.path);
-
-        print('🔍 Détection: extension=$extension, mimeType=$mimeType');
-        try {
-          final url = await UniversalCloudinaryUploader().uploadAnyFile(
-            filePath: pickedFile.path,
-            folder: "kogossa_app/chat",
-            fileName: '${uuid.v4()}${extension}',
+                  // Bouton annuler
+                  TextButton(
+                    onPressed: () => Get.back(),
+                    child: Text(
+                      'Annuler',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           );
-          if (url != null) {
-            await _sendMediaMessage(url, type);
-          }
-        } finally {
-          setState(() => _isSendingImage = false);
         }
+
+        void _sendAudio() {
+          // Logique pour envoyer un message audio
+          print("🎤 Envoi d'un message audio");
+          // TODO: Implémenter l'enregistrement audio ou la sélection
+        }
+
+        void _sendVideo() {
+          // Logique pour envoyer une vidéo
+          print("📹 Envoi d'une vidéo");
+          // TODO: Implémenter la sélection vidéo
+        }
+
+        _showMediaSelectionSheet();
+      },
+    );
+  }
+
+  Future<void> _pickImage(String type) async {
+    XFile? pickedFile;
+    if (type == "image") {
+      pickedFile = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 80,
+      );
+    }
+    if (type == "video") {
+      pickedFile = await _imagePicker.pickVideo(
+        source: ImageSource.gallery,
+        // maxWidth: 1024,
+        // maxHeight: 1024,
+        // imageQuality: 80,
+      );
+    }
+    if (type == "Audio") {
+      pickedFile = await _imagePicker.pickMedia(
+        // maxWidth: 1024,
+        // maxHeight: 1024,
+        // imageQuality: 80,
+      );
+    }
+    if (pickedFile != null) {
+      setState(() => _isSendingImage = true);
+      final extension = path.extension(pickedFile.path).toLowerCase();
+      final mimeType = lookupMimeType(pickedFile.path);
+
+      print('🔍 Détection: extension=$extension, mimeType=$mimeType');
+      try {
+        final url = await UniversalCloudinaryUploader().uploadAnyFile(
+          filePath: pickedFile.path,
+          folder: "kogossa_app/chat",
+          fileName: '${uuid.v4()}${extension}',
+        );
+        if (url != null) {
+          await _sendMediaMessage(url, type);
+        }
+      } finally {
+        setState(() => _isSendingImage = false);
       }
     }
   }
-
+}
 
 // ────────────────────────────────────────────────────────────────────────────
 // Empty Chat & Error State - const widgets
 // ────────────────────────────────────────────────────────────────────────────
 class _EmptyChat extends StatelessWidget {
   final String receiverName;
+
   const _EmptyChat({required this.receiverName});
+
   static const _quickReactions = [
     {'emoji': '❤️', 'color': Colors.red},
     {'emoji': '😂', 'color': Colors.yellow},
@@ -1431,6 +1547,7 @@ class _EmptyChat extends StatelessWidget {
     {'emoji': '😡', 'color': Colors.red},
     {'emoji': '👍', 'color': Colors.green},
   ];
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -1460,7 +1577,10 @@ class _EmptyChat extends StatelessWidget {
                   color: (reaction['color'] as Color).withOpacity(0.2),
                   shape: BoxShape.circle,
                 ),
-                child: Text(reaction['emoji'] as String, style: const TextStyle(fontSize: 24)),
+                child: Text(
+                  reaction['emoji'] as String,
+                  style: const TextStyle(fontSize: 24),
+                ),
               );
             }).toList(),
           ),
@@ -1481,7 +1601,10 @@ class _ChatErrorState extends StatelessWidget {
         children: [
           const Icon(Icons.wifi_off, size: 40, color: Colors.grey),
           const SizedBox(height: 16),
-          Text('Erreur de connexion', style: TextStyle(color: Colors.grey[400])),
+          Text(
+            'Erreur de connexion',
+            style: TextStyle(color: Colors.grey[400]),
+          ),
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: () {}, // À gérer selon votre logique
