@@ -10,6 +10,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:kongossa/screens/authentification.dart';
 import 'package:kongossa/screens/onboding/onboding_screen.dart';
 import 'package:kongossa/screens/splashscreen/splaschsreen.dart';
+import 'package:kongossa/sevice/controlleur/appcontrolleur/app_controlleur.dart';
 import 'package:kongossa/sevice/controlleur/authentification/auth_controlleur.dart';
 import 'package:kongossa/sevice/controlleur/init_controlleur/init_controlleur.dart';
 import 'package:kongossa/sevice/controlleur/notification/chat_notificationservice/one_signalservice.dart';
@@ -581,7 +582,8 @@ void _handleNotificationClick(OSNotification notification) {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
+  final lifecycleService = AppLifecycleService();
+  await Get.putAsync(() async => lifecycleService);
   await initializeDateFormatting('fr_FR', null);
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 

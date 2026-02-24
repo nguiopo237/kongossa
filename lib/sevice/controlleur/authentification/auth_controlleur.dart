@@ -140,25 +140,28 @@ class AuthController extends GetxController {
       if (googleAccount == null) {
         // L'utilisateur a annulé
         isLoading.value = false;
+        print("❌ Connexion annulée par l'utilisateur");
         return;
+      } else {
+        print("✅ Utilisateur Google authentifié");
+        print("📧 Email: ${googleAccount.email}");
       }
 
       // 2. Vérifier si l'utilisateur existe déjà dans la base de données
-      QuerySnapshot querySnapshot =
-          await Users.where('googleId', isEqualTo: googleAccount.id?.trim())
-              .limit(1)
-              .get(
-                // GetOptions(source: Source.serverAndCache),
-              ); // Utiliser cache et serveur
+      QuerySnapshot querySnapshot = await Users
+          .where('googleId', isEqualTo: googleAccount.id?.trim())
+          .limit(1)
+          .get();
 
       String userId;
 
       if (querySnapshot.docs.isEmpty) {
-        // 3. Créer un nouvel utilisateur
+        print("🆕 Création d'un nouvel utilisateur...");
+
+        // 3. Créer un nouvel utilisateur - UNE SEULE FOIS
         final userData = {
           "email": googleAccount.email,
           "googleId": googleAccount.id,
-          "userI": querySnapshot.docs.first.id,
           "name": googleAccount.displayName,
           "photoUrl": googleAccount.photoUrl,
           "createdAt": FieldValue.serverTimestamp(),
@@ -166,16 +169,23 @@ class AuthController extends GetxController {
           "lastLogin": FieldValue.serverTimestamp(),
         };
 
-        // Ajouter le document et récupérer l'ID
+        // Ajouter le document et récupérer l'ID (une seule fois)
         DocumentReference docRef = await Users.add(userData);
         userId = docRef.id;
+
+        // Optionnel: Mettre à jour avec l'ID du document si nécessaire
+        await docRef.update({
+          'userId': userId, // ou 'userI': userId si vous voulez garder cette clé
+        });
 
         print("✅ Nouvel utilisateur créé");
         print("📧 Email: ${googleAccount.email}");
         print("👤 Nom: ${googleAccount.displayName}");
         print("🆔 ID Firebase: $userId");
       } else {
-        // 4. Utilisateur existant - mettre à jour les infos
+        print("🔄 Utilisateur existant trouvé, mise à jour...");
+
+        // 4. Utilisateur existant - récupérer l'ID et mettre à jour
         userId = querySnapshot.docs.first.id;
 
         await Users.doc(userId).update({
@@ -183,18 +193,20 @@ class AuthController extends GetxController {
           "photoUrl": googleAccount.photoUrl,
           "lastLogin": FieldValue.serverTimestamp(),
           "updatedAt": FieldValue.serverTimestamp(),
-          "userI": userId,
+          // "userI": userId, // Supprimé car pas nécessaire (userId est l'ID du document)
         });
 
         print("🔄 Utilisateur existant mis à jour");
         print("🆔 ID: $userId");
       }
 
-      // 5. Optionnel: Stocker l'ID utilisateur localement
-       await storeUserInfoocally(dataInfo: googleAccount,id:userId );
+      // 5. Stocker les informations localement
+      // await storeUserInfoLocally(dataInfo: googleAccount, id: userId);
+      await storeUserInfoocally(dataInfo: googleAccount,id:userId );
 
       // 6. Optionnel: Naviguer vers l'écran principal
       // Get.offAllNamed('/home');
+
     } catch (error) {
       errorMessage.value = 'Erreur lors de la connexion Google: $error';
       print('❌ Erreur signInWithGoogle: $error');

@@ -331,6 +331,7 @@ class _MembersPageTikTokState extends State<MembersPageTikTok>
                 onesignalId: member.onesignalId,
                 receiverName: member.displayName ?? member.username,
                 receiverPhoto: member.photoUrl,
+                isOnline: member.isOnline,
               ),
             );
           },

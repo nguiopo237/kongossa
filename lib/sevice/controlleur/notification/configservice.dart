@@ -1,6 +1,8 @@
 // service/config_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../call_API/kongossa_ia/ia_service.dart';
+
 
 class ConfigService {
   static final ConfigService _instance = ConfigService._internal();
@@ -32,6 +34,7 @@ class ConfigService {
       if (doc.exists) {
         oneSignalAppId = doc.get('onesignal_app_id') as String?;
         onesignalkey = doc.get('apikey') as String?;
+        Callapi.apikey = (doc.get('chatGpt') as String?)!;
         print('✅ OneSignal App ID récupéré depuis Firestore');
         return oneSignalAppId;
       } else {

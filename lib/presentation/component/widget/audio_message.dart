@@ -46,6 +46,10 @@ class _AudioMessageState extends State<AudioMessage> with AutomaticKeepAliveClie
   }
 
   Future<void> _initController() async {
+    print("widget.audioUr");
+    print(widget.audioUrl);
+    print("widget.audioUrl");
+
     if (_isDisposed) return;
 
     // 🔥 On ne bloque plus tout le widget, on gère juste le bouton
@@ -82,6 +86,9 @@ class _AudioMessageState extends State<AudioMessage> with AutomaticKeepAliveClie
         onPause: _onPause,
         onPlaying: _onPlaying,
         onError: _onError,
+        noiseCount: 20,
+        cacheKey: widget.audioUrl,
+
       );
 
       await Future.delayed(const Duration(milliseconds: 100));
@@ -189,10 +196,11 @@ class _AudioMessageState extends State<AudioMessage> with AutomaticKeepAliveClie
 
     // 🔥 On affiche TOUJOURS le VoiceMessageView, même en chargement
     return Row(
+      mainAxisAlignment: widget.isMe? MainAxisAlignment.end:MainAxisAlignment.start,
       children: [
-        Expanded(child: SizedBox(width: 2.w,)),
+        // Expanded(child: SizedBox(width: 2.w,)),
         Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding:  EdgeInsets.symmetric(horizontal: 1.w,vertical: 1.h),
           child: VoiceMessageView(
 
             controller: _voiceController ?? _createDummyController(),

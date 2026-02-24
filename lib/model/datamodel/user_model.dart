@@ -14,6 +14,7 @@ class AppUser {
   String? bio;
   String? onesignalId;
   bool isEmailVerified;
+  bool isonline;
 
   AppUser({
     required this.uid,
@@ -28,6 +29,7 @@ class AppUser {
     this.bio,
     required this.userI,
     this.isEmailVerified = false,
+    this.isonline = false,
   });
 
   // Depuis Firebase Document
@@ -41,6 +43,7 @@ class AppUser {
       userI: data['userI'] ?? '',
       googleId: data['googleId'] ?? '',
       displayName: data['displayName'] ?? '',
+      isonline: data['isonline'] ?? '',
       email: data['email'] ?? '',
       photoUrl: data['photoUrl'],
       bio: data['bio'],
@@ -58,6 +61,7 @@ class AppUser {
       'googleId': googleId,
       'uid': uid,
       'userI': userI,
+      'isonline': isonline,
       'displayName': displayName,
       'bio': bio,
       'email': email,
@@ -82,6 +86,7 @@ class AppUser {
       serverAuthCode: googleData['serverAuthCode'] ?? '',
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
+
       isEmailVerified: true,
     );
   }

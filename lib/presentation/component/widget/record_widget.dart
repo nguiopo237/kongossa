@@ -38,7 +38,7 @@ class _AudioRecordButtonState extends State<AudioRecordButton> with TickerProvid
     WidgetsBinding.instance.addObserver(this);
     _pulseAnimation = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 50000000),
     )..repeat(reverse: true);
   }
 
