@@ -19,6 +19,7 @@ import '../../constants.dart';
 import '../../model/menu.dart';
 import '../../presentation/component/widget/bottom_navigation.dart';
 import '../../presentation/component/widget/component_for_post/create_post_widget.dart';
+import '../../presentation/component/widget/component_for_post/createpost.dart';
 import '../../presentation/component/widget/widget_component.dart';
 import '../../sevice/connection/connectionchecker.dart';
 import '../../sevice/controlleur/authentification/auth_controlleur.dart';
@@ -139,7 +140,7 @@ class _EntryPointState extends State<EntryPoint>
 
                       }
                       if (authController.indexpage.value == 2) {
-                        return  CreatePostPremiumScreen();
+                        return  CreatePostPremiumView();
                       }
                       if (authController.indexpage.value == 3) {
                         return  MembersPageTikTok (

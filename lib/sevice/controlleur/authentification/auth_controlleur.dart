@@ -330,6 +330,8 @@ class AuthController extends GetxController {
       if (onesignalId != null) {
         currentPlayerId = onesignalId;
         print('🆔 OneSignal Player ID récupéré: $onesignalId');
+        Users.doc(AppUser.info?.userI).update({"isOnline":false});
+        AppUser.info?.isonline =false;
 
         // Option 1: Sauvegarder dans SharedPreferences
         // await _savePlayerIdToPrefs(onesignalId);
@@ -379,6 +381,8 @@ class AuthController extends GetxController {
     final prefs = await SharedPreferences.getInstance();
     prefs.remove("userinfo");
     await _googleSignIn.signOut();
+    Users.doc(AppUser.info?.userI).update({"isOnline":false});
+    AppUser.info?.isonline =false;
     Get.offAll(()=>OnbodingScreen());
   }
 

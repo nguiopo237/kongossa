@@ -60,7 +60,7 @@ class ChatPageTikTok extends StatelessWidget {
             children: [
               Expanded(child: _MessagesList(controller: controller)),
               controller.isSendingMedia
-                  ? const _SendingIndicator()
+                  ? const SendingIndicator()
                   : const SizedBox.shrink(),
               _MessageInput(controller: controller),
             ],
@@ -916,8 +916,8 @@ class _MediaOption extends StatelessWidget {
   }
 }
 
-class _SendingIndicator extends StatelessWidget {
-  const _SendingIndicator();
+class SendingIndicator extends StatelessWidget {
+  const SendingIndicator();
 
   @override
   Widget build(BuildContext context) {

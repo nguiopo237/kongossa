@@ -17,6 +17,8 @@ import 'package:kongossa/sevice/controlleur/notification/chat_notificationservic
 import 'package:kongossa/sevice/controlleur/notification/configservice.dart';
 import 'package:kongossa/sevice/controlleur/notification/firebase_messaging_service.dart';
 import 'package:kongossa/sevice/controlleur/notification/local_notifications_service.dart';
+import 'package:kongossa/sevice/controlleur/video_service.dart';
+import 'package:kongossa/sevice/controlleur/video_size.dart';
 import 'package:kongossa/utils/test2.0.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
@@ -683,8 +685,10 @@ class MyApp extends StatelessWidget {
           ),
           // enableLog: false,
           defaultGlobalState: true,
-          onInit: () => authController.getUserInfoocally(),
+         onInit: () => authController.getUserInfoocally(),
           home: SplashScreen(),
+          // home: VideoEditorExample(),
+          // home: VideoEditorExample(),
         );
       },
     );

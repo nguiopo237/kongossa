@@ -23,6 +23,7 @@ class SplashController extends GetxController {
   RxBool isDeviceConnected = false.obs;
   RxBool isAlertSet = false.obs;
   RxList reply = [].obs;
+  RxList <String> attachedVideos = <String>[].obs;
 
   @override
   void onInit() {
