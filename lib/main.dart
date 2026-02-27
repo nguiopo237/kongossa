@@ -597,8 +597,8 @@ void main() async {
   final localNotificationsService = LocalNotificationsService.instance();
   await localNotificationsService.init();
 
-  final firebaseMessagingService = FirebaseMessagingService.instance();
-  await firebaseMessagingService.init(localNotificationsService: localNotificationsService);
+  // final firebaseMessagingService = FirebaseMessagingService.instance();
+  // await firebaseMessagingService.init(localNotificationsService: localNotificationsService);
 
   AppControllers.initialize();
 

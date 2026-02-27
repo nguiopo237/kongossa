@@ -201,30 +201,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.1.2"
-  cloud_functions:
-    dependency: "direct main"
-    description:
-      name: cloud_functions
-      sha256: b4c3701f8e6deb615dba2ec47fce463c8f17c98ec3d4c3ccdb0fd6e193344c6f
-      url: "https://pub.dev"
-    source: hosted
-    version: "6.0.6"
-  cloud_functions_platform_interface:
-    dependency: transitive
-    description:
-      name: cloud_functions_platform_interface
-      sha256: "4685216f16eb88fddc0ec74e52cbb827c887102598ac28b831711d9555a792d9"
-      url: "https://pub.dev"
-    source: hosted
-    version: "5.8.9"
-  cloud_functions_web:
-    dependency: transitive
-    description:
-      name: cloud_functions_web
-      sha256: ddc9e08c744db93f56f47e04905318e4f15f1502d1968a533fed79242895adbb
-      url: "https://pub.dev"
-    source: hosted
-    version: "5.1.2"
   cloudinary:
     dependency: "direct main"
     description:
@@ -345,14 +321,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.0.8"
-  ffmpeg_kit_flutter_new:
+  ffmpeg_kit_flutter_new_min_gpl:
     dependency: "direct main"
     description:
-      name: ffmpeg_kit_flutter_new
-      sha256: d127635f27e93a7f21f0a14ce0a1a148e80919c402dac4a2118d73bfb17ce841
+      name: ffmpeg_kit_flutter_new_min_gpl
+      sha256: "7009b1a8a75188b4f8c13ba4bbc399c8e57b13bab9ee172f4a5583774d850efd"
       url: "https://pub.dev"
     source: hosted
-    version: "4.1.0"
+    version: "2.1.1"
   ffmpeg_kit_flutter_platform_interface:
     dependency: transitive
     description:
@@ -449,30 +425,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.4.0"
-  firebase_messaging:
-    dependency: "direct main"
-    description:
-      name: firebase_messaging
-      sha256: "06fad40ea14771e969a8f2bbce1944aa20ee2f4f57f4eca5b3ba346b65f3f644"
-      url: "https://pub.dev"
-    source: hosted
-    version: "16.1.1"
-  firebase_messaging_platform_interface:
-    dependency: transitive
-    description:
-      name: firebase_messaging_platform_interface
-      sha256: "6c49e901c77e6e10e86d98e32056a087eb1ca1b93acdf58524f1961e617657b7"
-      url: "https://pub.dev"
-    source: hosted
-    version: "4.7.6"
-  firebase_messaging_web:
-    dependency: transitive
-    description:
-      name: firebase_messaging_web
-      sha256: "2756f8fea583ffb9d294d15ddecb3a9ad429b023b70c9990c151fc92c54a32b3"
-      url: "https://pub.dev"
-    source: hosted
-    version: "4.1.2"
   firebase_storage:
     dependency: "direct main"
     description:
@@ -984,14 +936,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.0"
-  native_video_compress:
-    dependency: "direct main"
-    description:
-      name: native_video_compress
-      sha256: f560c62f694abb5dda560c188ff7f1247b00c3fdcc6434d847373872569dd885
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.0.4"
   nested:
     dependency: transitive
     description:
@@ -1637,22 +1581,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.0"
-  video_compress:
-    dependency: "direct main"
-    description:
-      name: video_compress
-      sha256: "31bc5cdb9a02ba666456e5e1907393c28e6e0e972980d7d8d619a7beda0d4f20"
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.1.4"
-  video_editor:
-    dependency: "direct main"
-    description:
-      name: video_editor
-      sha256: "263be52e052118389f372f055f59c2fda5c7beecfdb706b899d2e05be8740c22"
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.0.0"
   video_editor_repack:
     dependency: "direct main"
     description:

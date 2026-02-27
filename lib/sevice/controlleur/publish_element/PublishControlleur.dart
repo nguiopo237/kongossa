@@ -53,7 +53,7 @@ class CreatePostPremiumController extends GetxController
   ];
 
   // Services
-  final NativeVideoCompressService compress = NativeVideoCompressService();
+  // final NativeVideoCompressService compress = NativeVideoCompressService();
   final UniversalCloudinaryUploader uploader = UniversalCloudinaryUploader();
 
   // Timers

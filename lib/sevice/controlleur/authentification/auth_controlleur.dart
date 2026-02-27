@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
@@ -40,7 +40,7 @@ class AuthController extends GetxController {
   final RxBool canResend = true.obs;
   Timer? _resendTimer;
   String? _currentToken;
-  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
+  // final FirebaseMessaging _fcm = FirebaseMessaging.instance;
   FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
   FlutterLocalNotificationsPlugin();
 
@@ -84,27 +84,7 @@ class AuthController extends GetxController {
 
 
 
-  Future<String?> getFirebaseToken() async {
 
-
-    NotificationSettings settings = await _fcm.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-
-    if (settings.authorizationStatus != AuthorizationStatus.authorized) {
-      print('Permission refusée');
-    }
-
-
-    String? token = await _fcm.getToken();
-    print('Token FCM: $token');
-    _fcm.onTokenRefresh.listen((newToken) {
-      print('Nouveau token: $newToken');
-      // Mettre à jour le token dans votre base de données si nécessaire
-    });
-  }
 
 
 
