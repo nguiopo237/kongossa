@@ -10,28 +10,34 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:kongossa/screens/authentification.dart';
 import 'package:kongossa/screens/onboding/onboding_screen.dart';
 import 'package:kongossa/screens/splashscreen/splaschsreen.dart';
+import 'package:kongossa/sevice/call_API/zegocloud/interface_call.dart';
+import 'package:kongossa/sevice/call_API/zegocloud/interface_receive.dart';
 import 'package:kongossa/sevice/controlleur/appcontrolleur/app_controlleur.dart';
 import 'package:kongossa/sevice/controlleur/authentification/auth_controlleur.dart';
 import 'package:kongossa/sevice/controlleur/init_controlleur/init_controlleur.dart';
 import 'package:kongossa/sevice/controlleur/notification/chat_notificationservice/one_signalservice.dart';
 import 'package:kongossa/sevice/controlleur/notification/configservice.dart';
-import 'package:kongossa/sevice/controlleur/notification/firebase_messaging_service.dart';
+
 import 'package:kongossa/sevice/controlleur/notification/local_notifications_service.dart';
-import 'package:kongossa/sevice/controlleur/video_service.dart';
-import 'package:kongossa/sevice/controlleur/video_size.dart';
-import 'package:kongossa/utils/test2.0.dart';
+
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:zego_uikit_prebuilt_call/zego_uikit_prebuilt_call.dart';
+import 'package:zego_uikit_signaling_plugin/zego_uikit_signaling_plugin.dart';
 
 import 'firebase_options.dart';
 import 'model/datamodel/user_model.dart';
 
 CollectionReference Users = FirebaseFirestore.instance.collection('user');
-CollectionReference Posts = FirebaseFirestore.instance.collection('postcarduser');
+CollectionReference Posts = FirebaseFirestore.instance.collection(
+  'postcarduser',
+);
 CollectionReference Sms = FirebaseFirestore.instance.collection('message');
-CollectionReference notif = FirebaseFirestore.instance.collection('notification');
+CollectionReference notif = FirebaseFirestore.instance.collection(
+  'notification',
+);
 
 String? currentPlayerId;
 
@@ -45,7 +51,7 @@ void callbackDispatcher() {
     try {
       switch (task) {
         case "checkMessagesTask":
-          await authController.setupMessagesListener() ;
+          await authController.setupMessagesListener();
           break;
         case "cleanupTask":
           await performCleanup();
@@ -59,7 +65,6 @@ void callbackDispatcher() {
 
       print("✅ Tâche $task terminée arriere");
       return Future.value(true);
-
     } catch (e, stackTrace) {
       print("❌ Erreur dans la tâche  arriere$task: $e");
       print(stackTrace);
@@ -69,7 +74,7 @@ void callbackDispatcher() {
 }
 
 FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-FlutterLocalNotificationsPlugin();
+    FlutterLocalNotificationsPlugin();
 
 // Fonction pour vérifier les messages non lus
 // Future<void> checkUnreadMessages() async {
@@ -119,8 +124,6 @@ FlutterLocalNotificationsPlugin();
 //   }
 // }
 
-
-
 Future<void> setupMessagesListener() async {
   print("🔍 Vérification des messages non lus arriere...");
   notif
@@ -128,27 +131,26 @@ Future<void> setupMessagesListener() async {
       .orderBy("timestamp", descending: false)
       .snapshots()
       .listen((QuerySnapshot snapshot) {
-
-    for (var change in snapshot.docChanges) {
-      switch (change.type) {
-        case DocumentChangeType.added:
-          var data = change.doc.data() as Map<String, dynamic>;
-          String content = data['content'] ?? '';
-          print("✏️ Message modifié: ${content}");
-          // showSimpleNotification(message: data);
-          break;
-        case DocumentChangeType.modified:
-          var data = change.doc.data() as Map<String, dynamic>;
-          String content = data['content'] ?? '';
-          print("✏️ Message modifié: ${content}");
-          // showSimpleNotification(message: data);
-          break;
-        case DocumentChangeType.removed:
-          print("❌ Message supprimé: ${change.doc.data()}");
-          break;
-      }
-    }
-  });
+        for (var change in snapshot.docChanges) {
+          switch (change.type) {
+            case DocumentChangeType.added:
+              var data = change.doc.data() as Map<String, dynamic>;
+              String content = data['content'] ?? '';
+              print("✏️ Message modifié: ${content}");
+              // showSimpleNotification(message: data);
+              break;
+            case DocumentChangeType.modified:
+              var data = change.doc.data() as Map<String, dynamic>;
+              String content = data['content'] ?? '';
+              print("✏️ Message modifié: ${content}");
+              // showSimpleNotification(message: data);
+              break;
+            case DocumentChangeType.removed:
+              print("❌ Message supprimé: ${change.doc.data()}");
+              break;
+          }
+        }
+      });
 }
 
 // Fonction de nettoyage
@@ -159,9 +161,10 @@ Future<void> performCleanup() async {
     // Nettoyer les anciens messages (plus de 30 jours)
     DateTime thirtyDaysAgo = DateTime.now().subtract(Duration(days: 30));
 
-    var oldMessages = await Sms
-        .where("timestamp", isLessThan: thirtyDaysAgo)
-        .get();
+    var oldMessages = await Sms.where(
+      "timestamp",
+      isLessThan: thirtyDaysAgo,
+    ).get();
 
     if (oldMessages.docs.isNotEmpty) {
       WriteBatch batch = FirebaseFirestore.instance.batch();
@@ -173,15 +176,10 @@ Future<void> performCleanup() async {
     }
 
     print("✅ Nettoyage terminé arriere");
-
   } catch (e) {
     print("❌ Erreur performCleanup arriere: $e");
   }
 }
-
-
-
-
 
 // Fonction de synchronisation
 Future<void> syncData() async {
@@ -192,7 +190,6 @@ Future<void> syncData() async {
     // if (currentUserId == null) return;
 
     print("✅ Synchronisation terminée arriere");
-
   } catch (e) {
     print("❌ Erreur syncDataarriere: $e");
   }
@@ -210,32 +207,37 @@ Future<void> syncData() async {
 // }
 
 // Fonction pour afficher une notification améliorée
-Future<void> showBackgroundNotification(int count, Map<String, int>? senderCounts) async {
+Future<void> showBackgroundNotification(
+  int count,
+  Map<String, int>? senderCounts,
+) async {
   try {
     FlutterLocalNotificationsPlugin flip = FlutterLocalNotificationsPlugin();
 
     String body = 'Vous avez $count nouveau(x) message(s) arriere';
 
     if (senderCounts != null && senderCounts.isNotEmpty) {
-      String details = senderCounts.entries.map((e) => '${e.key}: ${e.value}').join(', ');
+      String details = senderCounts.entries
+          .map((e) => '${e.key}: ${e.value}')
+          .join(', ');
       body = '$body\nDe: $details';
     }
 
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
-    AndroidNotificationDetails(
-      'background_channel',
-      'Messages Kongossa',
-      channelDescription: 'Notifications des messages en arrière-plan',
-      importance: Importance.max,
-      priority: Priority.high,
-      showWhen: true,
-      enableVibration: true,
-      playSound: true,
-      color: Colors.deepOrange,
-      ledColor: Colors.deepOrange,
-      ledOnMs: 1000,
-      ledOffMs: 500,
-    );
+        AndroidNotificationDetails(
+          'background_channel',
+          'Messages Kongossa',
+          channelDescription: 'Notifications des messages en arrière-plan',
+          importance: Importance.max,
+          priority: Priority.high,
+          showWhen: true,
+          enableVibration: true,
+          playSound: true,
+          color: Colors.deepOrange,
+          ledColor: Colors.deepOrange,
+          ledOnMs: 1000,
+          ledOffMs: 500,
+        );
 
     final NotificationDetails platformChannelSpecifics = NotificationDetails(
       android: androidPlatformChannelSpecifics,
@@ -255,7 +257,6 @@ Future<void> showBackgroundNotification(int count, Map<String, int>? senderCount
     );
 
     print("📬 Notification envoyée arriere: $body");
-
   } catch (e) {
     print("❌ Erreur showBackgroundNotification arriere: $e");
   }
@@ -281,22 +282,17 @@ Future<void> scheduleAllBackgroundTasks() async {
       "cleanupTask",
       "cleanupTask",
       frequency: Duration(hours: 24),
-      constraints: Constraints(
-        networkType: NetworkType.connected,
-      ),
+      constraints: Constraints(networkType: NetworkType.connected),
     );
 
     await Workmanager().registerPeriodicTask(
       "syncDataTask",
       "syncDataTask",
       frequency: Duration(minutes: 30),
-      constraints: Constraints(
-        networkType: NetworkType.connected,
-      ),
+      constraints: Constraints(networkType: NetworkType.connected),
     );
 
     print("✅ Toutes les tâches planifiées arriere");
-
   } catch (e) {
     print("❌ Erreur scheduleAllBackgroundTasks arriere: $e");
   }
@@ -310,9 +306,10 @@ Future<void> cancelAllBackgroundTasks() async {
 
 // StreamController pour gérer les notifications
 final StreamController<OSNotification> notificationStreamController =
-StreamController<OSNotification>.broadcast();
+    StreamController<OSNotification>.broadcast();
 
-Stream<OSNotification> get notificationStream => notificationStreamController.stream;
+Stream<OSNotification> get notificationStream =>
+    notificationStreamController.stream;
 
 // Clé globale pour la navigation
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -370,7 +367,13 @@ void _showCustomNotification(OSNotification notification) {
   }
 
   // CHOISIR UN SEUL MODE D'AFFICHAGE (Overlay est plus élégant)
-  _showCustomOverlayNotification(notification, displayTitle, displayBody, icon, color);
+  _showCustomOverlayNotification(
+    notification,
+    displayTitle,
+    displayBody,
+    icon,
+    color,
+  );
 
   // Émettre via le StreamController
   notificationStreamController.add(notification);
@@ -379,12 +382,12 @@ void _showCustomNotification(OSNotification notification) {
 // Overlay personnalisé (élégant)
 // NOUVELLE VERSION - Avec images !
 void _showCustomOverlayNotification(
-    OSNotification notification,
-    String title,
-    String body,
-    IconData icon,
-    Color color
-    ) {
+  OSNotification notification,
+  String title,
+  String body,
+  IconData icon,
+  Color color,
+) {
   final context = navigatorKey.currentContext;
   if (context == null) return;
 
@@ -450,7 +453,7 @@ void _showCustomOverlayNotification(
                     ),
                   )
                 else
-                // Pas de photo, afficher l'icône du TYPE (❤️, 💬, etc.)
+                  // Pas de photo, afficher l'icône du TYPE (❤️, 💬, etc.)
                   Container(
                     width: 50,
                     height: 50,
@@ -539,14 +542,18 @@ void _showCustomOverlayNotification(
 void _configureNotificationHandlers() {
   // Quand l'app est en premier plan
   OneSignal.Notifications.addForegroundWillDisplayListener((event) {
-    print('📱 Notification reçue en premier plan: ${event.notification.jsonRepresentation()}');
+    print(
+      '📱 Notification reçue en premier plan: ${event.notification.jsonRepresentation()}',
+    );
     event.preventDefault();
     _showCustomNotification(event.notification);
   });
 
   // Quand l'utilisateur clique sur une notification
   OneSignal.Notifications.addClickListener((event) {
-    print('👆 Notification cliquée: ${event.notification.jsonRepresentation()}');
+    print(
+      '👆 Notification cliquée: ${event.notification.jsonRepresentation()}',
+    );
     _handleNotificationClick(event.notification);
   });
 
@@ -575,7 +582,10 @@ void _handleNotificationClick(OSNotification notification) {
     } else if (type == 'comment' && postId != null) {
       navigatorKey.currentState?.pushNamed('/comments', arguments: postId);
     } else if (type == 'follow') {
-      navigatorKey.currentState?.pushNamed('/profile', arguments: additionalData['userId']);
+      navigatorKey.currentState?.pushNamed(
+        '/profile',
+        arguments: additionalData['userId'],
+      );
     } else {
       navigatorKey.currentState?.pushNamed('/notifications');
     }
@@ -584,23 +594,35 @@ void _handleNotificationClick(OSNotification notification) {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   final lifecycleService = AppLifecycleService();
   await Get.putAsync(() async => lifecycleService);
-  await initializeDateFormatting('fr_FR', null);
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  await initializeDateFormatting('fr_FR', null);
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
   );
 
-  final localNotificationsService = LocalNotificationsService.instance();
-  await localNotificationsService.init();
+  // final lifecycleService = AppLifecycleService();
+  // await Get.putAsync(() async => lifecycleService);
+  // await initializeDateFormatting('fr_FR', null);
+  // await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // FirebaseFirestore.instance.settings = const Settings(
+  //   persistenceEnabled: true,
+  //   cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+  // );
+  //
+  // final localNotificationsService = LocalNotificationsService.instance();
+  // await localNotificationsService.init();
 
   // final firebaseMessagingService = FirebaseMessagingService.instance();
   // await firebaseMessagingService.init(localNotificationsService: localNotificationsService);
 
-  AppControllers.initialize();
+  // AppControllers.initialize();
 
   // await Workmanager().initialize(
   //   callbackDispatcher,
@@ -611,32 +633,98 @@ void main() async {
   // if (userId != null) {
   //   await scheduleAllBackgroundTasks();
   // }
+  // ZegoUIKitPrebuiltCallInvitationService().setNavigatorKey(navigatorKey);
+  // await ZegoUIKitPrebuiltCallInvitationService().useSystemCallingUI([
+  //   ZegoUIKitSignalingPlugin(),
+  // ]);
+  // SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]).then((
+  //   _,
+  // ) async {
+    // await OneSignalKeyManager.getOneSignalAppId();
 
-  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
-      .then((_) async {
+    // final configService = ConfigService();
+    // final oneSignalAppId = await configService.getOneSignalAppId();
+    // print("oneSignalAppId");
+    // print(oneSignalAppId);
+    // print("oneSignalAppId");
+    //
+    // if (oneSignalAppId != null && oneSignalAppId.isNotEmpty) {
+    //   OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+    //   OneSignal.initialize(oneSignalAppId); // Utilisation de la clé récupérée
+    //   OneSignal.Notifications.requestPermission(true);
+    //   _configureNotificationHandlers();
+    // } else {
+    //   print('❌ Impossible de récupérer l\'App ID OneSignal');
+    //   // Option: afficher un message à l'utilisateur ou réessayer
+    //   // }
+    // }
 
-   // await OneSignalKeyManager.getOneSignalAppId();
+    FlutterError.onError = (FlutterErrorDetails details) {
+      FlutterError.dumpErrorToConsole(details);
+      print('❌ Flutter Error: ${details.exception}');
+    };
+    try {
+      await initializeApp();
+      runApp(MyApp());
+    } catch (e, stackTrace) {
+      print('❌ Fatal Error during initialization: $e');
+      print(stackTrace);
+
+      // Show error screen in development, white screen in production
+      runApp(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(child: Text('Error initializing app: $e')),
+          ),
+        ),
+      );
+    }
+
+}
+
+Future<void> initializeApp() async {
 
 
+  // Initialize Firebase with error handling
+  try {
+
+  } catch (e) {
+    print('❌ Firebase initialization failed: $e');
+    rethrow;
+  }
+
+
+
+  final localNotificationsService = LocalNotificationsService.instance();
+  await localNotificationsService.init();
+
+  AppControllers.initialize();
+
+  ZegoUIKitPrebuiltCallInvitationService().setNavigatorKey(navigatorKey);
+  await ZegoUIKitPrebuiltCallInvitationService().useSystemCallingUI([
+    ZegoUIKitSignalingPlugin(),
+  ]);
+
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
+  // Handle OneSignal initialization
+  try {
     final configService = ConfigService();
     final oneSignalAppId = await configService.getOneSignalAppId();
-    print("oneSignalAppId");
-    print(oneSignalAppId);
-    print("oneSignalAppId");
+    print("📱 OneSignal App ID: $oneSignalAppId");
 
     if (oneSignalAppId != null && oneSignalAppId.isNotEmpty) {
       OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
-      OneSignal.initialize(oneSignalAppId); // Utilisation de la clé récupérée
+      OneSignal.initialize(oneSignalAppId);
       OneSignal.Notifications.requestPermission(true);
       _configureNotificationHandlers();
     } else {
-      print('❌ Impossible de récupérer l\'App ID OneSignal');
-      // Option: afficher un message à l'utilisateur ou réessayer
-    // }
-
+      print('⚠️ OneSignal App ID is null or empty - notifications disabled');
+    }
+  } catch (e) {
+    print('❌ OneSignal initialization failed: $e');
+    // Continue without OneSignal
   }
-    runApp(MyApp());
-      });
 }
 
 class MyApp extends StatelessWidget {
@@ -685,8 +773,10 @@ class MyApp extends StatelessWidget {
           ),
           // enableLog: false,
           defaultGlobalState: true,
-         onInit: () => authController.getUserInfoocally(),
+          onInit: () => authController.getUserInfoocally(),
+          // home: HomeCall(),
           home: SplashScreen(),
+          // home: HomePage(),
           // home: VideoEditorExample(),
           // home: VideoEditorExample(),
         );

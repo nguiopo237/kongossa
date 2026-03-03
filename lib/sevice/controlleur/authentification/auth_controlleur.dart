@@ -16,6 +16,7 @@ import '../../../model/datamodel/user_model.dart';
 import '../../../screens/entryPoint/entry_point.dart';
 import '../../../screens/onboding/onboding_screen.dart';
 import '../../../screens/test_image_send.dart';
+import '../../call_API/zegocloud/zecloud_fonction.dart';
 final AuthController authController = Get.find();
 class AuthController extends GetxController {
   // static AuthController get to => Get.find();
@@ -354,8 +355,8 @@ class AuthController extends GetxController {
     print("userMap.id");
     // setupMessagesListener();
     getOneSignalPlayerId();
+    Call.loginUser();
     Get.offAll(()=>EntryPoint());
-   //Get.offAll(()=>CloudinaryExample());
   }
   Future<void> getdelete() async {
     final prefs = await SharedPreferences.getInstance();

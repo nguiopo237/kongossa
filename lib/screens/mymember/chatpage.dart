@@ -1,9 +1,12 @@
 // lib/presentation/pages/chat_page_tiktok.dart
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import 'package:kongossa/presentation/component/style/custum_text.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
+import 'package:zego_uikit_prebuilt_call/zego_uikit_prebuilt_call.dart';
 
 import '../../config_App/image.dart';
 import '../../model/datamodel/user_model.dart';
@@ -13,6 +16,8 @@ import '../../presentation/component/image_component/image.dart';
 import '../../presentation/component/video_component/tiktok_player_video.dart';
 import '../../presentation/component/widget/audio_message.dart';
 import '../../presentation/component/widget/record_widget.dart';
+import '../../sevice/call_API/zegocloud/interface_call.dart';
+import '../../sevice/call_API/zegocloud/zecloud_fonction.dart';
 import '../../sevice/controlleur/chat_controlleur/chat_controlleur.dart';
 import '../../sevice/controlleur/splashcontrolleur/splashscreen_controlleur.dart';
 import '../../sevice/controlleur/thmbvideo/thum_video.dart';
@@ -20,7 +25,7 @@ import '../../sevice/controlleur/thmbvideo/thum_video.dart';
 // ============================================================================
 // 🎯 WIDGET PRINCIPAL - PURE VIEW (Stateless)
 // ============================================================================
-class ChatPageTikTok extends StatelessWidget {
+class ChatPageTikTok extends StatefulWidget {
   final String receiverId;
   final String receiverName;
   final String? receiverPhoto;
@@ -37,22 +42,43 @@ class ChatPageTikTok extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  State<ChatPageTikTok> createState() => _ChatPageTikTokState();
+}
+
+class _ChatPageTikTokState extends State<ChatPageTikTok> {
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+
+  }
+
+
+@override
+  void dispose() {
+    // TODO: implement dispose
+    super.dispose();
+    ZegoUIKitPrebuiltCallInvitationService().uninit();
+  }
+
+  @override
   Widget build(BuildContext context) {
     // ✅ Controller initialization with GetX
     final ChatController controller = Get.put(
       ChatController(
-        receiverId: receiverId,
-        receiverName: receiverName,
-        receiverPhoto: receiverPhoto,
-        isOnline: isOnline,
-        onesignalId: onesignalId,
+        receiverId: widget.receiverId,
+        receiverName: widget.receiverName,
+        receiverPhoto: widget.receiverPhoto,
+        isOnline: widget.isOnline,
+        onesignalId: widget.onesignalId,
       ),
       // permanent: true,
     );
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: _AppBar(controller: controller),
+      appBar: _AppBar(controller: controller,receiverId: widget.receiverId,),
       body: Stack(
         children: [
           _buildBackground(),
@@ -95,8 +121,9 @@ class ChatPageTikTok extends StatelessWidget {
 
 class _AppBar extends StatelessWidget implements PreferredSizeWidget {
   final ChatController controller;
+  final String receiverId;
 
-  const _AppBar({required this.controller});
+  const _AppBar({required this.controller, required this.receiverId});
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -133,9 +160,10 @@ class _AppBar extends StatelessWidget implements PreferredSizeWidget {
               children: [
                 Text(
                   controller.receiverName,
-                  style: const TextStyle(
+                  style:  TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
+                    fontSize: 16.sp
                   ),
                 ),
                 Text(
@@ -150,6 +178,31 @@ class _AppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         ],
       ),
+      actions: [
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            padding: EdgeInsets.all(3.0),
+            iconSize: 20,
+            backgroundColor: Colors.grey.withOpacity(0.5),),
+          onPressed: () {
+
+            Call.startCall(receiverId, false);
+          },
+          child: Icon(Icons.call, color: Colors.green),
+        ),
+        SizedBox(width: 4.w,),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            padding: EdgeInsets.all(3.0),
+            iconSize: 20,
+            backgroundColor: Colors.grey.withOpacity(0.5),),
+          onPressed: () {
+            Call.startCall(receiverId, true);
+          },
+          child: Icon(Icons.video_call, color: Colors.green),
+        ),
+        SizedBox(width: 4.w,),
+      ],
     );
   }
 }
@@ -408,9 +461,8 @@ class _TextMessage extends StatelessWidget {
                 message: Messagemodel(
                   content: message.itemreply!.first["message"],
                   messageType: message.itemreply!.first["type"],
-
                 ),
-                isMe: message.itemreply!.first["isMe"]??false,
+                isMe: message.itemreply!.first["isMe"] ?? false,
                 controller: ChatController(receiverId: '', receiverName: ''),
 
                 //message.itemreply!.first["message"],
@@ -491,7 +543,6 @@ class _ImageMessage extends StatelessWidget {
                 message: Messagemodel(
                   content: message.itemreply!.first["message"],
                   messageType: message.itemreply!.first["type"],
-
                 ),
                 isMe: message.itemreply!.first["isMe"],
                 controller: ChatController(receiverId: '', receiverName: ''),
@@ -551,7 +602,6 @@ class _VideoMessage extends StatelessWidget {
                 message: Messagemodel(
                   content: message.itemreply!.first["message"],
                   messageType: message.itemreply!.first["type"],
-
                 ),
                 isMe: message.itemreply!.first["isMe"],
                 controller: ChatController(receiverId: '', receiverName: ''),
