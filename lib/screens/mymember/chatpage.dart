@@ -59,7 +59,7 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
   void dispose() {
     // TODO: implement dispose
     super.dispose();
-    ZegoUIKitPrebuiltCallInvitationService().uninit();
+
   }
 
   @override
@@ -78,7 +78,7 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: _AppBar(controller: controller,receiverId: widget.receiverId,),
+      appBar: _AppBar(controller: controller,receiverId: widget.receiverId,receivername: widget.receiverName,),
       body: Stack(
         children: [
           _buildBackground(),
@@ -122,8 +122,9 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
 class _AppBar extends StatelessWidget implements PreferredSizeWidget {
   final ChatController controller;
   final String receiverId;
+  final String receivername;
 
-  const _AppBar({required this.controller, required this.receiverId});
+   _AppBar({required this.controller, required this.receiverId, required this.receivername});
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -186,7 +187,7 @@ class _AppBar extends StatelessWidget implements PreferredSizeWidget {
             backgroundColor: Colors.grey.withOpacity(0.5),),
           onPressed: () {
 
-            Call.startCall(receiverId, false);
+            Call.startCall(isVideoCall: false,targetUserId:   receiverId,nameuser:  receivername);
           },
           child: Icon(Icons.call, color: Colors.green),
         ),
@@ -197,7 +198,7 @@ class _AppBar extends StatelessWidget implements PreferredSizeWidget {
             iconSize: 20,
             backgroundColor: Colors.grey.withOpacity(0.5),),
           onPressed: () {
-            Call.startCall(receiverId, true);
+            Call.startCall(isVideoCall: true,targetUserId:   receiverId,nameuser:  receivername);
           },
           child: Icon(Icons.video_call, color: Colors.green),
         ),

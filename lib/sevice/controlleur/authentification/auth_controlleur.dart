@@ -10,6 +10,7 @@ import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:zego_uikit_prebuilt_call/zego_uikit_prebuilt_call.dart';
 
 import '../../../main.dart';
 import '../../../model/datamodel/user_model.dart';
@@ -361,6 +362,7 @@ class AuthController extends GetxController {
   Future<void> getdelete() async {
     final prefs = await SharedPreferences.getInstance();
     prefs.remove("userinfo");
+    ZegoUIKitPrebuiltCallInvitationService().uninit();
     await _googleSignIn.signOut();
     Users.doc(AppUser.info?.userI).update({"isOnline":false});
     AppUser.info?.isonline =false;

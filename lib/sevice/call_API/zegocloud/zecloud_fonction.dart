@@ -35,14 +35,14 @@ class Call{
             ZegoCallInvitationType callType, List<ZegoCallUser> callees,
             String customData) {
           print('📞 Appel entrant de : ${caller.name}');
-          Get.snackbar(
-            'Appel entrant',
-            '${caller.name} vous appelle...',
-            snackPosition: SnackPosition.TOP,
-            backgroundColor: Colors.green,
-            colorText: Colors.white,
-            duration: const Duration(seconds: 10),
-          );
+          // Get.snackbar(
+          //   'Appel entrant',
+          //   '${caller.name} vous appelle...',
+          //   snackPosition: SnackPosition.TOP,
+          //   backgroundColor: Colors.green,
+          //   colorText: Colors.white,
+          //   duration: const Duration(seconds: 10),
+          // );
         },
 
         // ❌ Quand l'appel entrant est annulé par l'appelant
@@ -161,13 +161,13 @@ class Call{
   }
 
 
-  static void startCall(String targetUserId, bool isVideoCall) {
+  static void startCall({required String targetUserId,required String nameuser, required bool isVideoCall}) {
    // Envoyer une invitation - Note: utiliser 'send' au lieu de 'sendInvitation'
    ZegoUIKitPrebuiltCallInvitationService().send(
      invitees: [
        ZegoCallUser(
          targetUserId,
-         'User_$targetUserId',
+         nameuser,
        ),
      ],
      isVideoCall: isVideoCall, // true pour vidéo, false pour audio
@@ -176,16 +176,16 @@ class Call{
      resourceID: 'zego_call_notification',
      notificationTitle: isVideoCall ? 'Appel vidéo' : 'Appel audio',
      notificationMessage: 'Cliquez pour répondre',
-     customData: '', // Données personnalisées optionnelles
+     customData: 'verification', // Données personnalisées optionnelles
    ).then((success) {
      if (success) {
-       Get.snackbar(
-         'Succès',
-         'Invitation envoyée !',
-         snackPosition: SnackPosition.BOTTOM,
-         backgroundColor: Colors.green,
-         colorText: Colors.white,
-       );
+       // Get.snackbar(
+       //   'Succès',
+       //   'Invitation envoyée !',
+       //   snackPosition: SnackPosition.BOTTOM,
+       //   backgroundColor: Colors.green,
+       //   colorText: Colors.white,
+       // );
      } else {
        Get.snackbar(
          'Erreur',
