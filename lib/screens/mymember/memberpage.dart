@@ -12,6 +12,7 @@ import '../../model/datamodel/user_model.dart';
 import '../../presentation/component/image_component/image.dart';
 import '../../sevice/controlleur/splashcontrolleur/splashscreen_controlleur.dart';
 import '../../sevice/member_service/member_service.dart';
+import '../bussiness/bussinesspage.dart';
 import 'chatpage.dart';
 
 class MembersPageTikTok extends StatefulWidget {
@@ -302,7 +303,8 @@ class _MembersPageTikTokState extends State<MembersPageTikTok>
         }
 
         // Liste des membres style TikTok
-        return ListView.builder(
+        return  ListView.builder(
+          shrinkWrap: true,
           padding: EdgeInsets.zero,
           itemCount: filteredMembers.length,
           itemBuilder: (context, index) {

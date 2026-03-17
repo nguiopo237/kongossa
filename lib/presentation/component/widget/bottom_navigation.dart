@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:responsive_sizer/responsive_sizer.dart';
 import 'dart:ui';
 
 import '../../../main.dart';
@@ -82,68 +83,79 @@ class _KongossaTikTokNavBarState extends State<KongossaTikTokNavBar>
   Widget build(BuildContext context) {
 
 
-    return AnimatedBuilder(
-      animation: animation,
-      builder: (context, child) {
-        return Transform.translate(
-          offset: Offset(0, 100 * (1 - animation.value)),
-          child: Container(
-            padding: EdgeInsets.symmetric( vertical: 4),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Color(0xFF0A0A0A),
-                  Color(0xFF1A1A1A).withOpacity(0.95),
-                  Color(0xFF2A2A2A).withOpacity(0.1),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                stops: const [0.1, 0.8, 1.0],
-              ),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.15),
-                width: 1.2,
-              ),
-              // borderRadius: BorderRadius.circular(35),
-              boxShadow: [
-                BoxShadow(
-                  color: Color(0xFFFF6B6B).withOpacity(0.15),
-                  offset: const Offset(0, 8),
-                  blurRadius: 24,
-                  spreadRadius: 0,
-                ),
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  offset: const Offset(0, 2),
-                  blurRadius: 8,
-                  spreadRadius: 0,
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(0),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                child: Container(
-                  padding: EdgeInsets.symmetric(vertical: 10),
-                  color: Colors.transparent,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: List.generate(
-                      _navItems.length,
-                          (index) => _buildKongossaNavItem(
-                        item: _navItems[index],
-                        isSelected: _selectedIndex == index,
-                        index: index,
+    return Container(height: 7.7.h,
+      child: Column( mainAxisSize: MainAxisSize.min,
+        children: [
+          Expanded(
+            child: AnimatedBuilder(
+              animation: animation,
+
+              builder: (context, child) {
+                return Transform.translate(
+                  offset: Offset(0, 100 * (1 - animation.value)),
+                  child: Container(
+                    padding: EdgeInsets.symmetric( vertical: 0.5.h),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Color(0xFF0A0A0A),
+                          Color(0xFF1A1A1A).withOpacity(0.95),
+                          Color(0xFF2A2A2A).withOpacity(0.1),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        stops: const [0.1, 0.8, 1.0],
+                      ),
+                      // border: Border.all(
+                      //   color: Colors.white.withOpacity(0.15),
+                      //   width: 1.2,
+                      // ),
+                      border: Border(top: BorderSide(color: Colors.white.withOpacity(0.15))),
+
+                      // borderRadius: BorderRadius.circular(35),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color(0xFFFF6B6B).withOpacity(0.15),
+                          offset: const Offset(0, 8),
+                          blurRadius: 24,
+                          spreadRadius: 0,
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          offset: const Offset(0, 2),
+                          blurRadius: 8,
+                          spreadRadius: 0,
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(0),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                        child: Container(
+                           padding: EdgeInsets.only(bottom: 2.h),
+                          color: Colors.black,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: List.generate(
+                              _navItems.length,
+                                  (index) => _buildKongossaNavItem(
+                                item: _navItems[index],
+                                isSelected: _selectedIndex == index,
+                                index: index,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 
@@ -163,30 +175,30 @@ class _KongossaTikTokNavBarState extends State<KongossaTikTokNavBar>
         duration: Duration(milliseconds: 250),
         curve: Curves.easeOutQuint,
         padding: EdgeInsets.symmetric(
-          horizontal: isSelected ? 20 : 10,
-          vertical: 6,
+          // horizontal: isSelected ? 20 : 10,
+          vertical: 0.5,
         ),
-        decoration: isSelected
-            ? BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              item['gradient'][0],
-              item['gradient'][1],
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(25),
-          boxShadow: [
-            BoxShadow(
-              color: item['gradient'][0].withOpacity(0.4),
-              blurRadius: 12,
-              spreadRadius: 1,
-              offset: Offset(0, 2),
-            ),
-          ],
-        )
-            : null,
+        // decoration: isSelected
+        //     ? BoxDecoration(
+        //   gradient: LinearGradient(
+        //     colors: [
+        //       item['gradient'][0],
+        //       item['gradient'][1],
+        //     ],
+        //     begin: Alignment.topLeft,
+        //     end: Alignment.bottomRight,
+        //   ),
+        //   borderRadius: BorderRadius.circular(25),
+        //   boxShadow: [
+        //     BoxShadow(
+        //       color: item['gradient'][0].withOpacity(0.4),
+        //       blurRadius: 12,
+        //       spreadRadius: 1,
+        //       offset: Offset(0, 2),
+        //     ),
+        //   ],
+        // )
+        //     : null,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -197,7 +209,7 @@ class _KongossaTikTokNavBarState extends State<KongossaTikTokNavBar>
                   color: isSelected
                       ? Colors.white
                       : Color(0xFF4A4A4A).withOpacity(0.8),
-                  size: isSelected ? 26 : 22,
+                  size: isSelected ? 2.5.h  : 2.h,
                 ),
 
                 StreamBuilder(
@@ -216,12 +228,12 @@ class _KongossaTikTokNavBarState extends State<KongossaTikTokNavBar>
                         visible: totalUnreadMessages!=0&&index==3,
                         child: CircleAvatar(
                           backgroundColor: Colors.red,
-                          radius: 8,
+                          radius: 11.sp,
                           child: CustomText(
                             totalUnreadMessages.toString(),
                             type: TextType.button,
 
-                            style: TextStyle(color: Colors.white,fontSize: 10),
+                            style: TextStyle(color: Colors.white,fontSize: 12.sp,fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),
@@ -231,11 +243,11 @@ class _KongossaTikTokNavBarState extends State<KongossaTikTokNavBar>
               ],
             ),
             if (isSelected) ...[
-              SizedBox(width: 8),
+              // SizedBox(width: 8),
               Text(
                 item['label'],
                 style: GoogleFonts.montserrat(
-                  fontSize: 12,
+                  fontSize: 10,
                   fontWeight: FontWeight.w700,
                   color: Colors.white,
                   letterSpacing: 0.3,
