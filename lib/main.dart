@@ -31,9 +31,11 @@ import 'firebase_options.dart';
 import 'model/datamodel/user_model.dart';
 
 CollectionReference Users = FirebaseFirestore.instance.collection('user');
+CollectionReference Story = FirebaseFirestore.instance.collection('story');
 CollectionReference Posts = FirebaseFirestore.instance.collection(
   'postcarduser',
 );
+
 CollectionReference Sms = FirebaseFirestore.instance.collection('message');
 CollectionReference notif = FirebaseFirestore.instance.collection(
   'notification',

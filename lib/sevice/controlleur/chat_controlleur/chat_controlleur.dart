@@ -142,7 +142,7 @@ class ChatController extends GetxController {
       response.value= messageController.text;
       messageController.clear();
       print("appel de l ia ");
-      if(isOnline==false){
+      if(AppUser.info!.displayName==receiverName){
         String data = await callapi.getOpenRouterResponse(response.value);
         answer.value = data;
         print(data);

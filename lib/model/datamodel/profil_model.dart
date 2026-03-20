@@ -79,6 +79,7 @@ class PostModel {
   final String mediaUrl;
   final MediaType mediaType;
   final int likesCount;
+  final int seeCount;
   final int commentsCount;
   final DateTime timestamp;
 
@@ -87,6 +88,7 @@ class PostModel {
     required this.mediaUrl,
     required this.mediaType,
     this.likesCount = 0,
+    this.seeCount = 0,
     this.commentsCount = 0,
     required this.timestamp,
   });

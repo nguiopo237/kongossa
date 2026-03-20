@@ -15,6 +15,8 @@ import 'package:zego_uikit_prebuilt_call/zego_uikit_prebuilt_call.dart';
 import '../../../main.dart';
 import '../../../model/datamodel/user_model.dart';
 import '../../../screens/entryPoint/entry_point.dart';
+import '../../../screens/galleryView/gallery_view.dart';
+import '../../../screens/galleryView/gallerystate.dart' hide GalleryScreen;
 import '../../../screens/onboding/onboding_screen.dart';
 import '../../../screens/test_image_send.dart';
 import '../../call_API/zegocloud/zecloud_fonction.dart';
@@ -346,6 +348,7 @@ class AuthController extends GetxController {
 
       return  Get.offAll(()=>OnbodingScreen());
 
+
     }
     final userMap = jsonDecode(jsonString);
     AppUser.info =  AppUser.fromGoogleSignIn(userMap);
@@ -358,6 +361,7 @@ class AuthController extends GetxController {
     getOneSignalPlayerId();
     Call.loginUser();
     Get.offAll(()=>EntryPoint());
+    // Get.offAll(()=>GalleryScreen());
   }
   Future<void> getdelete() async {
     final prefs = await SharedPreferences.getInstance();
@@ -367,6 +371,8 @@ class AuthController extends GetxController {
     Users.doc(AppUser.info?.userI).update({"isOnline":false});
     AppUser.info?.isonline =false;
     Get.offAll(()=>OnbodingScreen());
+
+
   }
 
   Future<void> sendVerificationSms(String phoneNumber) async {

@@ -95,6 +95,7 @@ class _EntryPointState extends State<EntryPoint>
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
+
       resizeToAvoidBottomInset: false,
       // backgroundColor: ColorApp.primary5,
       body: Container(
@@ -199,74 +200,7 @@ class _EntryPointState extends State<EntryPoint>
           ],
         ),
       ),
-      // bottomNavigationBar: AnimatedBuilder(
-      //   animation: animation,
-      //   builder: (context, child) {
-      //     return Transform.translate(
-      //       offset: Offset(0, 100 * animation.value),
-      //       child: Container(
-      //         // margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-      //         decoration: BoxDecoration(
-      //           gradient: LinearGradient(
-      //             colors: [
-      //               ColorApp.primary5,
-      //               ColorApp.primary5.withOpacity(0.95),
-      //               ColorApp.primary1.withOpacity(0.1),
-      //             ],
-      //             begin: Alignment.topLeft,
-      //             end: Alignment.bottomRight,
-      //             stops: const [0.1, 0.8, 1.0],
-      //           ),
-      //           // borderRadius: BorderRadius.circular(30),
-      //           border: Border.all(
-      //             color: Colors.white.withOpacity(0.3),
-      //             width: 1.5,
-      //           ),
-      //           boxShadow: [
-      //             BoxShadow(
-      //               color: ColorApp.primary1.withOpacity(0.2),
-      //               offset: const Offset(0, 8),
-      //               blurRadius: 24,
-      //               spreadRadius: 0,
-      //             ),
-      //             BoxShadow(
-      //               color: Colors.black.withOpacity(0.1),
-      //               offset: const Offset(0, 2),
-      //               blurRadius: 8,
-      //               spreadRadius: 0,
-      //             ),
-      //           ],
-      //         ),
-      //         child: ClipRRect(
-      //           borderRadius: BorderRadius.circular(30),
-      //           child: BackdropFilter(
-      //             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-      //             child: Container(
-      //               padding: EdgeInsets.symmetric(vertical: 0.8.h),
-      //               color: Colors.transparent,
-      //               // 👈 TRANSPARENT au lieu de ColorApp.primary5
-      //               child: Padding(
-      //                 padding: EdgeInsets.only(bottom: 1.h),
-      //                 child: Row(
-      //                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      //                   children: List.generate(
-      //                     bottomNavItems.length,
-      //                     (index) => _buildNeonNavItem(
-      //                       navBar: bottomNavItems[index],
-      //                       isSelected:
-      //                           selectedBottonNav == bottomNavItems[index],
-      //                       index: index,
-      //                     ),
-      //                   ),
-      //                 ),
-      //               ),
-      //             ),
-      //           ),
-      //         ),
-      //       ),
-      //     );
-      //   },
-      // ),
+
       bottomNavigationBar: KongossaTikTokNavBar(),
     );
   }

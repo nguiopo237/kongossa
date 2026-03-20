@@ -11,6 +11,7 @@ import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../main.dart';
 import '../../../model/datamodel/user_model.dart';
+import '../../../screens/profil_screen.dart';
 import '../../../sevice/controlleur/splashcontrolleur/splashscreen_controlleur.dart';
 import '../../../sevice/upload/upload_post.dart';
 import '../image_component/image.dart';
@@ -433,10 +434,22 @@ class _CommentModalState extends State<CommentModal>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Avatar
-          CustomImage(
-            source: item['avatar'],
-            type: ImageType.circle,
-            height: 4.h,
+          InkWell(onTap: () {
+            Get.to( PremiumProfileScreen (
+              userId:item['userId'],
+              avatarUrl:  item['avatar'],
+              displayName: item['username'],
+              username: item['username'],
+              mail: "",
+              bio: "${AppUser.info?.bio??"Créateur de contenu | Digital Creator ✨\nCollaborations"}  📩 ${AppUser.info!.email}",
+
+            ));
+          },
+            child: CustomImage(
+              source: item['avatar'],
+              type: ImageType.circle,
+              height: 4.h,
+            ),
           ),
 
           const SizedBox(width: 12),

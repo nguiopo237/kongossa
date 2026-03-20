@@ -13,6 +13,7 @@ import '../../presentation/component/image_component/image.dart';
 import '../../sevice/controlleur/splashcontrolleur/splashscreen_controlleur.dart';
 import '../../sevice/member_service/member_service.dart';
 import '../bussiness/bussinesspage.dart';
+import '../profil_screen.dart';
 import 'chatpage.dart';
 
 class MembersPageTikTok extends StatefulWidget {
@@ -144,7 +145,7 @@ class _MembersPageTikTokState extends State<MembersPageTikTok>
                     tabs: const [
                       Tab(text: 'Tous'),
                       Tab(text: 'En ligne'),
-                      Tab(text: 'Abonnements'),
+                      Tab(text: 'Groupe'),
                     ],
                   ),
                 ),
@@ -204,6 +205,29 @@ class _MembersPageTikTokState extends State<MembersPageTikTok>
             ),
           ),
         ],
+      ),
+
+      floatingActionButton: SafeArea(
+        minimum: EdgeInsets.only(bottom: 10.h),
+        child: FloatingActionButton(
+          backgroundColor: Colors.grey.withOpacity(0.5),
+          onPressed: () {
+            Get.to(
+              () => ChatPageTikTok(
+                receiverId: "IA",
+                onesignalId: AppUser.info!.googleId,
+                receiverName: AppUser.info!.displayName,
+                receiverPhoto: AppUser.info!.photoUrl,
+                isOnline: true,
+              ),
+            );
+          },
+          child: CustomText(
+            "KG-IA",
+            style: TextStyle(color: Colors.white),
+            type: TextType.button,
+          ),
+        ),
       ),
     );
   }
@@ -303,7 +327,7 @@ class _MembersPageTikTokState extends State<MembersPageTikTok>
         }
 
         // Liste des membres style TikTok
-        return  ListView.builder(
+        return ListView.builder(
           shrinkWrap: true,
           padding: EdgeInsets.zero,
           itemCount: filteredMembers.length,
@@ -346,12 +370,26 @@ class _MembersPageTikTokState extends State<MembersPageTikTok>
                 // Avatar avec style TikTok
                 Stack(
                   children: [
-                    CustomImage(
-                      // ignore: dead_code
-                      source: member.photoUrl.toString() ?? "",
-                      type: ImageType.circle,
-                      width: 40,
-                      height: 40,
+                    InkWell(
+                      onTap: () {
+                        Get.to(PremiumProfileScreen(
+                          userId: member.googleId,
+                          avatarUrl: member.photoUrl,
+                          displayName:  member.displayName,
+                          username: member.displayName,
+                          mail:  member.email,
+                          bio:
+                          member.email ??
+                              "Créateur de contenu | Digital Creator ✨\nCollaborations ",
+                        ),);
+                      },
+                      child: CustomImage(
+                        // ignore: dead_code
+                        source: member.photoUrl.toString() ?? "",
+                        type: ImageType.circle,
+                        width: 40,
+                        height: 40,
+                      ),
                     ),
                     if (member.isOnline)
                       Positioned(
@@ -425,8 +463,7 @@ class _MembersPageTikTokState extends State<MembersPageTikTok>
                               // color: Colors.orange,
                               child: StreamBuilder<QuerySnapshot>(
                                 stream:
-                                    Sms.
-                                    where(
+                                    Sms.where(
                                           "senderId",
                                           whereIn: [
                                             AppUser.info!.googleId,
@@ -440,7 +477,6 @@ class _MembersPageTikTokState extends State<MembersPageTikTok>
                                             AppUser.info!.googleId,
                                           ],
                                         )
-
                                         .orderBy("timestamp", descending: false)
                                         .snapshots(),
                                 builder: (context, snapshot) {
@@ -486,7 +522,9 @@ class _MembersPageTikTokState extends State<MembersPageTikTok>
                                   ) {
                                     var data =
                                         doc.data() as Map<String, dynamic>;
-                                    return data['isRead'] == false && data['receiveId'] ==  AppUser.info!.googleId;
+                                    return data['isRead'] == false &&
+                                        data['receiveId'] ==
+                                            AppUser.info!.googleId;
                                   }).toList();
 
                                   // Compter
@@ -549,39 +587,40 @@ class _MembersPageTikTokState extends State<MembersPageTikTok>
                                               ),
                                             ),
                                             const SizedBox(width: 12),
-                                            // if (!member.isOnline && member.lastSeen != null)
 
+                                            // if (!member.isOnline && member.lastSeen != null)
                                           ],
                                         ),
                                       ),
 
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.end,
-                                          children: [
-                                            if (unreadCount != 0)
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                        children: [
+                                          if (unreadCount != 0)
                                             CircleAvatar(
                                               backgroundColor: Colors.red,
                                               radius: 12,
                                               child: CustomText(
                                                 unreadCount.toString(),
                                                 type: TextType.button,
-                                                style: TextStyle(color: Colors.white),
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                ),
                                               ),
                                             ),
 
-                                            Text(
-                                              timeago.format(dateTime),
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey[700],
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
+                                          Text(
+                                            timeago.format(dateTime),
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey[700],
                                             ),
-
-
-                                          ],
-                                        ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
                                     ],
                                   );
                                 },

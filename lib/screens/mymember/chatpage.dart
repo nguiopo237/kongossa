@@ -1063,16 +1063,18 @@ class _QuickReactions extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: reactions.map((reaction) {
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 8),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: (reaction['color'] as Color).withOpacity(0.2),
-            shape: BoxShape.circle,
-          ),
-          child: Text(
-            reaction['emoji'] as String,
-            style: const TextStyle(fontSize: 24),
+        return Expanded(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: (reaction['color'] as Color).withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              reaction['emoji'] as String,
+              style: const TextStyle(fontSize: 24),
+            ),
           ),
         );
       }).toList(),

@@ -11,6 +11,7 @@ import 'dart:async';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
+import '../../../main.dart';
 import '../../../model/datamodel/user_model.dart';
 import '../../../screens/profil_screen.dart';
 import '../../../sevice/upload/upload_post.dart';
@@ -32,8 +33,11 @@ class TikTokVideoPlayer extends StatefulWidget {
   final String id;
   final int comments;
   final int shares;
+  final VoidCallback? onSeekStarted;
+  final VoidCallback? onSeekEnded;
   final String profileImage;
   final List<dynamic>? alllike;
+  final List<dynamic>? allsee;
 
   const TikTokVideoPlayer({
     Key? key,
@@ -43,11 +47,14 @@ class TikTokVideoPlayer extends StatefulWidget {
     required this.music,
     this.likes = 0,
     this.isLiked = false,
+    this.onSeekStarted, // Nouveau paramètre
+    this.onSeekEnded, // Nouveau paramètre
     required this.id,
     this.comments = 0,
     this.shares = 0,
     this.start = false,
     this.alllike,
+    this.allsee,
     required this.profileImage,
     this.uid,
     this.mail,
@@ -60,8 +67,7 @@ class TikTokVideoPlayer extends StatefulWidget {
 
 class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
     with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
-
-  // 🌟 AJOUT 1: GlobalKey pour référencer cette instance
+  // GlobalKey pour référencer cette instance
   static final GlobalKey<_TikTokVideoPlayerState> fullscreenKey = GlobalKey();
 
   @override
@@ -71,6 +77,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
   Future<void>? _initializeVideoPlayerFuture;
   bool _isMuted = false;
   bool _isLiked = false;
+  bool _issee = false;
   bool _showPlayPauseIcon = false;
   bool _isFollowing = false;
   int _likeCount = 0;
@@ -90,15 +97,17 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
     super.initState();
     _likeCount = widget.likes;
     _isLiked = widget.alllike?.contains(AppUser.info?.googleId) ?? false;
+    _issee = widget.allsee?.contains(AppUser.info?.googleId) ?? false;
 
     debugPrint("📹 Initialisation vidéo: ${widget.videoUrl}");
 
-    _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
-      vsync: this,
-    )..addListener(() {
-      if (mounted) setState(() {});
-    });
+    _pulseController =
+        AnimationController(
+          duration: const Duration(milliseconds: 1000),
+          vsync: this,
+        )..addListener(() {
+          if (mounted) setState(() {});
+        });
 
     _initializePlayer();
   }
@@ -170,23 +179,27 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
       _controller.addListener(_onVideoControllerListener);
 
       // Initialiser
-      _initializeVideoPlayerFuture = _controller.initialize().then((_) {
-        if (mounted && !_isDisposed) {
-          setState(() {
-            _controller.setLooping(false);
-            _controller.setVolume(_isMuted ? 0 : 1);
-            widget.start==false?_controller.pause():_controller.play();
+      _initializeVideoPlayerFuture = _controller
+          .initialize()
+          .then((_) {
+            if (mounted && !_isDisposed) {
+              setState(() {
+                _controller.setLooping(false);
+                _controller.setVolume(_isMuted ? 0 : 1);
+                widget.start == false
+                    ? _controller.pause()
+                    : _controller.play();
 
-            _isControllerReady = true;
+                _isControllerReady = true;
+              });
+            }
+          })
+          .catchError((error) {
+            debugPrint('💥 Erreur initialisation: $error');
+            if (mounted && !_isDisposed) {
+              _handleInitializationError();
+            }
           });
-        }
-      }).catchError((error) {
-        debugPrint('💥 Erreur initialisation: $error');
-        if (mounted && !_isDisposed) {
-          _handleInitializationError();
-        }
-      });
-
     } catch (e) {
       debugPrint('💥 ERREUR CRITIQUE: $e');
       if (mounted && !_isDisposed) {
@@ -201,6 +214,9 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
     // Détecter la fin de la vidéo
     if (_controller.value.position == _controller.value.duration &&
         _controller.value.isPlaying == false) {
+      print("video terminée");
+
+
       // Vidéo terminée, on laisse l'UI gérer l'affichage du bouton replay
       setState(() {});
     }
@@ -242,7 +258,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
           final oldController = _controller;
           _controller = newController;
           _controller.addListener(_onVideoControllerListener);
-          _controller.setLooping(widget.start==false?false:true);
+          _controller.setLooping(widget.start == false ? false : true);
           _controller.setVolume(_isMuted ? 0 : 1);
           _controller.seekTo(oldPosition);
           if (wasPlaying) _controller.play();
@@ -309,19 +325,10 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
     // L'UI affichera automatiquement le bouton replay
   }
 
-  // 🌟 AJOUT 2: Méthode pour ouvrir le plein écran
+  // Méthode pour ouvrir le plein écran
   void _openFullscreen() {
-    // Mettre en pause la vidéo actuelle
-    // if (_controller.value.isPlaying) {
-    //   _controller.pause();
-    // }
-
-    // Ouvrir le plein écran avec la MÊME instance via Get.to
     Get.to(
-          () => FullscreenVideoPlayer(
-        controller: _controller,
-        state: this,
-      ),
+      () => FullscreenVideoPlayer(controller: _controller, state: this),
       transition: Transition.fadeIn,
       duration: const Duration(milliseconds: 300),
     )?.then((_) {
@@ -371,6 +378,11 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
             // Vidéo visible
             if (!_controller.value.isPlaying) {
               _controller.play();
+              service.togglesee(
+                postId: widget.id,
+                // isLiked: _isLiked,
+                // like: widget.likes,
+              );
               print("visibleFraction");
               print(visibleFraction);
               print("visibleFraction");
@@ -428,17 +440,17 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
               // 📝 INFORMATIONS CÔTÉ GAUCHE
               if (widget.username.isNotEmpty) _buildLeftInfo(),
 
-              // 🌟 AJOUT 3: BOUTON PLEIN ÉCRAN MODIFIÉ
-              if(widget.start==false)
-              Positioned(
-                right: 1.w,
-                bottom: 1.h,
-                child: IconButton(
-                  onPressed: _openFullscreen,
-                  icon: Icon(Icons.fullscreen, color: Colors.white),
-                  iconSize: 30,
+              // BOUTON PLEIN ÉCRAN
+              if (widget.start == false)
+                Positioned(
+                  right: 1.w,
+                  bottom: 1.h,
+                  child: IconButton(
+                    onPressed: _openFullscreen,
+                    icon: Icon(Icons.fullscreen, color: Colors.white),
+                    iconSize: 30,
+                  ),
                 ),
-              ),
 
               // ⏹️ BARRE DE PROGRESSION
               if (_isControllerReady) _buildProgressBar(),
@@ -461,12 +473,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
               child: SizedBox(
                 width: _controller.value.size.width,
                 height: _controller.value.size.height,
-                child: Stack(
-                  children: [
-                    VideoPlayer(_controller),
-                    // _buildReplayButton(),
-                  ],
-                ),
+                child: Stack(children: [VideoPlayer(_controller)]),
               ),
             ),
           );
@@ -477,16 +484,11 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const CircularProgressIndicator(
-                    color: Colors.white,
-                  ),
+                  const CircularProgressIndicator(color: Colors.white),
                   const SizedBox(height: 10),
                   Text(
                     _isUsingCache ? 'Chargement du cache...' : 'Chargement...',
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                 ],
               ),
@@ -503,10 +505,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Colors.transparent,
-            Colors.black.withOpacity(0.7),
-          ],
+          colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
           stops: const [0.7, 1.0],
         ),
       ),
@@ -575,11 +574,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
             opacity: value.clamp(0.0, 1.0),
             child: Transform.scale(
               scale: value,
-              child: const Icon(
-                Icons.favorite,
-                color: Colors.red,
-                size: 60,
-              ),
+              child: const Icon(Icons.favorite, color: Colors.red, size: 60),
             ),
           );
         },
@@ -595,28 +590,28 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
         mainAxisSize: MainAxisSize.min,
         children: [
           _buildProfileSection(),
-          const SizedBox(height: 20),
+           SizedBox(height: 2.h),
           _buildActionButton(
             icon: _isLiked ? Icons.favorite : Icons.favorite_border,
             color: _isLiked ? Colors.red : Colors.white,
             label: _formatCount(_likeCount),
             onTap: _toggleLike,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 2.h),
           _buildActionButton(
             icon: Icons.chat_bubble_outline,
             color: Colors.white,
             label: _formatCount(widget.comments),
             onTap: _openComments,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 2.h),
           _buildActionButton(
             icon: Icons.reply,
             color: Colors.white,
             label: _formatCount(widget.shares),
             onTap: () {},
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 2.h),
           _buildMusicDisc(),
         ],
       ),
@@ -626,7 +621,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
   Widget _buildProfileSection() {
     return GestureDetector(
       onTap: _navigateToProfile,
-      child: Column(
+      child: Stack(
         children: [
           Container(
             width: 50,
@@ -640,36 +635,67 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
               type: ImageType.circle,
             ),
           ),
-          const SizedBox(height: 4),
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                _isFollowing = !_isFollowing;
-              });
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 4,
-              ),
-              decoration: BoxDecoration(
-                color: _isFollowing
-                    ? Colors.transparent
-                    : const Color(0xFFFF6B6B),
-                border: _isFollowing
-                    ? Border.all(color: Colors.white, width: 1)
-                    : null,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                _isFollowing ? 'Suivi' : '+',
-                style: GoogleFonts.montserrat(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+
+          StreamBuilder<QuerySnapshot>(
+            stream: Users.where(
+              'googleId',
+              isEqualTo: widget.uid,
+            ).snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Center(child: Text('Erreur: ${snapshot.error}'));
+              }
+
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final userDoc = snapshot.data!.docs.first;
+              final userData = userDoc.data() as Map<String, dynamic>;
+              final followers = userData['allfollow'] as List? ?? [];
+              final isFollowing = followers.contains(AppUser.info?.googleId);
+              return
+              Visibility(
+                visible: widget.uid != AppUser.info?.googleId && isFollowing==false,
+                child: Positioned(
+                  bottom: 0,
+                  child: Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        service.addfollowuser(postId: widget.uid!);
+                        setState(() {
+                          _isFollowing = !_isFollowing;
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _isFollowing
+                              ? Colors.transparent
+                              : const Color(0xFFFF6B6B),
+                          border: _isFollowing
+                              ? Border.all(color: Colors.white, width: 1)
+                              : null,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _isFollowing ? 'Suivi' : '+',
+                          style: GoogleFonts.montserrat(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              );
+              // SizedBox(height: 1.h),
+            },
           ),
         ],
       ),
@@ -718,10 +744,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
         border: Border.all(color: Colors.white, width: 2),
       ),
       child: ClipOval(
-        child: CustomImage(
-          source: widget.profileImage,
-          type: ImageType.circle,
-        ),
+        child: CustomImage(source: widget.profileImage, type: ImageType.circle),
       ),
     );
   }
@@ -747,24 +770,24 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
                   ),
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFF6B6B),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    'Suivre',
-                    style: GoogleFonts.montserrat(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
+                // Container(
+                //   padding: const EdgeInsets.symmetric(
+                //     horizontal: 6,
+                //     vertical: 2,
+                //   ),
+                //   decoration: BoxDecoration(
+                //     color: const Color(0xFFFF6B6B),
+                //     borderRadius: BorderRadius.circular(4),
+                //   ),
+                //   child: Text(
+                //     'Suivre',
+                //     style: GoogleFonts.montserrat(
+                //       color: Colors.white,
+                //       fontSize: 11,
+                //       fontWeight: FontWeight.w600,
+                //     ),
+                //   ),
+                // ),
               ],
             ),
           ),
@@ -773,10 +796,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
             width: Get.width * 0.7,
             child: Text(
               widget.description,
-              style: GoogleFonts.montserrat(
-                color: Colors.white,
-                fontSize: 14,
-              ),
+              style: GoogleFonts.montserrat(color: Colors.white, fontSize: 14),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -801,45 +821,239 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
     );
   }
 
+  // ✅ BARRE DE PROGRESSION ÉPAISSE ET AMÉLIORÉE
   Widget _buildProgressBar() {
     return Positioned(
       left: 0,
       right: 0,
       bottom: 0,
-      child: VideoProgressIndicator(
-        _controller,
-        allowScrubbing: true,
-        padding: const EdgeInsets.all(0),
-        colors: const VideoProgressColors(
-          playedColor: Color(0xFFFF6B6B),
-          bufferedColor: Colors.grey,
-          backgroundColor: Colors.white24,
-        ),
+      child: ValueListenableBuilder<VideoPlayerValue>(
+        valueListenable: _controller,
+        builder: (context, value, child) {
+          final position = value.position;
+          final duration = value.duration;
+
+          if (duration == Duration.zero) return const SizedBox.shrink();
+
+          final progress = duration.inMilliseconds > 0
+              ? position.inMilliseconds / duration.inMilliseconds
+              : 0.0;
+
+          return StatefulBuilder(
+            builder: (context, setState) {
+              bool _isDragging = false;
+              double _dragProgress = 0.0;
+              Offset _dragPosition = Offset.zero;
+
+              return GestureDetector(
+                onTapDown: (TapDownDetails details) {
+                  print("pression 2.0");
+                  setState(() {
+                    _isDragging = true;
+                    _dragPosition = details.localPosition;
+                  });
+                  widget.onSeekStarted?.call();
+
+                  final renderBox = context.findRenderObject() as RenderBox;
+                  final localX = details.localPosition.dx;
+                  final width = renderBox.size.width;
+                  final newProgress = (localX / width).clamp(0.0, 1.0);
+                  _dragProgress = newProgress;
+
+                  final newPosition = Duration(
+                    milliseconds: (duration.inMilliseconds * newProgress)
+                        .round(),
+                  );
+                  _controller.seekTo(newPosition);
+
+                  Future.delayed(const Duration(milliseconds: 800), () {
+                    if (mounted) {
+                      setState(() => _isDragging = false);
+                      widget.onSeekEnded?.call();
+                    }
+                  });
+                },
+                onHorizontalDragStart: (details) {
+                  print("pression 1.0");
+                  setState(() {
+                    _isDragging = true;
+                    _dragPosition = details.localPosition;
+                  });
+                  widget.onSeekStarted?.call();
+                },
+                onHorizontalDragUpdate: (details) {
+                  print("pression 3.0");
+                  final renderBox = context.findRenderObject() as RenderBox;
+                  final localX = details.localPosition.dx;
+                  final width = renderBox.size.width;
+                  final newProgress = (localX / width).clamp(0.0, 1.0);
+                  _dragProgress = newProgress;
+                  _dragPosition = details.localPosition;
+
+                  final newPosition = Duration(
+                    milliseconds: (duration.inMilliseconds * newProgress)
+                        .round(),
+                  );
+                  _controller.seekTo(newPosition);
+
+                  setState(() => _isDragging = true);
+                },
+                onHorizontalDragEnd: (details) {
+                  print("pression 4.0");
+                  setState(() => _isDragging = false);
+                  widget.onSeekEnded?.call();
+                },
+                child: Container(
+                  height: _isDragging ? 60.0 : 30.0,
+                  // Zone de toucher plus grande
+                  width: double.infinity,
+                  color: Colors.transparent,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      // Affichage du temps pendant le drag
+                      if (_isDragging)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.8),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: const Color(0xFFFF6B6B),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.access_time,
+                                color: Color(0xFFFF6B6B),
+                                size: 14,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _formatDuration(
+                                  Duration(
+                                    milliseconds:
+                                        (duration.inMilliseconds *
+                                                _dragProgress)
+                                            .round(),
+                                  ),
+                                ),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '/',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.6),
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _formatDuration(duration),
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.7),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                      // Barre de progression principale (ÉPAISSE)
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        height: _isDragging == true ? 12.0 : 3.0,
+                        // Barre plus épaisse
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width:
+                                  MediaQuery.of(context).size.width *
+                                  (_isDragging ? _dragProgress : progress),
+                              height: _isDragging == true ? 12.0 : 6.0,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFF6B6B),
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: _isDragging
+                                    ? [
+                                        BoxShadow(
+                                          color: const Color(
+                                            0xFFFF6B6B,
+                                          ).withOpacity(0.5),
+                                          blurRadius: 8,
+                                          spreadRadius: 2,
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Boule de progression pendant le drag
+                      if (_isDragging)
+                        Positioned(
+                          left: _dragPosition.dx - 10,
+                          bottom: 20,
+                          child: Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF6B6B),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(
+                                    0xFFFF6B6B,
+                                  ).withOpacity(0.6),
+                                  blurRadius: 12,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.drag_handle,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
 
-  Widget _buildReplayButton() {
-    return ValueListenableBuilder<VideoPlayerValue>(
-      valueListenable: _controller,
-      builder: (context, value, child) {
-        if (value.position == value.duration && !value.isPlaying) {
-          return Container(
-            color: Colors.black.withOpacity(0.5),
-            child: Center(
-              child: IconButton(
-                icon: const Icon(Icons.replay, size: 50, color: Colors.white),
-                onPressed: () {
-                  _controller.seekTo(Duration.zero);
-                  _controller.play();
-                },
-              ),
-            ),
-          );
-        }
-        return const SizedBox.shrink();
-      },
-    );
+  // Méthode utilitaire pour formater la durée
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = twoDigits(duration.inMinutes.remainder(60));
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    return '$minutes:$seconds';
   }
 
   void _openComments() {
@@ -854,25 +1068,25 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
         borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
         child: SizedBox(
           height: Get.height / 1.3,
-          child: CommentModal(
-            videoId: widget.id,
-            videoTitle: '',
-          ),
+          child: CommentModal(videoId: widget.id, videoTitle: ''),
         ),
       ),
     );
   }
 
   void _navigateToProfile() {
-    Get.to(() => PremiumProfileScreen(
-      userId: widget.uid,
-      avatarUrl: widget.profileImage,
-      displayName: widget.username,
-      username: widget.username,
-      mail: widget.mail,
-      bio: widget.bio ??
-          "Créateur de contenu | Digital Creator ✨\nCollaborations 📩 ${widget.mail}",
-    ));
+    Get.to(
+      () => PremiumProfileScreen(
+        userId: widget.uid,
+        avatarUrl: widget.profileImage,
+        displayName: widget.username,
+        username: widget.username,
+        mail: widget.mail,
+        bio:
+            widget.bio ??
+            "Créateur de contenu | Digital Creator ✨\nCollaborations 📩 ${widget.mail}",
+      ),
+    );
   }
 
   String _formatCount(int count) {
@@ -885,7 +1099,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
   }
 }
 
-// 🌟 AJOUT 4: NOUVEAU WIDGET POUR LE PLEIN ÉCRAN
+// WIDGET POUR LE PLEIN ÉCRAN
 class FullscreenVideoPlayer extends StatelessWidget {
   final VideoPlayerController controller;
   final _TikTokVideoPlayerState state;
@@ -918,103 +1132,55 @@ class FullscreenVideoPlayer extends StatelessWidget {
             ),
           ),
 
-          // Overlay gradient (optionnel)
+          // Overlay gradient
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  Colors.black.withOpacity(0.7),
-                ],
+                colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
                 stops: const [0.7, 1.0],
               ),
             ),
           ),
 
           // Bouton de fermeture
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 30),
+              onPressed: () {
+                Get.back();
+              },
+            ),
+          ),
 
-
-          // Actions de droite (likes, commentaires, etc.)
-          // Positioned(
-          //   right: 20,
-          //   bottom: 40,
-          //   child: Column(
-          //     mainAxisSize: MainAxisSize.min,
-          //     children: [
-          //       _buildActionButton(
-          //         icon: state._isLiked ? Icons.favorite : Icons.favorite_border,
-          //         color: state._isLiked ? Colors.red : Colors.white,
-          //         label: state._formatCount(state._likeCount),
-          //         onTap: () => state._toggleLike(),
-          //       ),
-          //       const SizedBox(height: 16),
-          //       _buildActionButton(
-          //         icon: Icons.chat_bubble_outline,
-          //         color: Colors.white,
-          //         label: state._formatCount(state.widget.comments),
-          //         onTap: () {
-          //           controller.pause();
-          //           state._openComments();
-          //         },
-          //       ),
-          //       const SizedBox(height: 16),
-          //       _buildActionButton(
-          //         icon: Icons.reply,
-          //         color: Colors.white,
-          //         label: state._formatCount(state.widget.shares),
-          //         onTap: () {},
-          //       ),
-          //     ],
-          //   ),
-          // ),
-          //
-          // // Informations de gauche
-          // Positioned(
-          //   left: 20,
-          //   bottom: 40,
-          //   child: Column(
-          //     crossAxisAlignment: CrossAxisAlignment.start,
-          //     children: [
-          //       Text(
-          //         '@${state.widget.username}',
-          //         style: GoogleFonts.montserrat(
-          //           color: Colors.white,
-          //           fontSize: 18,
-          //           fontWeight: FontWeight.w700,
-          //         ),
-          //       ),
-          //       const SizedBox(height: 8),
-          //       SizedBox(
-          //         width: Get.width * 0.6,
-          //         child: Text(
-          //           state.widget.description,
-          //           style: GoogleFonts.montserrat(
-          //             color: Colors.white,
-          //             fontSize: 14,
-          //           ),
-          //           maxLines: 3,
-          //           overflow: TextOverflow.ellipsis,
-          //         ),
-          //       ),
-          //       const SizedBox(height: 8),
-          //       Row(
-          //         children: [
-          //           const Icon(Icons.music_note, color: Colors.white, size: 14),
-          //           const SizedBox(width: 4),
-          //           Text(
-          //             state.widget.music,
-          //             style: GoogleFonts.montserrat(
-          //               color: Colors.white,
-          //               fontSize: 13,
-          //             ),
-          //           ),
-          //         ],
-          //       ),
-          //     ],
-          //   ),
-          // ),
+          // Bouton mute
+          Positioned(
+            top: 40,
+            right: 20,
+            child: GestureDetector(
+              onTap: () {
+                state.setState(() {
+                  state._isMuted = !state._isMuted;
+                  controller.setVolume(state._isMuted ? 0 : 1);
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.4),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  state._isMuted ? Icons.volume_off : Icons.volume_up,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+            ),
+          ),
 
           // Barre de progression
           Positioned(
@@ -1056,79 +1222,6 @@ class FullscreenVideoPlayer extends StatelessWidget {
                 ),
               );
             },
-          ),
-          Positioned(
-            top: 40,
-            left: 20,
-            child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.white, size: 30),
-              onPressed: () {
-                // Mettre en pause avant de fermer
-                // controller.pause();
-                print("youss");
-                Get.back();
-              },
-            ),
-          ),
-
-          // Bouton mute
-          Positioned(
-            top: 40,
-            right: 20,
-            child: GestureDetector(
-              onTap: () {
-                state.setState(() {
-                  state._isMuted = !state._isMuted;
-                  controller.setVolume(state._isMuted ? 0 : 1);
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.4),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  state._isMuted ? Icons.volume_off : Icons.volume_up,
-                  color: Colors.white,
-                  size: 24,
-                ),
-              ),
-            ),
-          ),
-
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButton({
-    required IconData icon,
-    required Color color,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.4),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 28),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: GoogleFonts.montserrat(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
           ),
         ],
       ),

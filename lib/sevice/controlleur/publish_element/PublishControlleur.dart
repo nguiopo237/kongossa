@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:kongossa/presentation/component/widget/widget_component.dart';
 import 'package:path/path.dart' as path;
 
+import '../../../model/datamodel/story_model.dart';
 import '../../../model/datamodel/user_model.dart';
 import '../../../screens/mymember/chatpage.dart';
 import '../../../sevice/connection/connectionchecker.dart';
@@ -130,6 +131,110 @@ class CreatePostPremiumController extends GetxController
     }
   }
 
+  Future<List<String>> uploadFilesstory() async {
+    List<String> uploadedUrlstory = [];
+    if (attachedVideos.isNotEmpty) {
+      for (var element in attachedVideos) {
+        try {
+          String originalName = path.basename(element);
+          final url = await uploader.uploadAnyFile(
+            filePath: element,
+            folder: 'kogossa_app/story',
+            fileName: originalName,
+          );
+          if (url != null) uploadedUrlstory.add(url);
+        } catch (e) {
+          print('❌ Erreur upload vidéo $element: $e');
+        }
+      }
+    }
+
+    if (attachedImages.isNotEmpty) {
+      for (var element in attachedImages) {
+        try {
+          String originalName = path.basename(element);
+          final url = await uploader.uploadAnyFile(
+            filePath: element,
+            folder: 'kogossa_app/story',
+            fileName: originalName,
+          );
+          if (url != null) uploadedUrlstory.add(url);
+        } catch (e) {
+          print('❌ Erreur upload image $element: $e');
+        }
+      }
+    }
+
+    sender.value = uploadedUrlstory;
+    return uploadedUrlstory;
+  }
+
+
+
+
+
+
+  Future<void> addImagestory() async {
+    attachedImages.clear();
+    attachedVideos.clear();
+
+    final pickedFile = await SelectImage.uploadMultipleImages();
+
+    if (pickedFile?.isNotEmpty == true) {
+      Get.back();
+      attachedImages.add(pickedFile!.first.path);
+      List<String> uploadedUrls = await uploadFilesstory();
+
+      // 🕐 Dates en UTC + format Timestamp Firestore
+      final now = Timestamp.now(); // Équivalent à DateTime.now().toUtc() en Timestamp
+      final expires = Timestamp.fromDate(
+          DateTime.now().toUtc().add(const Duration(hours: 24))
+      );
+
+      final datastory = SocialStatus(
+        id: AppUser.info!.googleId,
+        userId: AppUser.info!.userI,
+        content: '',
+        mediaUrls: uploadedUrls,
+        createdAt: now,        // ✅ Timestamp
+        updatedAt: DateTime.now(),        // ✅ Timestamp
+        expiresAt: expires,    // ✅ Timestamp
+      );
+
+      await Story.add(datastory.toJson());
+    }
+  }
+  Future<void> addVideotory() async {
+    attachedImages.clear();
+    attachedVideos.clear();
+
+    final pickedFile = await SelectImage.uploadMultipleVideo();
+
+    if (pickedFile?.isNotEmpty == true) {
+      Get.back();
+      attachedVideos.add(pickedFile!.first.path);
+      List<String> uploadedUrls = await uploadFilesstory();
+
+      // 🕐 Dates en UTC + format Timestamp Firestore
+      final now = Timestamp.now(); // Équivalent à DateTime.now().toUtc() en Timestamp
+      final expires = Timestamp.fromDate(
+          DateTime.now().toUtc().add(const Duration(hours: 24))
+      );
+
+      final datastory = SocialStatus(
+        id: AppUser.info!.googleId,
+        userId: AppUser.info!.userI,
+        content: '',
+        mediaUrls: uploadedUrls,
+        createdAt: now,        // ✅ Timestamp
+        updatedAt: DateTime.now(),        // ✅ Timestamp
+        expiresAt: expires,    // ✅ Timestamp
+      );
+
+      await Story.add(datastory.toJson());
+    }
+  }
+
   Future<void> addVideo(BuildContext context) async {
     attachedImages.clear();
     attachedVideos.clear();
@@ -171,6 +276,7 @@ class CreatePostPremiumController extends GetxController
         'noconnect'.tr,
         backgroundColor: Colors.red,
         colorText: Colors.white,
+        snackPosition: SnackPosition.TOP
       );
       return;
     }

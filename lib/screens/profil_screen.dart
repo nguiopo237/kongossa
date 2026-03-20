@@ -54,12 +54,16 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
   int followingCount = 0;
 
   late UserProfileModel userProfile;
-  final PostUpdateService service =
-  PostUpdateService();
+  final PostUpdateService service = PostUpdateService();
 
   // Cache pour les miniatures vidéo
   final Map<String, String?> _thumbnailCache = {};
   final Map<String, Future<String?>> _thumbnailFutures = {};
+
+  // ==================== NOUVEAU : Variables pour le filtrage ====================
+  String _currentFilter = 'all'; // 'all', 'videos', 'images'
+  String _sortOrder = 'recent'; // 'recent' ou 'oldest'
+  bool isrecent = true; // 'recent' ou 'oldest'
 
   @override
   void initState() {
@@ -122,6 +126,58 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
     );
   }
 
+  // ==================== NOUVELLE MÉTHODE : Extraire le timestamp d'un document ====================
+  Timestamp _getTimestampFromDoc(QueryDocumentSnapshot doc) {
+    final postData = doc.data() as Map<String, dynamic>;
+    final postContent = _getSafeMap(postData['postData']);
+
+    if (postContent['timestamp'] is Timestamp) {
+      return postContent['timestamp'] as Timestamp;
+    } else if (postData['timestamp'] is Timestamp) {
+      return postData['timestamp'] as Timestamp;
+    }
+    return Timestamp.now();
+  }
+
+  // ==================== NOUVELLE MÉTHODE : Filtrer et trier les documents ====================
+  List<QueryDocumentSnapshot> _filterAndSortDocs(List<QueryDocumentSnapshot> docs) {
+    var filteredDocs = docs;
+
+    // 1. Appliquer le filtre par type de contenu
+    if (_currentFilter == 'videos') {
+      filteredDocs = filteredDocs.where((doc) {
+        final postData = doc.data() as Map<String, dynamic>;
+        final postContent = _getSafeMap(postData['postData']);
+        final videos = _getSafeList(postContent['videopost']);
+        return videos.isNotEmpty;
+      }).toList();
+    } else if (_currentFilter == 'images') {
+      filteredDocs = filteredDocs.where((doc) {
+        final postData = doc.data() as Map<String, dynamic>;
+        final postContent = _getSafeMap(postData['postData']);
+        final images = _getSafeList(postContent['imagepost']);
+        final videos = _getSafeList(postContent['videopost']);
+        return images.isNotEmpty && videos.isEmpty;
+      }).toList();
+    }
+
+    // 2. Trier par date
+    filteredDocs.sort((a, b) {
+      final timestampA = _getTimestampFromDoc(a);
+      final timestampB = _getTimestampFromDoc(b);
+
+      if (_sortOrder == 'recent') {
+        // Du plus récent au plus ancien
+        return timestampB.compareTo(timestampA);
+      } else {
+        // Du plus ancien au plus récent
+        return timestampA.compareTo(timestampB);
+      }
+    });
+
+    return filteredDocs;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.userId == null) {
@@ -153,12 +209,148 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
               if (widget.userId != AppUser.info?.googleId)
                 SliverToBoxAdapter(child: _buildActionButtons(userDoc)),
               SliverToBoxAdapter(child: _buildStoriesSection(userDoc)),
+              SliverToBoxAdapter(child: _buildFilterBar()), // NOUVEAU : Barre de filtrage
               SliverToBoxAdapter(child: _buildTabBar()),
-              _buildPostsGrid(), // Maintenant retourne directement un Sliver
+              _buildPostsGrid(),
             ],
           );
         },
       ),
+    );
+  }
+
+  // ==================== NOUVEAU : Barre de filtrage ====================
+  Widget _buildFilterBar() {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+      child: SingleChildScrollView(scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Boutons de filtre par type
+            Row(
+              children: [
+                _buildFilterChip('Tous', 'all'),
+                SizedBox(width: 2.w),
+                _buildFilterChip('Vidéos', 'videos'),
+                SizedBox(width: 2.w),
+                _buildFilterChip('Images', 'images'),
+              ],
+            ),
+
+            // Bouton de tri par date
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: AppTheme.dividerColor),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: PopupMenuButton<String>(
+                initialValue: _sortOrder,
+                onSelected: (String value) {
+                  setState(() {
+                    _sortOrder = value;
+                  });
+                },
+                itemBuilder: (BuildContext context) => [
+                  PopupMenuItem(
+                    onTap: () {
+                      print("recentsss");
+                      setState(() {
+                        isrecent =true;
+                      });
+                    },
+                    value: 'recent',
+                    child: const Row(
+                      children: [
+                        Icon(Icons.arrow_downward, size: 18),
+                        SizedBox(width: 8),
+                        Text('Plus récent'),
+                      ],
+                    ),
+                  ),
+                   PopupMenuItem(
+                    onTap: () {
+                      setState(() {
+                        isrecent =false;
+                      });
+                    },
+                    value: 'oldest',
+                    child: Row(
+                      children: [
+                        Icon(Icons.arrow_upward, size: 18),
+                        SizedBox(width: 8),
+                        Text('Plus ancien'),
+                      ],
+                    ),
+                  ),
+                ],
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _sortOrder == 'recent'
+                            ? Icons.arrow_downward
+                            : Icons.arrow_upward,
+                        size: 18,
+                        color: AppTheme.textPrimary,
+                      ),
+                      SizedBox(width: 2.w),
+                      Text(
+                        _sortOrder == 'recent' ? 'Récent' : 'Ancien',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                      SizedBox(width: 1.w),
+                      Icon(
+                        Icons.arrow_drop_down,
+                        size: 18,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String label, String filterValue) {
+    final isSelected = _currentFilter == filterValue;
+
+    return FilterChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          color: isSelected ? Colors.white : AppTheme.textSecondary,
+        ),
+      ),
+      selected: isSelected,
+      onSelected: (selected) {
+        setState(() {
+          _currentFilter = filterValue;
+        });
+      },
+      backgroundColor: Colors.transparent,
+      selectedColor: AppTheme.primaryColor,
+      checkmarkColor: Colors.white,
+      side: BorderSide(
+        color: isSelected ? AppTheme.primaryColor : AppTheme.dividerColor,
+        width: 1,
+      ),
+      shape: StadiumBorder(
+        side: BorderSide(
+          color: isSelected ? AppTheme.primaryColor : AppTheme.dividerColor,
+        ),
+      ),
+      padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.5.h),
     );
   }
 
@@ -430,7 +622,6 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
 
     return Container(
       height: 8.h,
-      // color: Colors.green,
       padding: EdgeInsets.symmetric(horizontal: 4.w),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
@@ -475,124 +666,15 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
     );
   }
 
-  // ==================== FONCTIONS POUR LES POSTS AVEC MINIATURES VIDÉO ====================
-
-  Map<String, dynamic> _getSafeMap(dynamic value) {
-    if (value == null) return {};
-    if (value is Map<String, dynamic>) return value;
-    if (value is Map) {
-      try {
-        return Map<String, dynamic>.from(value);
-      } catch (e) {
-        debugPrint('⚠️ Erreur conversion Map: $e');
-        return {};
-      }
-    }
-    return {};
-  }
-
-  List<dynamic> _getSafeList(dynamic value) {
-    if (value == null) return [];
-    if (value is List) return value;
-    if (value is List<dynamic>) return value;
-    if (value is Iterable) return value.toList();
-    return [];
-  }
-
-  MediaType _getMediaType(String? type, bool hasImages, bool hasVideos) {
-    if (hasVideos) return MediaType.video;
-    if (hasImages) return MediaType.image;
-
-    if (type == null) return MediaType.image;
-
-    switch (type.toLowerCase()) {
-      case 'video':
-        return MediaType.video;
-      case 'image':
-        return MediaType.image;
-      case 'multiple':
-      case 'carousel':
-        return MediaType.multiple;
-      default:
-        return MediaType.image;
-    }
-  }
-
-  // Fonction pour générer une miniature vidéo avec cache
-  Future<String?> _getVideoThumbnail(String videoUrl) async {
-    // Vérifier le cache
-    if (_thumbnailCache.containsKey(videoUrl)) {
-      return _thumbnailCache[videoUrl];
-    }
-
-    // Vérifier si une future est déjà en cours
-    if (_thumbnailFutures.containsKey(videoUrl)) {
-      return _thumbnailFutures[videoUrl];
-    }
-
-    // Créer une nouvelle future
-    final future = _generateThumbnail(videoUrl);
-    _thumbnailFutures[videoUrl] = future;
-
-    final result = await future;
-
-    // Mettre en cache et nettoyer la future
-    if (mounted) {
-      setState(() {
-        _thumbnailCache[videoUrl] = result;
-        _thumbnailFutures.remove(videoUrl);
-      });
-    }
-
-    return result;
-  }
-
-  Future<String?> _generateThumbnail(String videoUrl) async {
-    try {
-      // Vérifier d'abord si la vidéo est en cache
-      final fileInfo = await DefaultCacheManager().getFileFromCache(videoUrl);
-
-      String videoPath = videoUrl;
-      if (fileInfo != null && fileInfo.file.existsSync()) {
-        videoPath = fileInfo.file.path;
-      }
-
-      final thumbnailPath = await VideoThumbnail.thumbnailFile(
-        video: videoPath,
-        thumbnailPath: (await getTemporaryDirectory()).path,
-        imageFormat: ImageFormat.JPEG,
-        maxWidth: 300,
-        maxHeight: 300,
-        quality: 75,
-      );
-
-      debugPrint('✅ Miniature générée pour: $videoUrl');
-      return thumbnailPath;
-    } catch (e) {
-      debugPrint('❌ Erreur génération miniature: $e');
-      return null;
-    }
-  }
-
-  // Widget pour l'affichage des posts avec miniatures
-   _buildPostsGrid() {
+  // ==================== POSTS GRID AVEC FILTRES ====================
+  _buildPostsGrid() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('postcarduser')
           .where('userData.googleId', isEqualTo: widget.userId)
+          .orderBy('timestamp', descending: isrecent)
           .snapshots(),
       builder: (context, snapshot) {
-        // if (snapshot.connectionState == ConnectionState.waiting) {
-        //   return const SliverToBoxAdapter(
-        //     child: Center(
-        //       child: Padding(
-        //         padding: EdgeInsets.all(20),
-        //         child: CircularProgressIndicator(),
-        //       ),
-        //     ),
-        //   );
-        // }
-
         if (snapshot.hasError) {
           return SliverToBoxAdapter(
             child: Center(
@@ -615,7 +697,27 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
           );
         }
 
-        final documents = snapshot.data!.docs;
+        // Application des filtres et du tri
+        final allDocuments = snapshot.data!.docs;
+        final filteredDocuments = _filterAndSortDocs(allDocuments);
+
+        if (filteredDocuments.isEmpty) {
+          String emptyMessage = 'Aucun contenu pour le moment';
+          if (_currentFilter == 'videos') {
+            emptyMessage = 'Aucune vidéo trouvée';
+          } else if (_currentFilter == 'images') {
+            emptyMessage = 'Aucune image trouvée';
+          }
+
+          return SliverToBoxAdapter(
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Text(emptyMessage),
+              ),
+            ),
+          );
+        }
 
         return SliverPadding(
           padding: EdgeInsets.only(
@@ -633,22 +735,23 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
             delegate: SliverChildBuilderDelegate(
                   (context, index) {
                 try {
-                  final postDoc = documents[index];
+                  final postDoc = filteredDocuments[index];
                   final postData = postDoc.data() as Map<String, dynamic>;
 
                   _getSafeMap(postData['userData']);
                   final postContent = _getSafeMap(postData['postData']);
 
                   final allike = _getSafeList(postContent['allike']);
+                  final allsee = _getSafeList(postContent['allsee']);
                   final commentaires = _getSafeList(postContent['commentaire']);
                   final images = _getSafeList(postContent['imagepost']);
                   final videos = _getSafeList(postContent['videopost']);
 
                   String mediaUrl = '';
                   bool isVideo = videos.isNotEmpty;
+                  MediaType mediaType;
 
                   if (isVideo) {
-                    // C'est une vidéo
                     final firstVideo = videos.first;
                     if (firstVideo is String) {
                       mediaUrl = firstVideo;
@@ -657,8 +760,8 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
                     } else {
                       mediaUrl = firstVideo.toString();
                     }
+                    mediaType = MediaType.video;
                   } else if (images.isNotEmpty) {
-                    // C'est une image
                     final firstImage = images.first;
                     if (firstImage is String) {
                       mediaUrl = firstImage;
@@ -667,43 +770,34 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
                     } else {
                       mediaUrl = firstImage.toString();
                     }
+                    mediaType = MediaType.image;
                   } else {
-                    // Fallback
                     mediaUrl = postContent['mediaUrl']?.toString() ??
                         postContent['videoUrl']?.toString() ?? '';
+                    final mediaTypeStr = postContent['mediaType'] as String?;
+                    mediaType = _getMediaType(mediaTypeStr, images.isNotEmpty, videos.isNotEmpty);
                   }
 
-                  final mediaTypeStr = postContent['mediaType'] as String?;
-                  final mediaType = _getMediaType(
-                      mediaTypeStr,
-                      images.isNotEmpty,
-                      videos.isNotEmpty
-                  );
-
-                  Timestamp? timestamp;
-                  if (postContent['timestamp'] is Timestamp) {
-                    timestamp = postContent['timestamp'] as Timestamp;
-                  } else if (postData['timestamp'] is Timestamp) {
-                    timestamp = postData['timestamp'] as Timestamp;
-                  }
+                  final timestamp = _getTimestampFromDoc(postDoc);
 
                   final post = PostModel(
                     id: postDoc.id,
                     mediaUrl: mediaUrl,
+                    seeCount: allsee.length,
                     commentsCount: commentaires.length,
                     likesCount: allike.length,
                     mediaType: mediaType,
-                    timestamp: timestamp?.toDate() ?? DateTime.now(),
+                    timestamp: timestamp.toDate(),
                   );
 
-                  return _buildGridItem(post,index);
+                  return _buildGridItem(post, index);
                 } catch (e, stackTrace) {
                   debugPrint('❌ Erreur post $index: $e');
                   debugPrint('📋 StackTrace: $stackTrace');
                   return _buildErrorGridItem();
                 }
               },
-              childCount: documents.length,
+              childCount: filteredDocuments.length,
             ),
           ),
         );
@@ -711,7 +805,7 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
     );
   }
 
-  Widget _buildGridItem(PostModel post,index) {
+  Widget _buildGridItem(PostModel post, index) {
     return GestureDetector(
       onTap: () {
         debugPrint('📱 Post cliqué: ${post.id} (${post.mediaType})');
@@ -727,8 +821,7 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
         children: [
           // Affichage selon le type
           if (post.mediaType == MediaType.video)
-        Thumbvideo(videoUrl: post.mediaUrl,)
-
+            Thumbvideo(videoUrl: post.mediaUrl,)
           else
             _buildImageThumbnail(post.mediaUrl),
 
@@ -753,6 +846,16 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      const Icon(Icons.remove_red_eye, color: Colors.white, size: 12),
+                      Text(
+                        _formatNumber(post.seeCount),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(width: 1.w,),
                       const Icon(Icons.favorite, color: Colors.white, size: 12),
                       const SizedBox(width: 2),
                       Text(
@@ -812,42 +915,6 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
     );
   }
 
-  Widget _buildVideoThumbnail(String videoUrl) {
-    if (videoUrl.isEmpty) {
-      return _buildPlaceholder(Icons.videocam_off, 'Vidéo\nmanquante');
-    }
-
-    return FutureBuilder<String?>(
-      future: _getVideoThumbnail(videoUrl),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Container(
-            color: Colors.grey[900],
-            child: const Center(
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-              ),
-            ),
-          );
-        }
-
-        if (snapshot.hasData && snapshot.data != null) {
-          return Image.file(
-            File(snapshot.data!),
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              debugPrint('❌ Erreur chargement miniature: $error');
-              return _buildVideoPlaceholder();
-            },
-          );
-        } else {
-          return _buildVideoPlaceholder();
-        }
-      },
-    );
-  }
-
   Widget _buildPlaceholder(IconData icon, String message) {
     return Container(
       color: Colors.grey[900],
@@ -860,21 +927,6 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
             message,
             style: const TextStyle(color: Colors.white54, fontSize: 8),
             textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildVideoPlaceholder() {
-    return Container(
-      color: Colors.grey[900],
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          CustomPaint(painter: _StripesPainter()),
-          const Center(
-            child: Icon(Icons.play_arrow, color: Colors.white, size: 30),
           ),
         ],
       ),
@@ -911,6 +963,47 @@ class _PremiumProfileScreenState extends State<PremiumProfileScreen>
         ),
       ),
     );
+  }
+
+  Map<String, dynamic> _getSafeMap(dynamic value) {
+    if (value == null) return {};
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      try {
+        return Map<String, dynamic>.from(value);
+      } catch (e) {
+        debugPrint('⚠️ Erreur conversion Map: $e');
+        return {};
+      }
+    }
+    return {};
+  }
+
+  List<dynamic> _getSafeList(dynamic value) {
+    if (value == null) return [];
+    if (value is List) return value;
+    if (value is List<dynamic>) return value;
+    if (value is Iterable) return value.toList();
+    return [];
+  }
+
+  MediaType _getMediaType(String? type, bool hasImages, bool hasVideos) {
+    if (hasVideos) return MediaType.video;
+    if (hasImages) return MediaType.image;
+
+    if (type == null) return MediaType.image;
+
+    switch (type.toLowerCase()) {
+      case 'video':
+        return MediaType.video;
+      case 'image':
+        return MediaType.image;
+      case 'multiple':
+      case 'carousel':
+        return MediaType.multiple;
+      default:
+        return MediaType.image;
+    }
   }
 
   String _formatNumber(int number) {

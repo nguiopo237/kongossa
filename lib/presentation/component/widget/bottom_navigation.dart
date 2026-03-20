@@ -139,11 +139,11 @@ class _KongossaTikTokNavBarState extends State<KongossaTikTokNavBar>
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: List.generate(
                               _navItems.length,
-                                  (index) => _buildKongossaNavItem(
-                                item: _navItems[index],
-                                isSelected: _selectedIndex == index,
-                                index: index,
-                              ),
+                                  (index) => Expanded(child: _buildKongossaNavItem(
+                                    item: _navItems[index],
+                                    isSelected: _selectedIndex == index,
+                                    index: index,
+                                  )),
                             ),
                           ),
                         ),

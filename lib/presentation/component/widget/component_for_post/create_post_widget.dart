@@ -9,6 +9,7 @@ import '../../../../screens/mymember/chatpage.dart';
 import '../../../../sevice/controlleur/publish_element/PublishControlleur.dart';
 
 import '../../image_component/image.dart';
+import '../builoption.dart';
 import '../cloudinaryvideoplayer.dart';
 
 // Widget pour l'en-tête utilisateur premium
@@ -176,42 +177,42 @@ class PremiumOptions extends GetWidget<CreatePostPremiumController> {
             spacing: 12,
             runSpacing: 12,
             children: [
-              _buildOption(
+              Builoption(
                 icon: Icons.photo_camera,
                 label: 'Photo',
                 onTap: () => controller.addImage(),
                 isActive: controller.attachedImages.isNotEmpty,
                 activeColor: Colors.green,
               ),
-              _buildOption(
+              Builoption(
                 icon: Icons.videocam,
                 label: 'Vidéo',
                 onTap: () => controller.addVideo(context),
                 isActive: controller.attachedVideos.isNotEmpty,
                 activeColor: Colors.purple,
               ),
-              _buildOption(
+              Builoption(
                 icon: Icons.location_pin,
                 label: 'Lieu',
                 onTap: controller.toggleLocation,
                 isActive: controller.hasLocation.value,
                 activeColor: Colors.red,
               ),
-              _buildOption(
+              Builoption(
                 icon: Icons.emoji_emotions,
                 label: 'Humeur',
                 onTap: controller.toggleFeeling,
                 isActive: controller.isFeeling.value,
                 activeColor: Colors.amber,
               ),
-              _buildOption(
+              Builoption(
                 icon: Icons.poll,
                 label: 'Sondage',
                 onTap: controller.togglePoll,
                 isActive: controller.isPoll.value,
                 activeColor: Colors.blue,
               ),
-              _buildOption(
+              Builoption(
                 icon: Icons.tag,
                 label: 'Personnes',
                 onTap: () => controller.tagPeople.toggle(),
@@ -225,79 +226,6 @@ class PremiumOptions extends GetWidget<CreatePostPremiumController> {
     );
   }
 
-  Widget _buildOption({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    required bool isActive,
-    required Color activeColor,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          gradient: isActive
-              ? LinearGradient(
-            colors: [activeColor.withOpacity(0.2), activeColor.withOpacity(0.1)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          )
-              : null,
-          color: isActive ? null : Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(
-            color: isActive ? activeColor.withOpacity(0.5) : Colors.transparent,
-            width: 1.5,
-          ),
-          boxShadow: isActive
-              ? [
-            BoxShadow(
-              color: activeColor.withOpacity(0.2),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
-          ]
-              : [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: isActive
-                      ? [activeColor, activeColor.withOpacity(0.8)]
-                      : [Colors.grey[700]!, Colors.grey[800]!],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: Colors.white, size: 20),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: isActive ? activeColor : Colors.black,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 // Widget pour le sentiment sélectionné

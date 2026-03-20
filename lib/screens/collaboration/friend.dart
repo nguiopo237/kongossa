@@ -274,6 +274,7 @@ class _FriendFeedScreenState extends State<FriendFeedScreen> {
             controller:_pageController,
             restorationId: restorationId,
             allowImplicitScrolling: true,
+            physics: const ClampingScrollPhysics(), // Empêche le scroll excessif
             // onPageChanged: (value) {
             //   _pageController.jumpToPage(widget.indexed);
             // },
@@ -282,27 +283,28 @@ class _FriendFeedScreenState extends State<FriendFeedScreen> {
               final video = videos[index];
 
 
-              return Padding(
-                padding:  EdgeInsets.only(bottom: 10.h),
+              return SafeArea(bottom: true,
+
+                minimum: EdgeInsets.only(bottom: 6.h),
                 child: TikTokVideoPlayer(
-                id: video['postId'].toString(),
-                videoUrl:  video['videoUrl'].toString(),
-                username: video['username'] ?? '',
-                description: video['description'] ?? '',
-                music: video['music'] ?? 'Son original',
-                likes: List.from(video['alllike']).length,
-                isLiked: video['islike'],
-                comments: List.from(video['comment']).length,
-                alllike:  List.from(video['alllike']),
-                shares: widget.indexed,
-                profileImage: video['profileImage'] ?? '',
-                uid :video['uid'],
-                mail :video['email'],
-                bio :video['bio'],
+                  id: video['postId'].toString(),
+                  videoUrl:  video['videoUrl'].toString(),
+                  username: video['username'] ?? '',
+                  description: video['description'] ?? '',
+                  music: video['music'] ?? 'Son original',
+                  likes: List.from(video['alllike']).length,
+                  isLiked: video['islike'],
+                  comments: List.from(video['comment']).length,
+                  alllike:  List.from(video['alllike']),
+                  shares: widget.indexed,
+                  profileImage: video['profileImage'] ?? '',
+                  uid :video['uid'],
+                  mail :video['email'],
+                  bio :video['bio'],
                   start: true,
 
 
-              ),
+                ),
               );
             },
           );

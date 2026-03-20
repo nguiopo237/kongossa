@@ -114,7 +114,8 @@ class PostUpdateService {
     required String postId,
     // bool? isLiked,
     // required int like
-  }) async {
+  }) async
+  {
     try {
       DocumentReference postRef = _firestore
           .collection('postcarduser')
@@ -181,6 +182,80 @@ class PostUpdateService {
       print('Stack trace: ${StackTrace.current}');
     }
   }
+
+  Future<void> togglesee({
+    required String postId,
+    // bool? isLiked,
+    // required int like
+  }) async
+  {
+    try {
+      DocumentReference postRef = _firestore
+          .collection('postcarduser')
+          .doc(postId);
+
+      DocumentSnapshot snapshot = await postRef.get();
+
+      if (!snapshot.exists) {
+        print("Document n'existe pas");
+        return;
+      }
+
+      var data = snapshot.data() as Map<String, dynamic>;
+      print('Données du post: ${data['postData']}');
+
+      // Récupérer l'utilisateur actuel
+      String? currentUserId = AppUser.info?.googleId;
+
+      if (currentUserId == null) {
+        print("Utilisateur non connecté");
+        return;
+      }
+
+      // Récupérer la liste des personnes qui ont liké le POST (pas les commentaires)
+      // D'après votre structure Firebase, c'est 'allike' dans postData
+      List<dynamic> allsee = [];
+
+      // Vérifier si postData existe et contient allike
+      if (data['postData'] != null) {
+        Map<String, dynamic> postData = data['postData'] as Map<String, dynamic>;
+
+        if (postData['allsee'] != null && postData['allsee'] is List) {
+          allsee = List.from(postData['allsee']);
+        }
+      }
+
+      print('Liste des likes avant: $allsee');
+
+      // Vérifier si l'utilisateur a déjà liké
+      bool alreadyLiked = allsee.contains(currentUserId);
+
+      if (!alreadyLiked) {
+        // Ajouter le like
+        allsee.add(currentUserId);
+        print("👍 video deja l'utilisateur: $currentUserId");
+      } else {
+        // Retirer le like
+        // allsee.remove(currentUserId);
+        print("👎 Like retiré pour l'utilisateur: $currentUserId");
+      }
+
+      print('Liste des likes après: $allsee');
+
+      // Mettre à jour le document
+      await postRef.update({
+        'postData.allsee': allsee,
+        'postData.see': allsee.length, // Mettre à jour aussi le compteur
+      });
+
+      print('✅ Like mis à jour: ${!alreadyLiked ? "👍" : "👎"} (${allsee.length} likes)');
+
+    } catch (e) {
+      print('❌ Erreur toggleLike: $e');
+      print('Stack trace: ${StackTrace.current}');
+    }
+  }
+
 
 
   Future<void> addfollowuser({
