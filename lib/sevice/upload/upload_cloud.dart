@@ -79,7 +79,8 @@ class UniversalCloudinaryUploader {
     required String folder,
     String? fileName,
     Function(double)? onProgress,
-  }) async {
+  }) async
+   {
     try {
       print('🚀 Début upload vers Cloudinary Kongossa');
       print('📁 Chemin fichier: $filePath');

@@ -89,7 +89,8 @@ class CloudinaryServicess {
    File? imageFile,
    bool isimage = true,
    String? fileExtension, // Renommé pour éviter conflit
- }) async {
+ }) async
+ {
    try {
      // Validation du fichier
      if (imageFile == null || !await imageFile.exists()) {

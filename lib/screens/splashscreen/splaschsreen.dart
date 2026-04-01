@@ -38,7 +38,6 @@ class _SplashScreenState extends State<SplashScreen> {
         colors: [
           Color(0xFFEEF1F8),
           Color(0xFFEEF1F8),
-
         ],
 
         child: GetBuilder<SplashController>(

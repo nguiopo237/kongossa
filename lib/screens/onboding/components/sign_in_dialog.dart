@@ -116,7 +116,6 @@ void showCustomDialog(BuildContext context, {required ValueChanged onValue}) {
                                      : () => authController.signInWithGoogle(),
                                 padding: EdgeInsets.zero,
                                 icon: SvgPicture.asset(
-
                                   "assets/icons/google_box.svg",
                                   height: 64,
                                   width: 64,
