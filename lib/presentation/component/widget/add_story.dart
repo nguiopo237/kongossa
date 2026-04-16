@@ -73,7 +73,7 @@ class StoryCircle extends StatelessWidget {
 
 enum StoryMediaType { image, video }
 
-class StoryModel {
+class StoryModels {
   final String id;
   final String userId;
   final String username;
@@ -85,7 +85,7 @@ class StoryModel {
   final List<String> viewers;
   final bool isViewed;
 
-  StoryModel({
+  StoryModels({
     required this.id,
     required this.userId,
     required this.username,
@@ -99,7 +99,7 @@ class StoryModel {
   });
 
   // Méthode pour créer une copie avec des champs modifiés
-  StoryModel copyWith({
+  StoryModels copyWith({
     String? id,
     String? userId,
     String? username,
@@ -111,7 +111,7 @@ class StoryModel {
     List<String>? viewers,
     bool? isViewed,
   }) {
-    return StoryModel(
+    return StoryModels(
       id: id ?? this.id,
       userId: userId ?? this.userId,
       username: username ?? this.username,
@@ -130,7 +130,7 @@ class UserStory {
   final String userId;
   final String username;
   final String userAvatarUrl;
-  final List<StoryModel> stories;
+  final List<StoryModels> stories;
   final bool hasUnviewedStories;
 
   UserStory({
@@ -142,7 +142,7 @@ class UserStory {
   });
 
   // Obtenir la dernière story
-  StoryModel get lastStory => stories.last;
+  StoryModels get lastStory => stories.last;
 
   // Vérifier si toutes les stories ont été vues
   bool get allViewed => stories.every((story) => story.isViewed);

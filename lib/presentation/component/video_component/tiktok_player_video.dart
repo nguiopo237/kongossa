@@ -591,21 +591,21 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
         children: [
           _buildProfileSection(),
            SizedBox(height: 2.h),
-          _buildActionButton(
+          buildActionButton(
             icon: _isLiked ? Icons.favorite : Icons.favorite_border,
             color: _isLiked ? Colors.red : Colors.white,
             label: _formatCount(_likeCount),
             onTap: _toggleLike,
           ),
           SizedBox(height: 2.h),
-          _buildActionButton(
+          buildActionButton(
             icon: Icons.chat_bubble_outline,
             color: Colors.white,
             label: _formatCount(widget.comments),
             onTap: _openComments,
           ),
           SizedBox(height: 2.h),
-          _buildActionButton(
+          buildActionButton(
             icon: Icons.reply,
             color: Colors.white,
             label: _formatCount(widget.shares),
@@ -702,7 +702,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
     );
   }
 
-  Widget _buildActionButton({
+  Widget buildActionButton({
     required IconData icon,
     required Color color,
     required String label,

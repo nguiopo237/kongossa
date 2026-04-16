@@ -359,7 +359,7 @@ class AuthController extends GetxController {
     print("userMap.id");
     // setupMessagesListener();
     getOneSignalPlayerId();
-    Call.loginUser();
+    // Call.loginUser();
     Get.offAll(()=>EntryPoint());
     // Get.offAll(()=>GalleryScreen());
   }

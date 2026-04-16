@@ -19,6 +19,7 @@ import '../../presentation/component/widget/record_widget.dart';
 import '../../sevice/call_API/zegocloud/interface_call.dart';
 import '../../sevice/call_API/zegocloud/zecloud_fonction.dart';
 import '../../sevice/controlleur/chat_controlleur/chat_controlleur.dart';
+import '../../sevice/controlleur/soryviewcontrolleur/soryControlleur.dart';
 import '../../sevice/controlleur/splashcontrolleur/splashscreen_controlleur.dart';
 import '../../sevice/controlleur/thmbvideo/thum_video.dart';
 
@@ -88,7 +89,7 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> {
               controller.isSendingMedia
                   ? const SendingIndicator()
                   : const SizedBox.shrink(),
-              _MessageInput(controller: controller),
+              MessageInput(controller: controller),
             ],
           ),
           controller.showScrollButton
@@ -659,10 +660,10 @@ class _PlayButton extends StatelessWidget {
   }
 }
 
-class _MessageInput extends StatelessWidget {
+class MessageInput extends StatelessWidget {
   final ChatController controller;
 
-  const _MessageInput({required this.controller});
+  const MessageInput({required this.controller});
 
   @override
   Widget build(BuildContext context) {
@@ -680,7 +681,7 @@ class _MessageInput extends StatelessWidget {
             if (controller.hasReply) _ReplyPreview(controller: controller),
             Row(
               children: [
-                Expanded(child: _MessageTextField(controller: controller)),
+                Expanded(child: MessageTextField(controller: controller,)),
                 const SizedBox(width: 8),
                 _AttachButton(controller: controller),
                 _MicToggleButton(controller: controller),
@@ -742,10 +743,13 @@ class _ReplyPreview extends StatelessWidget {
   }
 }
 
-class _MessageTextField extends StatelessWidget {
+class MessageTextField extends StatelessWidget {
   final ChatController controller;
+  void Function(String value)?onchange;
+  final VoidCallback? ontape;
 
-  const _MessageTextField({required this.controller});
+
+   MessageTextField({required this.controller, this.onchange,this.ontape});
 
   @override
   Widget build(BuildContext context) {
@@ -754,10 +758,12 @@ class _MessageTextField extends StatelessWidget {
         color: Colors.grey[850],
         borderRadius: BorderRadius.circular(30),
       ),
-      child: TextField(
+      child: TextFormField(
         controller: controller.messageController,
         focusNode: controller.focusNode,
-        onTap: controller.hideAudioRecord,
+
+        onTap: ontape,
+        onChanged: onchange,
         style: const TextStyle(color: Colors.black),
         decoration: const InputDecoration(
           hintText: 'Message...',

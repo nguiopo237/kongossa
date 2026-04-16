@@ -10,6 +10,7 @@ import '../authentification/auth_controlleur.dart';
 import '../chat_controlleur/chat_controlleur.dart';
 import '../publish_element/PublishControlleur.dart';
 import '../sms_controller/sms_controlleur.dart';
+import '../soryviewcontrolleur/soryControlleur.dart';
 import '../splashcontrolleur/splashscreen_controlleur.dart';
 import '../video_service.dart';
 
@@ -22,6 +23,7 @@ class AppControllers {
      Get.lazyPut(() => AuthController(), fenix: true);
      Get.lazyPut(() => SplashController(), fenix: true);
      Get.lazyPut(() => SmsController(), fenix: true);
+     Get.lazyPut(() => StoryViewerController(initialIndex: 1, stories: []), fenix: true);
      // Get.lazyPut(() => ChatController(receiverId: '989', receiverName: ''), fenix: true);
      Get.lazyPut(() => MemberService(), fenix: true);
      Get.lazyPut(() => CreatePostPremiumController (), fenix: true);

@@ -10,6 +10,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:kongossa/screens/authentification.dart';
 import 'package:kongossa/screens/onboding/onboding_screen.dart';
 import 'package:kongossa/screens/splashscreen/splaschsreen.dart';
+import 'package:kongossa/screens/storywindows/storieview.dart';
 import 'package:kongossa/sevice/call_API/zegocloud/interface_call.dart';
 import 'package:kongossa/sevice/call_API/zegocloud/interface_receive.dart';
 import 'package:kongossa/sevice/controlleur/appcontrolleur/app_controlleur.dart';
@@ -685,8 +686,6 @@ void main() async {
 }
 
 Future<void> initializeApp() async {
-
-
   // Initialize Firebase with error handling
   try {
 
@@ -774,10 +773,13 @@ class MyApp extends StatelessWidget {
             useMaterial3: true,
           ),
           // enableLog: false,
-          defaultGlobalState: true,
-          onInit: () => authController.getUserInfoocally(),
+          defaultGlobalState: false,
+          useInheritedMediaQuery: true,
+
+         onInit: () => authController.getUserInfoocally(),
           // home: HomeCall(),
-          home: SplashScreen(),
+         home: SplashScreen(),
+          // home:  HomeScreen(),
           // home: HomePage(),
           // home: VideoEditorExample(),
           // home: VideoEditorExample(),

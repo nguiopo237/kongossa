@@ -10,6 +10,8 @@ import 'package:kongossa/presentation/component/style/custum_text.dart';
 import 'package:kongossa/presentation/component/widget/appbar.dart';
 import 'package:kongossa/presentation/component/widget/widget_component.dart';
 import 'package:kongossa/screens/home/part_of_home/tending_section.dart';
+import 'package:kongossa/screens/storywindows/stories_widget.dart';
+import 'package:kongossa/screens/storywindows/storieview.dart';
 import 'package:mime/mime.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:path/path.dart' as path;
@@ -22,12 +24,13 @@ import 'package:video_thumbnail/video_thumbnail.dart';
 import '../../config_App/colorsApp.dart';
 import '../../main.dart';
 import '../../model/datamodel/membermodel.dart';
+import '../../model/datamodel/storyModels.dart';
 import '../../model/datamodel/story_model.dart';
 import '../../model/datamodel/user_model.dart';
 import '../../presentation/component/image_component/image.dart';
 import '../../presentation/component/video_component/comment_video.dart';
 import '../../presentation/component/video_component/tiktok_player_video.dart';
-import '../../presentation/component/widget/add_story.dart';
+import '../../presentation/component/widget/add_story.dart' hide StoryMediaType;
 import '../../presentation/component/widget/builoption.dart';
 import '../../presentation/component/widget/collaboration.dart';
 import '../../presentation/component/widget/component_for_post/option_card.dart';
@@ -51,7 +54,6 @@ class _ModernHomePageState extends State<ModernHomePage>
 
   // Variables pour les stories
 
-
   @override
   void initState() {
     super.initState();
@@ -68,24 +70,26 @@ class _ModernHomePageState extends State<ModernHomePage>
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
-      onWillPop: ()async {
-        final shouldPop = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text('Quitter'),
-            content: Text('Voulez-vous vraiment quitter ?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text('Non'),
+      onWillPop: () async {
+        final shouldPop =
+            await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: Text('Quitter'),
+                content: Text('Voulez-vous vraiment quitter ?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: Text('Non'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: Text('Oui'),
+                  ),
+                ],
               ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: Text('Oui'),
-              ),
-            ],
-          ),
-        ) ?? false;
+            ) ??
+            false;
         return shouldPop;
       },
       child: Scaffold(
@@ -236,6 +240,7 @@ class _ModernHomePageState extends State<ModernHomePage>
       children: [
         Stack(
           children: [
+            // HomeScreen(),
             StoryCircle(
               onTap: () {},
               userStory: UserStory(
@@ -280,7 +285,7 @@ class _ModernHomePageState extends State<ModernHomePage>
                 },
                 child: CircleAvatar(
                   radius: 1.7.h,
-                  child: Icon(Icons.add, color: Colors.white),
+                  child: Icon(Icons.add, color: Colors.red),
                   backgroundColor: ColorApp.primary1,
                 ),
               ),
@@ -383,10 +388,10 @@ class _ModernHomePageState extends State<ModernHomePage>
     }
   }
 
-   getVideoThumbnail(String videoUrl) async {
+  getVideoThumbnail(String videoUrl) async {
     // Vérifier le cache
-     final Map<String, String?> _thumbnailCache = {};
-     final Map<String, Future<String?>> _thumbnailFutures = {};
+    final Map<String, String?> _thumbnailCache = {};
+    final Map<String, Future<String?>> _thumbnailFutures = {};
     if (_thumbnailCache.containsKey(videoUrl)) {
       return _thumbnailCache[videoUrl];
     }
@@ -415,18 +420,13 @@ class _ModernHomePageState extends State<ModernHomePage>
 
   Widget _buildStoriesSection() {
     return Container(
-      height: 12.h,
+      height: 18.h,
       color: Colors.white,
-      child: StreamBuilder<List<QueryDocumentSnapshot<Object?>>>(
-        stream:
-            Story.where(
-              "expiresAt",
-              isGreaterThanOrEqualTo: DateTime.now().toUtc(),
-            ).orderBy("createdAt", descending: true).snapshots().map((
-              snapshot,
-            ) {
-              return snapshot.docs;
-            }),
+      child: StreamBuilder(
+        stream: Story.where(
+          "expiresAt",
+          isGreaterThanOrEqualTo: DateTime.now(),
+        ).orderBy("createdAt", descending: true).snapshots(),
         builder: (context, snapshot) {
           // Gestion des différents états du stream
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -437,154 +437,16 @@ class _ModernHomePageState extends State<ModernHomePage>
             return _buildErrorStories(snapshot.error.toString());
           }
 
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return _buildEmptyStories();
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return StoriesviewWidgets(story: []);
           }
 
-          final stories = snapshot.data!;
-          String Image="";
-
-
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                Stack(
-                  children: [
-                    StoryCircle(
-                      onTap: () {},
-                      userStory: UserStory(
-                        userId: AppUser.info!.googleId,
-                        username: AppUser.info!.displayName,
-                        userAvatarUrl: AppUser.info!.photoUrl!,
-                        stories: [],
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 1.h,
-                      right: 2.w,
-                      child: InkWell(
-                        onTap: () {
-                          WidgetComponent.getmodal(
-                            sectionview: Row(
-                              children: [
-                                Expanded(
-                                  child: Builoption(
-                                    icon: Icons.photo_camera,
-                                    label: 'Photo',
-                                    onTap: () => c.addImagestory(),
-                                    isActive: true,
-                                    // isActive: controller.attachedImages.isNotEmpty,
-                                    activeColor: Colors.green,
-                                  ),
-                                ),
-                                SizedBox(width: 1.w),
-                                Expanded(
-                                  child: Builoption(
-                                    icon: Icons.videocam,
-                                    label: 'video',
-                                    onTap: () => c.addVideotory(),
-                                    isActive: true,
-                                    // isActive: controller.attachedImages.isNotEmpty,
-                                    activeColor: Colors.purple,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                        child: CircleAvatar(
-                          radius: 1.7.h,
-                          child: Icon(Icons.add, color: Colors.white),
-                          backgroundColor: ColorApp.primary1,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: NeverScrollableScrollPhysics(),
-                  scrollDirection: Axis.horizontal,
-                  padding: EdgeInsets.only(top: 1.h),
-                  // padding: EdgeInsets.symmetric(horizontal: 2.w),
-                  itemCount: stories.length,
-                  itemBuilder: (context, index) {
-                    final story = stories[index];
-                    // return Text(story["mediaUrls"].toString());
-
-
-                    final extension = path
-                        .extension(
-                      List.from(story["mediaUrls"]).firstOrNull.toString(),
-                    )
-                        .toLowerCase();
-                    final mimeType = lookupMimeType(
-                      List.from(story["mediaUrls"]).firstOrNull.toString(),
-                    );
-                    print('   - Extension: $extension');
-                    print('   - MIME Type: $mimeType');
-
-                    // if(mimeType!.contains("video")){
-                    //   Image  =  getVideoThumbnail(List.from(
-                    //     story["mediaUrls"],
-                    //   ).first.toString());
-                    // }
-
-                    return StoryCircle(
-                      onTap: () {
-                        final extension = path
-                            .extension(
-                              List.from(story["mediaUrls"]).firstOrNull.toString(),
-                            )
-                            .toLowerCase();
-                        final mimeType = lookupMimeType(
-                          List.from(story["mediaUrls"]).first.toString(),
-                        );
-                        print('   - Extension: $extension');
-                        print('   - MIME Type: $mimeType');
-                        if (mimeType!.contains("image")) {
-                          WidgetComponent.getmodal(
-                            sectionview: Container(
-                              height: Get.height,
-                              color: Colors.black,
-                              child: CustomImage(
-                                type: ImageType.cachedNetwork,
-                                fit: BoxFit.contain,
-                                source: List.from(
-                                  story["mediaUrls"],
-                                ).first.toString(),
-                              ),
-                            ),
-                          );
-                        } else {
-                          WidgetComponent.getmodal(
-                            sectionview: Container(
-                              height: Get.height,
-                              width: double.infinity,
-                              color: Colors.black,
-                              child: _buildPostvideo(
-                                List.from(story["mediaUrls"]).first.toString(),
-                                story['id'],
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                      userStory: UserStory(
-                        userId: story["userId"],
-                        username: AppUser.info!.displayName,
-                        userAvatarUrl:   List.from(
-                          story["mediaUrls"],
-                        ).firstOrNull.toString(),
-                        stories: [],
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          );
+          final List<QueryDocumentSnapshot> docs = snapshot.data!.docs;
+          final List<StoryModel> stories = docs.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return StoryModel.fromMap(data);
+          }).toList();
+          return StoriesviewWidgets(story: stories);
         },
       ),
     );

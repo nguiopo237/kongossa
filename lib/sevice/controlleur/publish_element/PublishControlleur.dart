@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:kongossa/presentation/component/widget/widget_component.dart';
 import 'package:path/path.dart' as path;
 
+import '../../../model/datamodel/storyModels.dart';
 import '../../../model/datamodel/story_model.dart';
 import '../../../model/datamodel/user_model.dart';
 import '../../../screens/mymember/chatpage.dart';
@@ -14,8 +15,11 @@ import '../../../sevice/upload/compress_video.dart';
 import '../../../sevice/upload/select_image.dart';
 import '../../../sevice/upload/upload_cloud.dart';
 import '../../../../main.dart';
+import '../../storie_service/storie_service.dart';
 import '../video_size.dart';
+
 CreatePostPremiumController c = Get.find();
+
 class CreatePostPremiumController extends GetxController
     with StateMixin<dynamic> {
   // Contrôleurs et Focus
@@ -33,7 +37,10 @@ class CreatePostPremiumController extends GetxController
   final RxBool hasLocation = false.obs;
   final RxString locationName = 'Paris, France'.obs;
   final RxBool tagPeople = false.obs;
-  final RxList<String> taggedPeople = <String>['Marie Dupont', 'Jean Martin'].obs;
+  final RxList<String> taggedPeople = <String>[
+    'Marie Dupont',
+    'Jean Martin',
+  ].obs;
   final RxBool isFeeling = false.obs;
   final RxString selectedFeeling = ''.obs;
   final RxBool isPoll = false.obs;
@@ -56,6 +63,7 @@ class CreatePostPremiumController extends GetxController
   // Services
   // final NativeVideoCompressService compress = NativeVideoCompressService();
   final UniversalCloudinaryUploader uploader = UniversalCloudinaryUploader();
+  final StoryService storyservice = StoryService();
 
   // Timers
   Timer? _textFieldTimer;
@@ -87,7 +95,8 @@ class CreatePostPremiumController extends GetxController
   }
 
   void updateContent() {
-    final hasContentNow = postController.text.isNotEmpty ||
+    final hasContentNow =
+        postController.text.isNotEmpty ||
         attachedImages.isNotEmpty ||
         attachedVideos.isNotEmpty;
 
@@ -102,18 +111,22 @@ class CreatePostPremiumController extends GetxController
   }
 
   void loadUserData() {
-    Users.where('googleId', isEqualTo: AppUser.info?.googleId)
-        .snapshots()
-        .listen((querySnapshot) {
-      if (querySnapshot.docs.isNotEmpty) {
-        userData.value = querySnapshot.docs.first;
+    Users.where(
+      'googleId',
+      isEqualTo: AppUser.info?.googleId,
+    ).snapshots().listen(
+      (querySnapshot) {
+        if (querySnapshot.docs.isNotEmpty) {
+          userData.value = querySnapshot.docs.first;
+          isLoadingUser.value = false;
+          change(null, status: RxStatus.success());
+        }
+      },
+      onError: (error) {
         isLoadingUser.value = false;
-        change(null, status: RxStatus.success());
-      }
-    }, onError: (error) {
-      isLoadingUser.value = false;
-      change(null, status: RxStatus.error('Erreur de chargement: $error'));
-    });
+        change(null, status: RxStatus.error('Erreur de chargement: $error'));
+      },
+    );
   }
 
   void toggleAudience() {
@@ -169,11 +182,6 @@ class CreatePostPremiumController extends GetxController
     return uploadedUrlstory;
   }
 
-
-
-
-
-
   Future<void> addImagestory() async {
     attachedImages.clear();
     attachedVideos.clear();
@@ -184,26 +192,43 @@ class CreatePostPremiumController extends GetxController
       Get.back();
       attachedImages.add(pickedFile!.first.path);
       List<String> uploadedUrls = await uploadFilesstory();
-
-      // 🕐 Dates en UTC + format Timestamp Firestore
-      final now = Timestamp.now(); // Équivalent à DateTime.now().toUtc() en Timestamp
+      print("start");
+     // 🕐 Dates en UTC + format Timestamp Firestore
+      final now =
+          Timestamp.now(); // Équivalent à DateTime.now().toUtc() en Timestamp
       final expires = Timestamp.fromDate(
-          DateTime.now().toUtc().add(const Duration(hours: 24))
+        DateTime.now().toUtc().add(const Duration(hours: 24)),
       );
 
-      final datastory = SocialStatus(
-        id: AppUser.info!.googleId,
-        userId: AppUser.info!.userI,
-        content: '',
-        mediaUrls: uploadedUrls,
-        createdAt: now,        // ✅ Timestamp
-        updatedAt: DateTime.now(),        // ✅ Timestamp
-        expiresAt: expires,    // ✅ Timestamp
-      );
 
-      await Story.add(datastory.toJson());
+      List<StoryItem> items = [
+        StoryItem(
+          id: AppUser.info!.googleId,
+          mediaUrl: uploadedUrls.first.toString(),
+          mediaType: StoryMediaType.image, // ✅ Timestamp
+        ),
+      ];
+      print("check user");
+      final storie = StoryModel(
+        id: AppUser.info!.userI,
+        userName: AppUser.info!.displayName,
+        userAvatar: AppUser.info!.photoUrl!,
+        stories: items,
+        timestamp:(now as Timestamp).toDate(),// ✅ Timestamp
+        createdAt: (now as Timestamp).toDate(), // ✅ Timestamp
+        updatedAt: (now as Timestamp).toDate(), // ✅ Timestamp
+        expiresAt: (expires as Timestamp).toDate(),
+      );
+      print("voici la storie 2.0");
+      print(storie.timestamp);
+      print(storie.expiresAt);
+      print(DateTime.now().add(const Duration(hours: 24)));
+      print("add to story");
+      await storyservice.addStory(storie);
+      // await Story.add(datastory.toJson());
     }
   }
+
   Future<void> addVideotory() async {
     attachedImages.clear();
     attachedVideos.clear();
@@ -215,23 +240,32 @@ class CreatePostPremiumController extends GetxController
       attachedVideos.add(pickedFile!.first.path);
       List<String> uploadedUrls = await uploadFilesstory();
 
-      // 🕐 Dates en UTC + format Timestamp Firestore
-      final now = Timestamp.now(); // Équivalent à DateTime.now().toUtc() en Timestamp
-      final expires = Timestamp.fromDate(
-          DateTime.now().toUtc().add(const Duration(hours: 24))
+      List<StoryItem> items = [
+        StoryItem(
+          id: AppUser.info!.googleId,
+          mediaUrl: uploadedUrls.first.toString(),
+          mediaType: StoryMediaType.video,
+          // createdAt: DateTime.now(),        // ✅ Timestamp
+          // updatedAt: DateTime.now(),        // ✅ Timestamp
+          // expiresAt: DateTime.now().toUtc().add(const Duration(hours: 24),    // ✅ Timestamp
+          // ),
+        ),
+      ];
+
+      final storie = StoryModel(
+        id: AppUser.info!.userI,
+        userName: AppUser.info!.displayName,
+        userAvatar: AppUser.info!.photoUrl!,
+        stories: items,
+        createdAt: DateTime.now(), // ✅ Timestamp
+        updatedAt: DateTime.now(), // ✅ Timestamp
+        expiresAt: DateTime.now().toUtc().add(const Duration(hours: 24)),
       );
 
-      final datastory = SocialStatus(
-        id: AppUser.info!.googleId,
-        userId: AppUser.info!.userI,
-        content: '',
-        mediaUrls: uploadedUrls,
-        createdAt: now,        // ✅ Timestamp
-        updatedAt: DateTime.now(),        // ✅ Timestamp
-        expiresAt: expires,    // ✅ Timestamp
-      );
-
-      await Story.add(datastory.toJson());
+      print("voici la stori");
+      print(storie.stories);
+      print("voici la stori");
+      await storyservice.addStory(storie);
     }
   }
 
@@ -240,8 +274,12 @@ class CreatePostPremiumController extends GetxController
     attachedVideos.clear();
     final pickedFile = await SelectImage.uploadMultipleVideo();
     if (pickedFile?.isNotEmpty == true) {
-
-      WidgetComponent.getmodal(sectionview: Container(height: Get.height,child: VideoEditor(file: File(pickedFile!.first.path),),));
+      WidgetComponent.getmodal(
+        sectionview: Container(
+          height: Get.height,
+          child: VideoEditor(file: File(pickedFile!.first.path)),
+        ),
+      );
       // Note: Le VideoEditor doit être géré dans la vue
       // for (var element in pickedFile!) {
       //   attachedVideos.add(element.path);
@@ -276,7 +314,7 @@ class CreatePostPremiumController extends GetxController
         'noconnect'.tr,
         backgroundColor: Colors.red,
         colorText: Colors.white,
-        snackPosition: SnackPosition.TOP
+        snackPosition: SnackPosition.TOP,
       );
       return;
     }
@@ -296,12 +334,11 @@ class CreatePostPremiumController extends GetxController
       hasContent.value = false;
       load.value = true;
 
-
       // Vérification du titre existant
-      QuerySnapshot existingPosts = await Posts
-          .where('postData.posttitle', isEqualTo: postTitle)
-          .where('userData.googleId', isEqualTo: AppUser.info!.googleId)
-          .get();
+      QuerySnapshot existingPosts = await Posts.where(
+        'postData.posttitle',
+        isEqualTo: postTitle,
+      ).where('userData.googleId', isEqualTo: AppUser.info!.googleId).get();
 
       if (existingPosts.docs.isNotEmpty) {
         showNotification(
@@ -365,7 +402,10 @@ class CreatePostPremiumController extends GetxController
     return uploadedUrls;
   }
 
-  Future<void> createPostDocument(String postTitle, List<String> uploadedUrls) async {
+  Future<void> createPostDocument(
+    String postTitle,
+    List<String> uploadedUrls,
+  ) async {
     final userDataMap = {
       'email': AppUser.info!.email,
       'googleId': AppUser.info!.googleId,

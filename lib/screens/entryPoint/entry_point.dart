@@ -4,18 +4,13 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:kongossa/main.dart';
-import 'package:kongossa/model/datamodel/user_model.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:rive/rive.dart' hide RadialGradient, LinearGradient;
-
-// import 'package:rive_animation/constants.dart';
-// import 'package:rive_animation/screens/home/home_screen.dart';
-// import 'package:rive_animation/utils/rive_utils.dart';
 
 import '../../config_App/colorsApp.dart';
 import '../../config_App/image.dart';
 import '../../constants.dart';
+import '../../model/datamodel/user_model.dart';
 import '../../model/menu.dart';
 import '../../presentation/component/widget/bottom_navigation.dart';
 import '../../presentation/component/widget/component_for_post/create_post_widget.dart';
@@ -41,48 +36,39 @@ class EntryPoint extends StatefulWidget {
 
 class _EntryPointState extends State<EntryPoint>
     with SingleTickerProviderStateMixin {
-  bool isSideBarOpen = false;
+  // ==================== CONSTANTES ====================
+  static const int _sidebarWidth = 288;
+  static const int _sidebarClosedOffset = -288;
+  static const double _menuButtonOffset = 220;
+  static const double _scaleEndValue = 0.8;
+  static const double _rotationAngle = 30;
+  static const Duration _animationDuration = Duration(milliseconds: 200);
 
+  // ==================== VARIABLES D'ÉTAT ====================
+  bool isSideBarOpen = false;
   Menu selectedBottonNav = bottomNavItems.first;
   Menu selectedSideMenu = sidebarMenus.first;
-
   late SMIBool isMenuOpenInput;
 
-  void updateSelectedBtmNav(Menu menu) {
-    if (selectedBottonNav != menu) {
-      setState(() {
-        selectedBottonNav = menu;
-      });
-    }
-  }
-
+  // ==================== CONTROLEURS D'ANIMATION ====================
   late AnimationController _animationController;
-  late Animation<double> scalAnimation;
+  late Animation<double> scaleAnimation;
   late Animation<double> animation;
 
+  // ==================== GETTERS ====================
+  num get _sidebarLeftPosition => isSideBarOpen ? 0 : _sidebarClosedOffset;
+  double get _menuButtonLeftPosition => isSideBarOpen ? _menuButtonOffset : 0;
+  double get _transformOffset => animation.value ;
+ // double get _transformOffset => animation.value * _sidebarWidth - _sidebarClosedOffset;
+  bool get _isAnimationStarted => _animationController.value == 0;
+
+  // ==================== CYCLE DE VIE ====================
   @override
   void initState() {
-    Connexioncheck.getConnectivity(Get.context);
-    _animationController =
-        AnimationController(
-          vsync: this,
-          duration: const Duration(milliseconds: 200),
-        )..addListener(() {
-          setState(() {});
-        });
-    scalAnimation = Tween<double>(begin: 1, end: 0.8).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.fastOutSlowIn,
-      ),
-    );
-    animation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.fastOutSlowIn,
-      ),
-    );
     super.initState();
+    _initializeConnectivity();
+    _initializeAnimationController();
+    _initializeAnimations();
   }
 
   @override
@@ -91,241 +77,167 @@ class _EntryPointState extends State<EntryPoint>
     super.dispose();
   }
 
+  // ==================== MÉTHODES PRIVÉES ====================
+  void _initializeConnectivity() {
+    Connexioncheck.getConnectivity(Get.context);
+  }
+
+  void _initializeAnimationController() {
+    _animationController = AnimationController(
+      vsync: this,
+      duration: _animationDuration,
+    )..addListener(() {
+      setState(() {});
+    });
+  }
+
+  void _initializeAnimations() {
+    scaleAnimation = Tween<double>(begin: 1, end: _scaleEndValue).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.fastOutSlowIn,
+      ),
+    );
+
+    animation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.fastOutSlowIn,
+      ),
+    );
+  }
+
+  void _toggleSideMenu() {
+    isMenuOpenInput.value = !isMenuOpenInput.value;
+
+    if (_isAnimationStarted) {
+      _animationController.forward();
+    } else {
+      _animationController.reverse();
+    }
+
+    setState(() {
+      isSideBarOpen = !isSideBarOpen;
+    });
+  }
+
+  Widget _buildMainContent() {
+    return Obx(() {
+      final currentIndex = authController.indexpage.value;
+
+      switch (currentIndex) {
+        case 0:
+          return const ModernHomePage();
+        case 1:
+          return  FriendFeedScreen();
+        case 2:
+          return const CreatePostPremiumView();
+        case 3:
+          return const MembersPageTikTok();
+        case 4:
+          return PremiumProfileScreen(
+            userId: AppUser.info!.googleId,
+            avatarUrl: AppUser.info!.photoUrl,
+            displayName: AppUser.info!.displayName,
+            username: AppUser.info!.displayName,
+            mail: "${AppUser.info!.email}",
+            bio: "${AppUser.info?.bio ?? "Créateur de contenu | Digital Creator ✨\nCollaborations"}  📩 ${AppUser.info!.email}",
+          );
+        default:
+          return const ModernHomePage();
+      }
+    });
+  }
+
+  Matrix4 _buildTransformMatrix() {
+    return Matrix4.identity()
+      ..setEntry(3, 2, 0.001)
+      ..rotateY(1 * animation.value - _rotationAngle * animation.value * pi / 180);
+  }
+
+  void _onMenuButtonPressed() {
+    _toggleSideMenu();
+  }
+
+  void _onRiveInit(Artboard artboard) {
+    final controller = StateMachineController.fromArtboard(
+      artboard,
+      "State Machine",
+    );
+    artboard.addController(controller!);
+    isMenuOpenInput = controller.findInput<bool>("isOpen") as SMIBool;
+    isMenuOpenInput.value = true;
+  }
+
+  // ==================== BUILD WIDGETS ====================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-
       resizeToAvoidBottomInset: false,
-      // backgroundColor: ColorApp.primary5,
-      body: Container(
-        height: Get.height,
-        decoration: BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage(Consticon.background),
-            fit: BoxFit.cover,
-          ),
-        ),
-        child: Stack(
-          children: [
-            AnimatedPositioned(
-              width: 288,
-              height:Get.height,
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.fastOutSlowIn,
-              left: isSideBarOpen ? 0 : -288,
-              top: 0,
-              child: const SideBar(),
-            ),
-            Transform(
-              alignment: Alignment.center,
-              transform: Matrix4.identity()
-                ..setEntry(3, 2, 0.001)
-                ..rotateY(
-                  1 * animation.value - 30 * (animation.value) * pi / 180,
-                ),
-              child: Transform.translate(
-                offset: Offset(animation.value * 265, 0),
-                child: Transform.scale(
-                  scale: scalAnimation.value,
-                  child:  ClipRRect(
-                    borderRadius: BorderRadius.all(Radius.circular(24)),
-                    // child: FriendFeedScreen(),
-                    child: Obx(() {
-                      if (authController.indexpage.value == 0) {
-                        return ModernHomePage();
-                      }
-                      if (authController.indexpage.value == 1) {
-                        return FriendFeedScreen();
-
-
-                      }
-                      if (authController.indexpage.value == 2) {
-                        return  CreatePostPremiumView();
-                      }
-                      if (authController.indexpage.value == 3) {
-                        return  MembersPageTikTok (
-
-                        );
-                      }   if (authController.indexpage.value == 4) {
-                        return  PremiumProfileScreen (
-                          userId: AppUser.info!.googleId,
-                          avatarUrl: AppUser.info!.photoUrl,
-                          displayName: AppUser.info!.displayName,
-                          username: AppUser.info!.displayName,
-                          mail: "${AppUser.info!.email}",
-                          bio: "${AppUser.info?.bio??"Créateur de contenu | Digital Creator ✨\nCollaborations"}  📩 ${AppUser.info!.email}",
-
-                        );
-                      }
-                      return ModernHomePage(); // ou un autre widget par défaut
-                    }),
-                  ),
-                ),
-              ),
-            ),
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.fastOutSlowIn,
-              left: isSideBarOpen ? 220 : 0,
-              top: 16,
-              child: MenuBtn(
-                press: () {
-                  isMenuOpenInput.value = !isMenuOpenInput.value;
-
-                  if (_animationController.value == 0) {
-                    _animationController.forward();
-                  } else {
-                    _animationController.reverse();
-                  }
-
-                  setState(() {
-                    isSideBarOpen = !isSideBarOpen;
-                  });
-                },
-                riveOnInit: (artboard) {
-                  final controller = StateMachineController.fromArtboard(
-                    artboard,
-                    "State Machine",
-                  );
-
-                  artboard.addController(controller!);
-
-                  isMenuOpenInput =
-                      controller.findInput<bool>("isOpen") as SMIBool;
-                  isMenuOpenInput.value = true;
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-
-      bottomNavigationBar: KongossaTikTokNavBar(),
+      body: _buildBody(),
+      bottomNavigationBar:  KongossaTikTokNavBar(),
     );
   }
 
-  Widget _buildNeonNavItem({
-    required Menu navBar,
-    required int index,
-    required bool isSelected,
-  }) {
-    return Expanded(
-      child: TweenAnimationBuilder(
-        tween: Tween<double>(begin: 0, end: isSelected ? 1 : 0),
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeOutBack,
-        builder: (context, double value, child) {
-          return GestureDetector(
-            onTap: () {
-              print("object");
-              RiveUtils.chnageSMIBoolState(navBar.rive.status!);
-              updateSelectedBtmNav(navBar);
-              HapticFeedback.selectionClick();
-            },
-            child: Container(
-              // padding: EdgeInsets.symmetric(vertical: 0.8.h),
-              decoration: BoxDecoration(
-                gradient: isSelected
-                    ? LinearGradient(
-                        colors: [
-                          ColorApp.primary1.withOpacity(0.2 + value * 0.3),
-                          ColorApp.primary2.withOpacity(0.1 + value * 0.2),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      )
-                    : null,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Icône avec effet 3D
-                  Transform(
-                    transform: Matrix4.identity()
-                      ..setEntry(3, 2, 0.001)
-                      ..rotateY(isSelected ? 0.2 : 0)
-                      ..rotateX(isSelected ? 0.1 : 0),
-                    alignment: Alignment.center,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      padding: EdgeInsets.all(isSelected ? 2.w : 1.5.w),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                  color: ColorApp.primary1.withOpacity(0.6),
-                                  blurRadius: 15,
-                                  spreadRadius: 5 * value,
-                                ),
-                                BoxShadow(
-                                  color: Colors.white.withOpacity(0.3),
-                                  blurRadius: 10,
-                                  spreadRadius: -2,
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: ShaderMask(
-                        shaderCallback: (bounds) {
-                          return LinearGradient(
-                            colors: isSelected
-                                ? [Colors.red, const Color(0xFFE0E0E0)]
-                                : [ColorApp.primary3, ColorApp.primary3],
-                          ).createShader(bounds);
-                        },
-                        child: SizedBox(
-                          // height: 20.h,
-                          // width: 20.w,
-                          child: BtmNavItem(
-                            navBar: navBar,
-                            press: () {},
-                            riveOnInit: (artboard) {
-                              navBar.rive.status = RiveUtils.getRiveInput(
-                                artboard,
-                                stateMachineName: navBar.rive.stateMachineName,
-                              );
-                            },
-                            selectedNav: selectedBottonNav,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+  Widget _buildBody() {
+    return Container(
+      height: Get.height,
+      decoration: BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage(Consticon.background),
+          fit: BoxFit.cover,
+        ),
+      ),
+      child: Stack(
+        children: [
 
-                  SizedBox(height: 0.8.h),
+          _buildMainContainer(),
+          _buildSidebar(),
+          _buildMenuButton(),
+        ],
+      ),
+    );
+  }
 
-                  // Label avec animation
-                  AnimatedDefaultTextStyle(
-                    duration: const Duration(milliseconds: 300),
-                    style: TextStyle(
-                      fontSize: isSelected ? 11.sp : 10.sp,
-                      fontWeight: isSelected
-                          ? FontWeight.w700
-                          : FontWeight.w500,
-                      color: isSelected
-                          ? Colors.white
-                          : ColorApp.primary3.withOpacity(0.8),
-                      letterSpacing: 0.5,
-                      shadows: isSelected
-                          ? [
-                              Shadow(
-                                color: ColorApp.primary1.withOpacity(0.5),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ]
-                          : null,
-                    ),
-                    child: Text(navBar.title, textAlign: TextAlign.center),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
+  Widget _buildSidebar() {
+    return AnimatedPositioned(
+      width: Get.width/1.5 ,
+      height: Get.height,
+      duration: _animationDuration,
+      curve: Curves.fastOutSlowIn,
+      left: _sidebarLeftPosition.toDouble(),
+      top: 0,
+      child: const SideBar(),
+    );
+  }
+
+  Widget _buildMainContainer() {
+    return Transform(
+      alignment: Alignment.center,
+      transform: _buildTransformMatrix(),
+      child: Transform.translate(
+        offset: Offset(0, 0),
+        child: Transform.scale(
+          scale: scaleAnimation.value,
+          child: ClipRRect(
+            borderRadius: const BorderRadius.all(Radius.circular(24)),
+            child: _buildMainContent(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuButton() {
+    return AnimatedPositioned(
+      duration: _animationDuration,
+      curve: Curves.fastOutSlowIn,
+      left: _menuButtonLeftPosition,
+      top: 16,
+      child: MenuBtn(
+        press: _onMenuButtonPressed,
+        riveOnInit: _onRiveInit,
       ),
     );
   }
