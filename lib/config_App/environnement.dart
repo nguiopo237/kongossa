@@ -1,7 +1,9 @@
-class Env{
-  static String baseurlvideo = "https://res.cloudinary.com/dlzkp9dix";
-  static String baseurlImg = "https://res.cloudinary.com/dlzkp9dix";
-  static String APIkey = "159775225955892";
-  static String APIsecret = "Uu59oh6fY-G2FCA5Yvpvq0b4JYI";
+import 'env_config.dart';
+
+class Env {
+  static String get baseurlvideo => EnvConfig.baseUrlVideo;
+  static String get baseurlImg => EnvConfig.baseUrlImg;
+  static String get APIkey => EnvConfig.cloudinaryApiKey1;
+  static String get APIsecret => EnvConfig.cloudinaryApiSecret1;
 }
 

@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:kongossa/config_App/colorsApp.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 
-import '../../../presentation/component/image_component/image.dart';
-import '../../../presentation/component/style/custum_text.dart';
+import 'package:kongossa/shared/widgets/widgets.dart';
 
 class InfoCard extends StatelessWidget {
   const InfoCard({
@@ -22,11 +21,11 @@ class InfoCard extends StatelessWidget {
       leading: image == ""
           ? CircleAvatar(
               backgroundColor: Colors.white24,
-              child: Icon(CupertinoIcons.person, color: ColorApp.primary1.withOpacity(0.5)),
+              child: Icon(CupertinoIcons.person, color: ColorApp.primary1.withValues(alpha: 0.5)),
             )
           : CustomImage(
               source: image!,
-              type: ImageType.avatar,
+              type: ImageType.circle,
               width: 12.w,
               height: 16.h,
             ),

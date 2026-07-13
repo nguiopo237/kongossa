@@ -2,15 +2,15 @@
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:get/get.dart';
 import 'package:kongossa/config_App/image.dart';
 import 'package:kongossa/model/datamodel/user_model.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../main.dart';
+import '../../sevice/controlleur/firestore_collections_service.dart';
 import '../../model/datamodel/message_model.dart';
-import '../../presentation/component/widget/message_bulble.dart';
-import '../../sevice/controlleur/notification/fcm_service.dart';
+import '../../shared/widgets/message_bulble.dart';
 
 class ChatPageTikTok extends StatefulWidget {
   final String receiverId;
@@ -72,34 +72,33 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
 
   Future<void> markMessagesAsRead(String senderId) async {
     try {
-      print("🔄 Marquage des messages de $senderId comme lus...");
+      debugPrint("🔄 Marking messages from $senderId as read...");
 
-      // Récupérer tous les messages non lus de cet expéditeur
-      QuerySnapshot snapshot = await Sms
+      // Récupérer tous les messages non lus
+      QuerySnapshot snapshot = await FirestoreCollectionsService.sms
           .where("senderId", whereIn: [AppUser.info!.googleId, widget.receiverId])
           .where("receiveId", whereIn: [widget.receiverId, AppUser.info!.googleId])
           .where("isRead", isEqualTo: false)
-          .orderBy("timestamp", descending: false)
-
           .get();
 
       if (snapshot.docs.isEmpty) {
-        print("✅ Aucun message non lu de $senderId");
+        debugPrint("✅ No unread messages from $senderId");
         return;
       }
 
-      print("📨 ${snapshot.docs.length} message(s) non lu(s) trouvé(s)");
+      debugPrint("📨 ${snapshot.docs.length} unread message(s) found");
 
-      // Mettre à jour chaque document
+      // Utiliser un batch pour mettre à jour tous les documents en une seule opération
+      WriteBatch batch = FirebaseFirestore.instance.batch();
       for (var doc in snapshot.docs) {
-        await doc.reference.update({'isRead': true});
-        print("  ✓ Message ${doc.id} marqué comme lu");
+        batch.update(doc.reference, {'isRead': true});
       }
+      await batch.commit();
 
-      print("✅ Tous les messages de $senderId ont été marqués comme lus");
+      debugPrint("✅ All messages from $senderId marked as read (batch)");
 
     } catch (e) {
-      print("❌ Erreur lors du marquage des messages: $e");
+      debugPrint("❌ Error marking messages as read: $e");
     }
   }
 
@@ -140,7 +139,7 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
                   fit: BoxFit.cover,
                   image: AssetImage(Consticon.backgroundsms),
                   colorFilter: ColorFilter.mode(
-                    Colors.black.withOpacity(0.6),
+                    Colors.black.withValues(alpha: 0.6),
                     BlendMode.darken,
                   ),
                 ),
@@ -210,7 +209,7 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
                   ),
                 ),
                 Text(
-                  widget.isOnline ? 'En ligne' : 'Hors ligne',
+                  widget.isOnline ? 'chat.online'.tr : 'chat.offline'.tr,
                   style: TextStyle(
                     fontSize: 12,
                     color: widget.isOnline ? Colors.green : Colors.grey,
@@ -233,7 +232,7 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
     return Container(
       margin: const EdgeInsets.only(right: 4),
       decoration: BoxDecoration(
-        color: Colors.grey[900],
+        color:  Theme.of(context).colorScheme.surfaceContainerHighest,
         shape: BoxShape.circle,
       ),
       child: IconButton(
@@ -248,7 +247,7 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
   // Liste des messages optimisée
   Widget _buildMessagesList() {
     return StreamBuilder<QuerySnapshot>(
-      stream: Sms
+      stream: FirestoreCollectionsService.sms
           .where("senderId", whereIn: [AppUser.info!.googleId, widget.receiverId])
           .where("receiveId", whereIn: [widget.receiverId, AppUser.info!.googleId])
           .orderBy("timestamp", descending: false)
@@ -265,7 +264,7 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
               children: [
                 Icon(Icons.error_outline, color: Colors.red[400]),
                 const SizedBox(height: 8),
-                Text('Erreur de chargement', style: TextStyle(color: Colors.grey[400])),
+                Text('chat.error'.tr, style: TextStyle( color: Theme.of(context).colorScheme.onSurfaceVariant)),
               ],
             ),
           );
@@ -304,7 +303,7 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.grey[900]!.withOpacity(0.8),
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest!.withValues(alpha: 0.8),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -334,18 +333,18 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
           Container(
             width: 100,
             height: 100,
-            decoration: BoxDecoration(color: Colors.grey[900], shape: BoxShape.circle),
+            decoration: BoxDecoration( color: Theme.of(context).colorScheme.surfaceContainerHighest, shape: BoxShape.circle),
             child: const Icon(Icons.chat_bubble_outline, size: 40, color: Colors.grey),
           ),
           const SizedBox(height: 16),
           Text(
-            '👋 Commencez la conversation',
-            style: TextStyle(color: Colors.grey[400], fontSize: 16),
+            'chat.start_conversation'.tr,
+            style: TextStyle( color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16),
           ),
           const SizedBox(height: 8),
           Text(
-            'Envoyez votre premier message à ${widget.receiverName}',
-            style: TextStyle(color: Colors.grey[600], fontSize: 14),
+            'chat.first_message'.tr + '${widget.receiverName}',
+            style: TextStyle( color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
           ),
         ],
       ),
@@ -356,7 +355,7 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
   Widget _buildTikTokMessageInput() {
     return Container(
       padding:  EdgeInsets.symmetric(vertical: 2.h),
-      color: Colors.grey[900],
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -365,7 +364,7 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.grey[850],
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Row(
@@ -379,8 +378,8 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
                       maxLines: 5,
                       minLines: 1,
                       decoration: InputDecoration(
-                        hintText: 'Message...',
-                        hintStyle: TextStyle(color: Colors.grey[600]),
+                        hintText: 'chat.hint'.tr,
+                        hintStyle: TextStyle( color: Theme.of(context).colorScheme.onSurfaceVariant),
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                       ),
@@ -429,7 +428,7 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
       height: 40,
       decoration: const BoxDecoration(shape: BoxShape.circle),
       child: IconButton(
-        icon: Icon(icon, color: Colors.grey[400], size: 20),
+        icon: Icon(icon,  color: Theme.of(context).colorScheme.onSurfaceVariant, size: 20),
         onPressed: onPressed ?? () {},
         padding: EdgeInsets.zero,
       ),
@@ -453,19 +452,18 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey[800],
+                color: Theme.of(context).colorScheme.outlineVariant,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            ...['Rechercher', 'Effacer', 'Bloquer'].map((label) => ListTile(
+            ...[{'key': 'chat.menu.search', 'icon': Icons.search, 'isDanger': false}, {'key': 'chat.menu.clear', 'icon': Icons.delete_outline, 'isDanger': false}, {'key': 'chat.menu.block', 'icon': Icons.block, 'isDanger': true}].map((item) => ListTile(
               leading: Icon(
-                label == 'Rechercher' ? Icons.search :
-                label == 'Effacer' ? Icons.delete_outline : Icons.block,
-                color: label == 'Bloquer' ? Colors.red : Colors.white,
+                item['icon'] as IconData,
+                color: (item['isDanger'] as bool) ? Colors.red : Colors.white,
               ),
               title: Text(
-                label,
-                style: TextStyle(color: label == 'Bloquer' ? Colors.red : Colors.white),
+                (item['key'] as String).tr,
+                style: TextStyle(color: (item['isDanger'] as bool) ? Colors.red : Colors.white),
               ),
               onTap: () => Navigator.pop(context),
             )),
@@ -493,25 +491,20 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey[800],
+                  color: Theme.of(context).colorScheme.outlineVariant,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            ...[
-              {'icon': Icons.photo, 'label': 'Photo', 'color': Colors.blue},
-              {'icon': Icons.videocam, 'label': 'Vidéo', 'color': Colors.green},
-              {'icon': Icons.mic, 'label': 'Audio', 'color': Colors.purple},
-              {'icon': Icons.description, 'label': 'Document', 'color': Colors.orange},
-            ].map((item) => ListTile(
+            ...[{'key': 'chat.attachment.photo', 'icon': Icons.photo, 'color': Colors.blue}, {'key': 'chat.attachment.video', 'icon': Icons.videocam, 'color': Colors.green}, {'key': 'chat.attachment.audio', 'icon': Icons.mic, 'color': Colors.purple}, {'key': 'chat.attachment.document', 'icon': Icons.description, 'color': Colors.orange}].map((item) => ListTile(
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: (item['color'] as Color).withOpacity(0.2),
+                  color: (item['color'] as Color).withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(item['icon'] as IconData, color: item['color'] as Color),
               ),
-              title: Text(item['label'] as String, style: const TextStyle(color: Colors.white)),
+              title: Text((item['key'] as String).tr, style: const TextStyle(color: Colors.white)),
               onTap: () => Navigator.pop(context),
             )),
             const SizedBox(height: 20),
@@ -527,7 +520,7 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
     if (_messageController.text.trim().isEmpty) return;
 
     try {
-      await Sms.add({
+      await FirestoreCollectionsService.sms.add({
         "id": uuid.v4(),
         "content": _messageController.text,
         "timestamp": FieldValue.serverTimestamp(),
@@ -537,7 +530,7 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
         "isRead": false,
       });
 
-      await notif.add({
+      await FirestoreCollectionsService.notif.add({
         "id": uuid.v4(),
         "content": _messageController.text,
         "timestamp": FieldValue.serverTimestamp(),
@@ -554,7 +547,7 @@ class _ChatPageTikTokState extends State<ChatPageTikTok> with TickerProviderStat
 
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Erreur lors de l\'envoi'), backgroundColor: Colors.red),
+        SnackBar(content: Text('chat.send_error'.tr), backgroundColor: Colors.red),
       );
     }
   }

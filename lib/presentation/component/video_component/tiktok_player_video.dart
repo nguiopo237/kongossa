@@ -1,7 +1,5 @@
 import 'dart:io';
 
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
@@ -13,9 +11,9 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 import '../../../model/datamodel/user_model.dart';
 import '../../../screens/profil_screen.dart';
-import '../../../sevice/upload/upload_post.dart';
-import '../image_component/image.dart';
-import '../widget/widget_component.dart';
+import '../../../utils/transitions.dart';
+import 'package:kongossa/sevice/upload/upload.dart';
+import 'package:kongossa/shared/widgets/widgets.dart';
 import 'comment_video.dart';
 
 class TikTokVideoPlayer extends StatefulWidget {
@@ -86,7 +84,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
     _likeCount = widget.likes;
     _isLiked = widget.alllike?.contains(AppUser.info?.googleId) ?? false;
 
-    debugPrint("📹 Initialisation vidéo: ${widget.videoUrl}");
+    debugPrint("📹 Initializing video: ${widget.videoUrl}");
 
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1000),
@@ -110,13 +108,13 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
       final fileInfo = await DefaultCacheManager().getFileFromCache(cleanUrl);
 
       if (fileInfo != null && fileInfo.file.existsSync()) {
-        debugPrint('✅ Vidéo trouvée en cache');
+        debugPrint('✅ Video found in cache');
         return fileInfo.file;
       }
-      debugPrint('❌ Vidéo non trouvée en cache');
+      debugPrint('❌ Video not found in cache');
       return null;
     } catch (e) {
-      debugPrint('❌ Erreur vérification cache: $e');
+      debugPrint('❌ Cache check error: $e');
       return null;
     }
   }
@@ -126,9 +124,9 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
     try {
       final cleanUrl = _cleanUrl(widget.videoUrl);
       await DefaultCacheManager().downloadFile(cleanUrl);
-      debugPrint('⬇️ Vidéo téléchargée pour le cache');
+      debugPrint('⬇️ Video downloaded for cache');
     } catch (e) {
-      debugPrint('❌ Échec téléchargement cache: $e');
+      debugPrint('❌ Cache download failed: $e');
     }
   }
 
@@ -155,7 +153,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
         // Lecture depuis le réseau
         _controller = VideoPlayerController.networkUrl(Uri.parse(cleanUrl));
         _isUsingCache = false;
-        debugPrint('🌐 Lecture depuis le RÉSEAU');
+        debugPrint('🌐 Streaming from NETWORK');
 
         // Téléchargement en arrière-plan
         _downloadVideoForCache();
@@ -298,7 +296,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
   }
 
   void _onVideoEnded() {
-    debugPrint('📹 Vidéo terminée');
+    debugPrint('📹 Video finished');
     // L'UI affichera automatiquement le bouton replay
   }
 
@@ -437,7 +435,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    _isUsingCache ? 'Chargement du cache...' : 'Chargement...',
+                    _isUsingCache ? 'tiktok.loading_cache'.tr : 'app.loading'.tr,
                     style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 14,
@@ -460,7 +458,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
           end: Alignment.bottomCenter,
           colors: [
             Colors.transparent,
-            Colors.black.withOpacity(0.7),
+            Colors.black.withValues(alpha: 0.7),
           ],
           stops: const [0.7, 1.0],
         ),
@@ -483,7 +481,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
         child: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withValues(alpha: 0.4),
             shape: BoxShape.circle,
           ),
           child: Icon(
@@ -504,7 +502,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black.withValues(alpha: 0.5),
             shape: BoxShape.circle,
           ),
           child: Icon(
@@ -617,7 +615,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                _isFollowing ? 'Suivi' : '+',
+                _isFollowing ? 'tiktok.follow'.tr : '+',
                 style: GoogleFonts.montserrat(
                   color: Colors.white,
                   fontSize: 12,
@@ -645,7 +643,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.4),
+              color: Colors.black.withValues(alpha: 0.4),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 26),
@@ -712,7 +710,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    'Suivre',
+                    'tiktok.follow_btn'.tr,
                     style: GoogleFonts.montserrat(
                       color: Colors.white,
                       fontSize: 11,
@@ -780,7 +778,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
       builder: (context, value, child) {
         if (value.position == value.duration && !value.isPlaying) {
           return Container(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black.withValues(alpha: 0.5),
             child: Center(
               child: IconButton(
                 icon: const Icon(Icons.replay, size: 50, color: Colors.white),
@@ -809,24 +807,23 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer>
         borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
         child: SizedBox(
           height: Get.height / 1.3,
-          child: CommentModal(
-            videoId: widget.id,
-            videoTitle: '',
-          ),
+          // child: CommentModal(
+          //   videoId: widget.id,
+          //   videoTitle: '',
+          // ),
         ),
       ),
     );
   }
 
   void _navigateToProfile() {
-    Get.to(() => PremiumProfileScreen(
+    AppTransitions.toProfile(PremiumProfileScreen(
       userId: widget.uid,
       avatarUrl: widget.profileImage,
       displayName: widget.username,
       username: widget.username,
       mail: widget.mail,
-      bio: widget.bio ??
-          "Créateur de contenu | Digital Creator ✨\nCollaborations 📩 ${widget.mail}",
+      bio: widget.bio ??           'tiktok.bio'.tr + ' 📩 ${widget.mail}',
     ));
   }
 

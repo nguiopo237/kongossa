@@ -8,11 +8,10 @@ import 'package:get/get.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 
 import '../../../config_App/colorsApp.dart';
-import '../../../main.dart';
+import '../firestore_collections_service.dart';
 import '../../../model/datamodel/user_model.dart';
-import '../../../presentation/component/image_component/image.dart';
-import '../../../presentation/component/widget/select_media.dart';
-import '../../../presentation/component/widget/widget_component.dart';
+import '../../../shared/widgets/select_media.dart';
+import 'package:kongossa/shared/widgets/widgets.dart';
 SplashController s = Get.find();
 class SplashController extends GetxController {
   // static SplashController get to => Get.find();
@@ -35,7 +34,7 @@ class SplashController extends GetxController {
         return timestamp.toDate();
       }
     } catch (e) {
-      print('Erreur de conversion timestamp: $e');
+      debugPrint('Timestamp conversion error: $e');
     }
     return DateTime.now();
   }
@@ -68,8 +67,8 @@ class SplashController extends GetxController {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            ColorApp.primary1.withOpacity(0.1),
-            ColorApp.primary2.withOpacity(0.1),
+            ColorApp.primary1.withValues(alpha: 0.1),
+            ColorApp.primary2.withValues(alpha: 0.1),
           ],
         ),
         shape: BoxShape.circle,
@@ -144,7 +143,7 @@ class SplashController extends GetxController {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.green.withOpacity(0.4),
+                      color: Colors.green.withValues(alpha: 0.4),
                       blurRadius: 4,
                       spreadRadius: 1,
                     ),
@@ -185,7 +184,7 @@ class SplashController extends GetxController {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: ColorApp.primary1.withOpacity(0.3),
+                        color: ColorApp.primary1.withValues(alpha: 0.3),
                         blurRadius: 8,
                         spreadRadius: 0,
                       ),
@@ -208,7 +207,7 @@ class SplashController extends GetxController {
 
   Widget buildUserProfile({double ?width = 10, double ?height = 10,uid}) {
     return StreamBuilder(
-      stream: Users.where('googleId', isEqualTo: uid??AppUser.info?.googleId).snapshots(),
+      stream: FirestoreCollectionsService.users.where('googleId', isEqualTo: uid??AppUser.info?.googleId).snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return buildProfileShimmer();
@@ -275,7 +274,7 @@ class SplashController extends GetxController {
       Get.offAllNamed('/onboarding');
 
     } catch (e) {
-      errorMessage.value = 'Erreur d\'initialisation: $e';
+      errorMessage.value = 'Initialization error: $e';
       isLoading.value = false;
     }
   }

@@ -1,18 +1,17 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:kongossa/config_App/colorsApp.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 
-import '../../../main.dart';
+import '../../../sevice/controlleur/firestore_collections_service.dart';
 import '../../../model/datamodel/user_model.dart';
 import '../../../model/menu.dart';
-import '../../../presentation/component/style/custum_text.dart';
-import '../../../presentation/component/widget/select_media.dart';
-import '../../../presentation/component/widget/widget_component.dart';
+import '../../../shared/widgets/select_media.dart';
+import 'package:kongossa/shared/widgets/widgets.dart';
 import '../../../sevice/controlleur/authentification/auth_controlleur.dart';
 import '../../../utils/rive_utils.dart';
 import 'info_card.dart';
-import 'side_menu.dart';
+import 'side_menu.dart' hide PremiumSideMenu;
 
 class SideBar extends StatefulWidget {
   const SideBar({super.key});
@@ -31,7 +30,7 @@ class _SideBarState extends State<SideBar> {
         width: 288,
         height: double.infinity,
         decoration:  BoxDecoration(
-          color: ColorApp.primary5.withOpacity(0.8),
+          color: ColorApp.primary5.withValues(alpha: 0.8),
           borderRadius: BorderRadius.all(Radius.circular(30)),
         ),
         child: DefaultTextStyle(
@@ -42,14 +41,14 @@ class _SideBarState extends State<SideBar> {
               Stack(
                 children: [
                   StreamBuilder(
-                    stream: Users.where('googleId', isEqualTo: AppUser.info?.googleId).snapshots(),
+                    stream: FirestoreCollectionsService.users.where('googleId', isEqualTo: AppUser.info?.googleId).snapshots(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return Center(child: CircularProgressIndicator());
                       } else if (snapshot.hasError) {
                         return Text('Erreur : ${snapshot.error}');
                       } else if (!snapshot.hasData) {
-                        return Text('Pas de données disponibles');
+                        return Text('app.no_data'.tr);
                       } else {
                         final document = snapshot.data!.docs.first;
                         return FittedBox(
@@ -58,7 +57,7 @@ class _SideBarState extends State<SideBar> {
                             width: 288,
                             // height: double.infinity,
                             decoration:  BoxDecoration(
-                              color: ColorApp.primary5.withOpacity(0.8),
+                              color: ColorApp.primary5.withValues(alpha: 0.8),
                               borderRadius: BorderRadius.all(
                                 Radius.circular(30),
                               ),
@@ -96,7 +95,7 @@ class _SideBarState extends State<SideBar> {
                                           },
                                           child: CircleAvatar(
                                             radius: 12,
-                                            backgroundColor: ColorApp.primary2.withOpacity(0.5),
+                                            backgroundColor: ColorApp.primary2.withValues(alpha: 0.5),
                                             child: Icon(
                                               Icons.upload,
                                               size: 12,
@@ -119,8 +118,8 @@ class _SideBarState extends State<SideBar> {
               ),
               Padding(
                 padding: const EdgeInsets.only(left: 24, top: 32, bottom: 16),
-                child: CustomText(
-                  "Browse".toUpperCase(),
+                child:                CustomText(
+                  'sidebar.browse'.tr,
                   type: TextType.headlineSmall,
                   style: TextStyle(color: ColorApp.primary3,fontWeight: FontWeight.bold),
                 ),
@@ -153,8 +152,8 @@ class _SideBarState extends State<SideBar> {
               ),
               Padding(
                 padding: const EdgeInsets.only(left: 24, top: 40, bottom: 16),
-                child: CustomText(
-                  "History".toUpperCase(),
+                child:                CustomText(
+                  'sidebar.history'.tr,
                   type: TextType.headlineSmall,
                   style: TextStyle(color: ColorApp.primary3),
                 ),
@@ -203,7 +202,7 @@ class _SideBarState extends State<SideBar> {
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         CustomText(
-                          "Deconnexion".toUpperCase(),
+                          'sidebar.logout'.tr,
                           type: TextType.headlineSmall,
                           style:
 

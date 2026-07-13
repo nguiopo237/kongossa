@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:get/get_utils/src/extensions/internacionalization.dart';
 import 'package:kongossa/config_App/colorsApp.dart';
 import 'package:rive/rive.dart';
 
@@ -100,9 +101,9 @@ class _SignInFormState extends State<SignInForm> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                "Email",
-                style: TextStyle(
+              Text(
+                'auth.email',
+                style: const TextStyle(
                   color: Colors.black54,
                 ),
               ),
@@ -125,9 +126,9 @@ class _SignInFormState extends State<SignInForm> {
                   ),
                 ),
               ),
-              const Text(
-                "Password",
-                style: TextStyle(
+              Text(
+                'auth.password'.tr,
+                style: const TextStyle(
                   color: Colors.black54,
                 ),
               ),
@@ -173,7 +174,7 @@ class _SignInFormState extends State<SignInForm> {
                    // color: Color(0xFF0e48ab),
                     color: Color(0xFFfb7a05),
                   ),
-                  label: const Text("Sign In",style: TextStyle(fontWeight: FontWeight.bold,fontSize: 25),),
+                  label: Text('auth.sign_in_title'.tr,style: const TextStyle(fontWeight: FontWeight.bold,fontSize: 25)),
                 ),
               ),
             ],

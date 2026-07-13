@@ -4,7 +4,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:kongossa/main.dart';
 import 'package:kongossa/model/datamodel/user_model.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:rive/rive.dart' hide RadialGradient, LinearGradient;
@@ -14,17 +13,16 @@ import 'package:rive/rive.dart' hide RadialGradient, LinearGradient;
 // import 'package:rive_animation/utils/rive_utils.dart';
 
 import '../../config_App/colorsApp.dart';
-import '../../config_App/image.dart';
-import '../../constants.dart';
 import '../../model/menu.dart';
-import '../../presentation/component/widget/bottom_navigation.dart';
-import '../../presentation/component/widget/component_for_post/create_post_widget.dart';
-import '../../presentation/component/widget/widget_component.dart';
+import '../../shared/widgets/bottom_navigation.dart';
+import '../../shared/widgets/component_for_post/create_post_widget.dart';
 import '../../sevice/connection/connectionchecker.dart';
 import '../../sevice/controlleur/authentification/auth_controlleur.dart';
 import '../../utils/rive_utils.dart';
+import '../../shared/widgets/premium_particles.dart';
 import '../collaboration/friend.dart';
-import '../home/home_screen.dart' hide ColorApp;
+import '../home/home_screen.dart';
+import '../live/live_feed_screen.dart';
 import '../mymember/memberpage.dart';
 import '../profil_screen.dart';
 import 'components/btm_nav_item.dart';
@@ -95,15 +93,12 @@ class _EntryPointState extends State<EntryPoint>
     return Scaffold(
       extendBody: true,
       resizeToAvoidBottomInset: false,
-      // backgroundColor: ColorApp.primary5,
-      body: Container(
+      backgroundColor: const Color(0xFF0A0A0A),
+      body: PremiumParticleBackground(
+        config: ParticleThemes.goldPurple,
+        showGradient: true,
+        child: Container(
         height: Get.height,
-        decoration: BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage(Consticon.background),
-            fit: BoxFit.cover,
-          ),
-        ),
         child: Stack(
           children: [
             AnimatedPositioned(
@@ -135,12 +130,6 @@ class _EntryPointState extends State<EntryPoint>
                       }
                       if (authController.indexpage.value == 1) {
                         return FriendFeedScreen();
-
-                         WidgetsBinding.instance.addPostFrameCallback((_) {
-                           if (Get.context != null) {
-                             Get.to(() => FriendFeedScreen());
-                           }
-                         });
                       }
                       if (authController.indexpage.value == 2) {
                         return  CreatePostPremiumScreen();
@@ -149,16 +138,19 @@ class _EntryPointState extends State<EntryPoint>
                         return  MembersPageTikTok (
 
                         );
-                      }   if (authController.indexpage.value == 4) {
+                      }                      if (authController.indexpage.value == 4) {
                         return  PremiumProfileScreen (
-                          userId: AppUser.info!.googleId,
-                          avatarUrl: AppUser.info!.photoUrl,
-                          displayName: AppUser.info!.displayName,
-                          username: AppUser.info!.displayName,
-                          mail: "${AppUser.info!.email}",
-                          bio: "${AppUser.info?.bio??"Créateur de contenu | Digital Creator ✨\nCollaborations"}  📩 ${AppUser.info!.email}",
+                          userId: AppUser.info?.googleId??"0",
+                          avatarUrl: AppUser.info?.photoUrl??"",
+                          displayName: AppUser.info?.displayName??"",
+                          username: AppUser.info?.displayName??"pas dispo",
+                          mail: "${AppUser.info?.email??""}",
+                          bio: "${AppUser.info?.bio??'tiktok.bio'.tr}  📩 ${AppUser.info?.email??""}",
 
                         );
+                      }
+                      if (authController.indexpage.value == 5) {
+                        return const LiveFeedScreen();
                       }
                       return HomePage(); // ou un autre widget par défaut
                     }),
@@ -202,74 +194,7 @@ class _EntryPointState extends State<EntryPoint>
           ],
         ),
       ),
-      // bottomNavigationBar: AnimatedBuilder(
-      //   animation: animation,
-      //   builder: (context, child) {
-      //     return Transform.translate(
-      //       offset: Offset(0, 100 * animation.value),
-      //       child: Container(
-      //         // margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-      //         decoration: BoxDecoration(
-      //           gradient: LinearGradient(
-      //             colors: [
-      //               ColorApp.primary5,
-      //               ColorApp.primary5.withOpacity(0.95),
-      //               ColorApp.primary1.withOpacity(0.1),
-      //             ],
-      //             begin: Alignment.topLeft,
-      //             end: Alignment.bottomRight,
-      //             stops: const [0.1, 0.8, 1.0],
-      //           ),
-      //           // borderRadius: BorderRadius.circular(30),
-      //           border: Border.all(
-      //             color: Colors.white.withOpacity(0.3),
-      //             width: 1.5,
-      //           ),
-      //           boxShadow: [
-      //             BoxShadow(
-      //               color: ColorApp.primary1.withOpacity(0.2),
-      //               offset: const Offset(0, 8),
-      //               blurRadius: 24,
-      //               spreadRadius: 0,
-      //             ),
-      //             BoxShadow(
-      //               color: Colors.black.withOpacity(0.1),
-      //               offset: const Offset(0, 2),
-      //               blurRadius: 8,
-      //               spreadRadius: 0,
-      //             ),
-      //           ],
-      //         ),
-      //         child: ClipRRect(
-      //           borderRadius: BorderRadius.circular(30),
-      //           child: BackdropFilter(
-      //             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-      //             child: Container(
-      //               padding: EdgeInsets.symmetric(vertical: 0.8.h),
-      //               color: Colors.transparent,
-      //               // 👈 TRANSPARENT au lieu de ColorApp.primary5
-      //               child: Padding(
-      //                 padding: EdgeInsets.only(bottom: 1.h),
-      //                 child: Row(
-      //                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      //                   children: List.generate(
-      //                     bottomNavItems.length,
-      //                     (index) => _buildNeonNavItem(
-      //                       navBar: bottomNavItems[index],
-      //                       isSelected:
-      //                           selectedBottonNav == bottomNavItems[index],
-      //                       index: index,
-      //                     ),
-      //                   ),
-      //                 ),
-      //               ),
-      //             ),
-      //           ),
-      //         ),
-      //       ),
-      //     );
-      //   },
-      // ),
+    ),
       bottomNavigationBar: KongossaTikTokNavBar(),
     );
   }
@@ -287,7 +212,7 @@ class _EntryPointState extends State<EntryPoint>
         builder: (context, double value, child) {
           return GestureDetector(
             onTap: () {
-              print("object");
+              debugPrint("object");
               RiveUtils.chnageSMIBoolState(navBar.rive.status!);
               updateSelectedBtmNav(navBar);
               HapticFeedback.selectionClick();
@@ -298,8 +223,8 @@ class _EntryPointState extends State<EntryPoint>
                 gradient: isSelected
                     ? LinearGradient(
                         colors: [
-                          ColorApp.primary1.withOpacity(0.2 + value * 0.3),
-                          ColorApp.primary2.withOpacity(0.1 + value * 0.2),
+                          ColorApp.primary1.withValues(alpha: 0.2 + value * 0.3),
+                          ColorApp.primary2.withValues(alpha: 0.1 + value * 0.2),
                         ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -325,12 +250,12 @@ class _EntryPointState extends State<EntryPoint>
                         boxShadow: isSelected
                             ? [
                                 BoxShadow(
-                                  color: ColorApp.primary1.withOpacity(0.6),
+                                  color: ColorApp.primary1.withValues(alpha: 0.6),
                                   blurRadius: 15,
                                   spreadRadius: 5 * value,
                                 ),
                                 BoxShadow(
-                                  color: Colors.white.withOpacity(0.3),
+                                  color: Colors.white.withValues(alpha: 0.3),
                                   blurRadius: 10,
                                   spreadRadius: -2,
                                 ),
@@ -376,19 +301,19 @@ class _EntryPointState extends State<EntryPoint>
                           : FontWeight.w500,
                       color: isSelected
                           ? Colors.white
-                          : ColorApp.primary3.withOpacity(0.8),
+                          : ColorApp.primary3.withValues(alpha: 0.8),
                       letterSpacing: 0.5,
                       shadows: isSelected
                           ? [
                               Shadow(
-                                color: ColorApp.primary1.withOpacity(0.5),
+                                color: ColorApp.primary1.withValues(alpha: 0.5),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
                               ),
                             ]
                           : null,
                     ),
-                    child: Text(navBar.title, textAlign: TextAlign.center),
+                    child: Text(navBar.title.tr, textAlign: TextAlign.center),
                   ),
                 ],
               ),

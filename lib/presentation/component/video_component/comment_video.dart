@@ -1,668 +1,559 @@
-// lib/presentation/component/comment_modal.dart
+
 
 import 'dart:math';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:kongossa/config_App/colorsApp.dart';
-import 'package:responsive_sizer/responsive_sizer.dart';
-import 'package:timeago/timeago.dart' as timeago;
+import 'package:kongossa/shared/widgets/custum_text.dart';
+import 'package:rive/rive.dart' hide RadialGradient, LinearGradient;
 
-import '../../../main.dart';
-import '../../../model/datamodel/user_model.dart';
-import '../../../sevice/controlleur/splashcontrolleur/splashscreen_controlleur.dart';
-import '../../../sevice/upload/upload_post.dart';
-import '../image_component/image.dart';
+import '../../../config_App/colorsApp.dart';
+import '../../../model/menu.dart';
 
-import 'package:uuid/uuid.dart';
+class PremiumSideMenu extends StatefulWidget {
+  const PremiumSideMenu({
+    super.key,
+    required this.menu,
+    required this.press,
+    required this.riveOnInit,
+    required this.selectedMenu,
+    required this.index,
+    this.isExpanded = true,
+  });
 
-import '../style/custum_text.dart';
-import '../widget/widget_component.dart';
-
-class CommentModal extends StatefulWidget {
-  final String videoId;
-  final String videoTitle;
-  final int initialCommentCount;
-
-  const CommentModal({
-    Key? key,
-    required this.videoId,
-    required this.videoTitle,
-    this.initialCommentCount = 0,
-  }) : super(key: key);
+  final Menu menu;
+  final VoidCallback press;
+  final ValueChanged<Artboard> riveOnInit;
+  final Menu selectedMenu;
+  final int index;
+  final bool isExpanded;
 
   @override
-  State<CommentModal> createState() => _CommentModalState();
+  State<PremiumSideMenu> createState() => _PremiumSideMenuState();
 }
 
-class _CommentModalState extends State<CommentModal>
+class _PremiumSideMenuState extends State<PremiumSideMenu>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
-  late Animation<double> _slideAnimation;
-  final TextEditingController _commentController = TextEditingController();
-  final FocusNode _focusNode = FocusNode();
-  final List<Map<String, dynamic>> _comments = [];
-  int _commentCount = 0;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _opacityAnimation;
+  late Animation<Offset> _slideAnimation;
+  late Animation<Color?> _colorAnimation;
 
   @override
   void initState() {
     super.initState();
-    _commentCount = widget.initialCommentCount;
 
     _animationController = AnimationController(
+      duration: const Duration(milliseconds: 600),
       vsync: this,
-      duration: const Duration(milliseconds: 300),
     );
 
-    _slideAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    // Animation en cascade basée sur l'index
+    final delay = widget.index * 100;
+
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Interval(delay / 1000, 1.0, curve: Curves.elasticOut),
+      ),
     );
 
-    _animationController.forward();
+    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Interval(delay / 1000, 1.0, curve: Curves.easeInOut),
+      ),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(-0.5, 0.0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Interval(delay / 1000, 1.0, curve: Curves.easeOutBack),
+      ),
+    );
+
+    _colorAnimation = ColorTween(
+      begin: Colors.transparent,
+      end: ColorApp.primary1.withValues(alpha: 0.1),
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    Future.delayed(Duration(milliseconds: delay), () {
+      if (mounted) {
+        _animationController.forward();
+      }
+    });
   }
-
-  PostUpdateService service = PostUpdateService();
 
   @override
   void dispose() {
     _animationController.dispose();
-    _commentController.dispose();
-    _focusNode.dispose();
     super.dispose();
   }
 
-  void _closeModal() {
-    _animationController.reverse().then((_) {
-      Navigator.of(context).pop();
-    });
-  }
-
-  bool _isLiked = false;
-
-  void _toggleLike(item, index) {
-    // setState(() {
-    print(index);
-    _isLiked = !item['isLiked'];
-    // item['likes'] +=item['isLiked'] ? 1 : -1;
-    // });
-    service.toggleLikecomment(
-      commentId: item['id'],
-      postId: widget.videoId,
-      // isLiked: _isLiked,
-      like: item['likes'],
-    );
-  }
-
-  List<dynamic> comments = [];
-
-  sendcomment() async {
-    final comment = {
-      'username': AppUser.info!.displayName,
-      'avatar': AppUser.info!.photoUrl,
-      'comment': 'Quelle est la musique de fond ? 🎵',
-      'time': DateTime.now(),
-      'likes': 0,
-      'isLiked': false,
-    };
-
-    final postdata = {
-      "postData.commentaire": FieldValue.arrayUnion([comment]),
-    };
-
-    final postDocument = {
-      // "userData": userData,
-      "postData": postdata,
-      // "timestamp": FieldValue.serverTimestamp(),
-    };
-
-    DocumentReference docRef = await Posts.add(postDocument);
-    print("✅ Post créé avec ID: ${docRef.id} ${docRef.path}");
-  }
-
-  var uuid = const Uuid();
-
-  Future<void> addComment1() async {
-    if (_commentController.text.trim().isEmpty) return;
-
-    print(widget.videoId);
-
-    try {
-      DocumentReference postRef = FirebaseFirestore.instance
-          .collection('postcarduser')
-          .doc(widget.videoId);
-
-      // Vérifier si le document existe
-      DocumentSnapshot snapshot = await postRef.get();
-
-      if (!snapshot.exists) {
-        print("❌ Le document n'existe pas: ${widget.videoId}");
-        await postRef.set({
-          'postData': {
-            'commentaire': [],
-            'allpersonlike': [],
-            'createdAt': FieldValue.serverTimestamp(),
-            'likes': 0,
-            'posttitle': '',
-            'status': 'published',
-          },
-          'userData': {
-            'email': AppUser.info?.email,
-            'name': AppUser.info?.displayName,
-            'photoUrl': AppUser.info?.photoUrl,
-          },
-          'timestamp': FieldValue.serverTimestamp(),
-        });
-        print("✅ Document créé avec succès");
+  void _onHover(bool isHovered) {
+    if (widget.selectedMenu != widget.menu) {
+      if (isHovered) {
+        _animationController.forward();
+      } else {
+        _animationController.reverse();
       }
-
-      // ✅ GÉNÉRATION D'UN ID UNIQUE AVEC UUID
-      final String uniqueId = uuid
-          .v4(); // Ex: "123e4567-e89b-12d3-a456-426614174000"
-
-      final newComment = {
-        'id': uniqueId, // ID unique garanti
-        'userId': AppUser.info!.uid,
-        'username': AppUser.info!.displayName,
-        'avatar': AppUser.info!.photoUrl,
-        'comment': _commentController.text,
-        'time': DateTime.now().toIso8601String(),
-        'likes': 0,
-        'isLiked': false,
-        'createdAt': FieldValue.serverTimestamp(), // Optionnel
-      };
-
-      await postRef.update({
-        'postData.commentaire': FieldValue.arrayUnion([newComment]),
-      });
-
-      print("✅ Commentaire ajouté avec ID: $uniqueId");
-      _commentController.clear();
-    } catch (e) {
-      print('❌ Erreur: $e');
-      Get.snackbar('Erreur', 'Impossible d\'ajouter le commentaire');
     }
   }
-
-  Future<void> addComments() async {
-    if (_commentController.text.trim().isEmpty) return;
-
-    print(widget.videoId);
-
-    FocusManager.instance.primaryFocus?.unfocus();
-    Get.back();
-    try {
-      DocumentReference postRef = FirebaseFirestore.instance
-          .collection('postcarduser')
-          .doc(widget.videoId);
-
-      DocumentSnapshot snapshot = await postRef.get();
-
-      if (!snapshot.exists) {
-        print("❌ Le document n'existe pas: ${widget.videoId}");
-        await postRef.set({
-          'postData': {
-            'commentaire': [],
-            'allpersonnelike': [],
-            'createdAt': FieldValue.serverTimestamp(),
-            'likes': 0,
-            'posttitle': '',
-            'status': 'published',
-          },
-          'userData': {
-            'email': AppUser.info?.email,
-            'name': AppUser.info?.displayName,
-            'photoUrl': AppUser.info?.photoUrl,
-          },
-          'timestamp': FieldValue.serverTimestamp(),
-        });
-        print("✅ Document créé avec succès");
-      }
-
-      // ✅ GÉNÉRATION D'UN ID UNIQUE COMPOSITE
-      final now = DateTime.now();
-      final String uniqueId =
-          '${now.millisecondsSinceEpoch}_${AppUser.info!.uid}_${_generateRandomString(6)}';
-
-      final newComment = {
-        'id': uniqueId,
-        'userId': AppUser.info!.uid,
-        'username': AppUser.info!.displayName,
-        'avatar': AppUser.info!.photoUrl,
-        'comment': _commentController.text,
-        'time': now.toIso8601String(),
-        'likes': 0,
-        // 'allpersonnelike': [],
-        'isLiked': false,
-      };
-
-      await postRef.update({
-        'postData.commentaire': FieldValue.arrayUnion([newComment]),
-      });
-
-      print("✅ Commentaire ajouté avec ID: $uniqueId");
-      _commentController.clear();
-    } catch (e) {
-      print('❌ Erreur: $e');
-      Get.snackbar('Erreur', 'Impossible d\'ajouter le commentaire');
-    }
-  }
-
-  // Fonction pour générer une chaîne aléatoire
-  String _generateRandomString(int length) {
-    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    final random = Random();
-    return String.fromCharCodes(
-      Iterable.generate(
-        length,
-        (_) => chars.codeUnitAt(random.nextInt(chars.length)),
-      ),
-    );
-  }
-
-  bool view = false;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final bool isSelected = widget.selectedMenu == widget.menu;
 
-      body: Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10)
-      ),
-        child: Column(
-          children: [
-            Container(
-              margin: EdgeInsets.only(top: 12, bottom: 0.2.h),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: ColorApp.primary,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-
-            // En-tête
-            Expanded(
-              child: StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('postcarduser')
-                    .doc(widget.videoId)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  // Gestion des états de chargement
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  // Gestion des erreurs
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.error_outline,
-                            size: 48,
-                            color: Colors.red[300],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Erreur de chargement',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
+    return MouseRegion(
+      onEnter: (_) => _onHover(true),
+      onExit: (_) => _onHover(false),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+        child: ScaleTransition(
+          scale: _scaleAnimation,
+          child: FadeTransition(
+            opacity: _opacityAnimation,
+            child: SlideTransition(
+              position: _slideAnimation,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                decoration: BoxDecoration(
+                  gradient: isSelected
+                      ? LinearGradient(
+                    colors: [
+                      ColorApp.primary1.withValues(alpha: 0.9),
+                      ColorApp.primary2.withValues(alpha: 0.7),
+                    ],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  )
+                      : LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      _colorAnimation.value ?? Colors.transparent,
+                    ],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    if (isSelected)
+                      BoxShadow(
+                        color: ColorApp.primary1.withValues(alpha: 0.4),
+                        blurRadius: 20,
+                        spreadRadius: 0,
+                        offset: const Offset(0, 4),
                       ),
-                    );
-                  }
-
-                  // Vérifier si le document existe
-                  if (!snapshot.hasData || !snapshot.data!.exists) {
-                    return _buildEmptyComments();
-                  }
-
-                  // Récupérer les données
-                  var data = snapshot.data!.data() as Map<String, dynamic>;
-
-                  // Accéder au tableau commentaire dans postData
-
-                  if (data['postData'] != null &&
-                      data['postData']['commentaire'] != null) {
-                    comments = List.from(data['postData']['commentaire']);
-                  }
-
-                  // Trier par date (du plus récent au plus ancien)
-                  comments.sort((a, b) {
-                    DateTime dateA = DateTime.parse(a['time'] ?? '1970-01-01');
-                    DateTime dateB = DateTime.parse(b['time'] ?? '1970-01-01');
-                    return dateB.compareTo(dateA); // Plus récent d'abord
-                  });
-
-                  if (comments.isEmpty) {
-                    return _buildEmptyComments();
-                  }
-
-                  return Column(
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 0.2.h,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Commentaires (${comments.length})',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      spreadRadius: 0,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  children: [
+                    // Effet de brillance
+                    if (isSelected)
+                      Positioned(
+                        right: -20,
+                        top: -20,
+                        child: Transform.rotate(
+                          angle: pi / 4,
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.white.withValues(alpha: 0.2),
+                                  Colors.white.withValues(alpha: 0.0),
+                                ],
                               ),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.close),
-                              onPressed: _closeModal,
+                          ),
+                        ),
+                      ),
+
+                    // Fond animé
+                    Positioned.fill(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 300),
+                          opacity: isSelected ? 1.0 : 0.0,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: RadialGradient(
+                                center: Alignment.centerLeft,
+                                radius: 2.0,
+                                colors: [
+                                  ColorApp.primary1.withValues(alpha: 0.3),
+                                  Colors.transparent,
+                                ],
+                              ),
                             ),
-                          ],
+                          ),
                         ),
                       ),
-                      const Divider(height: 1),
-                      Expanded(
-                        child: ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: comments.length,
-                          itemBuilder: (context, index) {
-                            final item = comments[index];
-                            return _buildCommentItem(item, index);
-                          },
+                    ),
+
+                    // Contenu
+                    Material(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(16),
+                      child: InkWell(
+                        onTap: widget.press,
+                        borderRadius: BorderRadius.circular(16),
+                        splashColor: ColorApp.primary1.withValues(alpha: 0.3),
+                        highlightColor: Colors.transparent,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 12.0,
+                          ),
+                          child: Row(
+                            children: [
+                              // Icône avec effet de halo
+                              Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  if (isSelected)
+                                    AnimatedContainer(
+                                      duration: const Duration(milliseconds: 300),
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        gradient: RadialGradient(
+                                          colors: [
+                                            ColorApp.primary1.withValues(alpha: 0.4),
+                                            Colors.transparent,
+                                          ],
+                                          radius: 0.8,
+                                        ),
+                                      ),
+                                    ),
+
+                                  Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: isSelected
+                                          ? Colors.white.withValues(alpha: 0.1)
+                                          : ColorApp.primary3.withValues(alpha: 0.1),
+                                      boxShadow: [
+                                        if (isSelected)
+                                          BoxShadow(
+                                            color: ColorApp.primary1
+                                                .withValues(alpha: 0.3),
+                                            blurRadius: 10,
+                                            spreadRadius: 2,
+                                          ),
+                                      ],
+                                    ),
+                                    child: Center(
+                                      child: ColorFiltered(
+                                        colorFilter: ColorFilter.mode(
+                                          isSelected
+                                              ? Colors.white
+                                              : ColorApp.primary3,
+                                          BlendMode.srcIn,
+                                        ),
+                                        child: RiveAnimation.asset(
+                                          widget.menu.rive.src,
+                                          artboard: widget.menu.rive.artboard,
+                                          onInit: widget.riveOnInit,
+                                          fit: BoxFit.contain,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(width: 16),
+
+                              // Texte avec animation
+                              Expanded(
+                                child: AnimatedCrossFade(
+                                  duration: const Duration(milliseconds: 300),
+                                  crossFadeState: widget.isExpanded
+                                      ? CrossFadeState.showFirst
+                                      : CrossFadeState.showSecond,
+                                  firstChild: CustomText(
+                                    widget.menu.title,
+                                    type: TextType.titleLarge,
+                                    style: TextStyle(
+                                      color: isSelected
+                                          ? Colors.white
+                                          : ColorApp.primary3,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w600
+                                          : FontWeight.w500,
+                                      fontSize: 14,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  secondChild: Container(),
+                                ),
+                              ),
+
+                              // Indicateur de sélection
+                              if (isSelected && widget.isExpanded)
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 300),
+                                  width: 8,
+                                  height: 8,
+                                  margin: const EdgeInsets.only(left: 8),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.white,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.white.withValues(alpha: 0.8),
+                                        blurRadius: 10,
+                                        spreadRadius: 2,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
-                    ],
-                  );
-                },
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
+          ),
         ),
       ),
-      bottomNavigationBar: Padding(
-        padding: EdgeInsets.only(bottom: 2.h),
-        child: _buildCommentInput(),
-      ),
     );
   }
-
-  DateTime _getSafeDateTime(dynamic timestamp) {
-    try {
-      if (timestamp is Timestamp) {
-        return timestamp.toDate();
-      }
-    } catch (e) {
-      print('Erreur de conversion timestamp: $e');
-    }
-    return DateTime.now();
-  }
-
-  Widget _buildCommentItem(item, int index) {
-    // Récupérer la liste des personnes qui ont liké pour CE commentaire
-    List<dynamic> commentLikes = [];
-    if (item['allpersonnelike'] != null && item['allpersonnelike'] is List) {
-      commentLikes = List.from(item['allpersonnelike']);
-    }
-
-    // Récupérer l'ID de l'utilisateur connecté
-    String? currentUserId = AppUser.info?.googleId;
-
-    // Vérifier si l'utilisateur a liké CE commentaire précis
-    bool isLikedByCurrentUser = false;
-
-    if (currentUserId != null) {
-      isLikedByCurrentUser = commentLikes.any((likeUser) {
-        // Vérifier toutes les possibilités d'ID
-        return likeUser['userId'] == currentUserId;
-      });
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Avatar
-          CustomImage(
-            source: item['avatar'],
-            type: ImageType.circle,
-            height: 4.h,
-          ),
-
-          const SizedBox(width: 12),
-
-          // Contenu du commentaire
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-
-                  children: [
-                    Text(
-                      item['username'] ?? 'Utilisateur inconnu',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                   SizedBox(),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item['comment'] ?? "",
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                    Row(children: [
-                      Text(
-                        timeago.format(DateTime.parse(item['time'])),
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      ),
-                      SizedBox(width: 1.w),
-                      CustomText(
-                        "Repondre".toUpperCase(),
-                        type: TextType.headlineSmall,
-                        style: TextStyle(
-                          color: ColorApp.primary3,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 10,
-                          letterSpacing: 0.5,
-                        ),
-                      )],)
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Bouton like
-          GestureDetector(
-            onTap: () => _toggleLike(item, index),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  isLikedByCurrentUser ? Icons.favorite : Icons.favorite_border,
-                  color: isLikedByCurrentUser ? Colors.red : Colors.grey,
-                  size: 20,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  commentLikes.length.toString(),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isLikedByCurrentUser ? Colors.red : Colors.grey[700],
-                    fontWeight: isLikedByCurrentUser
-                        ? FontWeight.bold
-                        : FontWeight.normal,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyComments() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.comment_outlined, size: 80, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            'Aucun commentaire',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Soyez le premier à commenter !',
-            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCommentInput() {
-    // FocusManager.instance.primaryFocus?.unfocus();
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: ColorApp.BlackColor,
-        border: Border(top: BorderSide(color: Colors.grey[200]!)),
-      ),
-      child: Row(
-        children: [
-          // Avatar de l'utilisateur connecté
-          s.buildUserProfile(),
-
-          const SizedBox(width: 12),
-
-          // Champ de texte
-          Expanded(
-            child: TextField(
-              controller: _commentController,
-              focusNode: _focusNode,
-              readOnly: true,
-
-              onTap: () {
-                Future.microtask(() {
-                  WidgetComponent.getmodal(
-                    isScrollControlled: true,
-                    sectionview: Container(
-                      decoration: BoxDecoration(
-                        color: ColorApp.BlackColor,
-                        border: Border(
-                          top: BorderSide(color: Colors.grey[200]!),
-                        ),
-                      ),
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 2.h),
-                        child: Row(
-                          children: [
-                            s.buildUserProfile(),
-                            SizedBox(width: 2.w),
-                            Expanded(
-                              child: TextField(
-                                controller: _commentController,
-                                autofocus: true,
-                                // focusNode: _focusNode,
-                                decoration: InputDecoration(
-                                  hintText: 'Ajouter un commentaire...',
-                                  hintStyle: TextStyle(color: Colors.grey[500]),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(25),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  filled: true,
-                                  fillColor: Colors.grey[100],
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 20,
-                                    vertical: 10,
-                                  ),
-                                ),
-                                maxLines: null,
-                                textInputAction: TextInputAction.send,
-                                onSubmitted: (_) => addComments(),
-                              ),
-                            ),
-                            SizedBox(width: 2.w),
-                            GestureDetector(
-                              onTap: addComments,
-                              child: Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: _commentController.text.isNotEmpty
-                                      ? Colors.blue
-                                      : Colors.grey[300],
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  Icons.send,
-                                  color: _commentController.text.isNotEmpty
-                                      ? Colors.white
-                                      : Colors.grey[600],
-                                  size: 20,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                });
-              },
-              decoration: InputDecoration(
-                hintText: 'Ajouter un commentaires...',
-                hintStyle: TextStyle(color: Colors.grey[500]),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(25),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: Colors.grey[100],
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-              ),
-              maxLines: null,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => addComments(),
-            ),
-          ),
-
-          const SizedBox(width: 8),
-
-          // Bouton d'envoi
-        ],
-      ),
-    );
-  }
-
 }
 
+// Widget parent pour gérer toute la sidebar
+class PremiumSidebar extends StatefulWidget {
+  final List<Menu> menuItems;
+  final Menu selectedMenu;
+  final ValueChanged<Menu> onMenuSelected;
+  final bool isExpanded;
 
+  const PremiumSidebar({
+    super.key,
+    required this.menuItems,
+    required this.selectedMenu,
+    required this.onMenuSelected,
+    this.isExpanded = true,
+  });
+
+  @override
+  State<PremiumSidebar> createState() => _PremiumSidebarState();
+}
+
+class _PremiumSidebarState extends State<PremiumSidebar> {
+  final Map<String, RiveAnimationController> _riveControllers = {};
+
+  void _onRiveInit(String artboardId, Artboard artboard) {
+    // _riveControllers[artboardId] = RiveAnimationController();
+    artboard.addController(_riveControllers[artboardId]!);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: widget.isExpanded ? 280 : 80,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            ColorApp.background.withValues(alpha: 0.95),
+            ColorApp.background.withValues(alpha: 0.98),
+          ],
+        ),
+        borderRadius: const BorderRadius.only(
+          topRight: Radius.circular(24),
+          bottomRight: Radius.circular(24),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 20,
+            spreadRadius: 0,
+            offset: const Offset(4, 0),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // En-tête premium
+          Container(
+            padding: const EdgeInsets.all(24),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [
+                        ColorApp.primary1,
+                        ColorApp.primary2,
+                      ],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: ColorApp.primary1.withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.diamond_outlined,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                if (widget.isExpanded) ...[
+                  const SizedBox(width: 12),
+                  AnimatedOpacity(
+                    duration: const Duration(milliseconds: 300),
+                    opacity: widget.isExpanded ? 1.0 : 0.0,
+                    child:                      CustomText(
+                     " sidebar.premium",
+                      type: TextType.headlineSmall,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        background: null,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          // Menu items
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              itemCount: widget.menuItems.length,
+              itemBuilder: (context, index) {
+                final menu = widget.menuItems[index];
+                return PremiumSideMenu(
+                  menu: menu,
+                  press: () => widget.onMenuSelected(menu),
+                  riveOnInit: (artboard) => _onRiveInit(menu.rive.artboard, artboard),
+                  selectedMenu: widget.selectedMenu,
+                  index: index,
+                  isExpanded: widget.isExpanded,
+                );
+              },
+            ),
+          ),
+
+          // Section utilisateur
+          Container(
+            padding:  EdgeInsets.all(16),
+            margin:  EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white.withValues(alpha: 0.05),
+                  Colors.white.withValues(alpha: 0.02),
+                ],
+              ),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.1),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [
+                        ColorApp.primary3.withValues(alpha: 0.3),
+                        ColorApp.primary3.withValues(alpha: 0.1),
+                      ],
+                    ),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      width: 2,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.person,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                if (widget.isExpanded) ...[
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CustomText(
+                          'sidebar.admin_user',
+                          type: TextType.labelMedium,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        CustomText(
+                          'sidebar.premium_account',
+                          type: TextType.labelSmall,
+                          style: TextStyle(
+                            color: ColorApp.primary1,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.green,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.green.withValues(alpha: 0.5),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

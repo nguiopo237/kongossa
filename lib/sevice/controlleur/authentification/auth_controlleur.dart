@@ -5,16 +5,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+// import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../main.dart';
+import '../firestore_collections_service.dart';
 import '../../../model/datamodel/user_model.dart';
 import '../../../screens/entryPoint/entry_point.dart';
 import '../../../screens/onboding/onboding_screen.dart';
-import '../../../screens/test_image_send.dart';
 final AuthController authController = Get.find();
 class AuthController extends GetxController {
   // static AuthController get to => Get.find();
@@ -40,17 +39,17 @@ class AuthController extends GetxController {
   Timer? _resendTimer;
   String? _currentToken;
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
-  FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-  FlutterLocalNotificationsPlugin();
+  // FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+  // FlutterLocalNotificationsPlugin();
 
 
   @override
   void onInit() {
     // TODO: implement onInit
     super.onInit();
-    print("user");
-    print(user);
-    print("user");
+    debugPrint("user");
+
+    debugPrint("user");
   }
 
   @override
@@ -59,20 +58,18 @@ class AuthController extends GetxController {
     // Écouter les changements d'état d'authentification
     _auth.authStateChanges().listen((User? user) {
       this.user.value = user;
-      print("user");
-      print(user);
-      print("user");
+
     });
     super.onReady();
   }
 
   Future<String?> getCurrentToken() async {
-    print("start");
+    debugPrint("start");
     User? user = _auth.currentUser;
     if (user != null) {
       _currentToken = await user.getIdToken();
-      print(_currentToken);
-      print(user.uid);
+      debugPrint(_currentToken);
+      debugPrint(user.uid);
       return _currentToken;
     }
     return null;
@@ -84,8 +81,6 @@ class AuthController extends GetxController {
 
 
   Future<String?> getFirebaseToken() async {
-
-
     NotificationSettings settings = await _fcm.requestPermission(
       alert: true,
       badge: true,
@@ -93,16 +88,25 @@ class AuthController extends GetxController {
     );
 
     if (settings.authorizationStatus != AuthorizationStatus.authorized) {
-      print('Permission refusée');
+      debugPrint('Permission denied');
     }
 
-
     String? token = await _fcm.getToken();
-    print('Token FCM: $token');
-    _fcm.onTokenRefresh.listen((newToken) {
-      print('Nouveau token: $newToken');
-      // Mettre à jour le token dans votre base de données si nécessaire
+    debugPrint('FCM Token: $token');
+    _fcm.onTokenRefresh.listen((newToken) async {
+      debugPrint('New FCM token: $newToken');
+      try {
+        final userId = await _getCurrentFirestoreUserId();
+        if (userId != null) {
+          await FirestoreCollectionsService.users.doc(userId).update({
+            'fcmToken': newToken,
+          });
+        }
+      } catch (e) {
+        debugPrint('⚠️ FCM token update error: $e');
+      }
     });
+    return token;
   }
 
 
@@ -122,7 +126,7 @@ class AuthController extends GetxController {
     } on FirebaseAuthException catch (e) {
       errorMessage.value = _getErrorMessage(e.code);
     } catch (e) {
-      errorMessage.value = 'Une erreur est survenue';
+      errorMessage.value = 'auth.error_occurred'.tr;
     } finally {
       isLoading.value = false;
     }
@@ -132,19 +136,26 @@ class AuthController extends GetxController {
     try {
       isLoading.value = true;
       errorMessage.value = '';
-
+      debugPrint("Verifying...");
       // 1. Authentification avec Google
-      final GoogleSignInAccount? googleAccount = await _googleSignIn.signIn();
+      final googleAccounts = await _googleSignIn.signIn();
+      print(googleAccounts?.email);
+      debugPrint("Verification step 1");
 
+      final GoogleSignInAccount? googleAccount = await _googleSignIn.signIn();
+      debugPrint("Verification complete");
+      print(googleAccount?.email);
+      debugPrint("Verification complete");
       if (googleAccount == null) {
         // L'utilisateur a annulé
+        debugPrint("No Google account selected");
         isLoading.value = false;
         return;
       }
-
+      debugPrint("Google account selected");
       // 2. Vérifier si l'utilisateur existe déjà dans la base de données
       QuerySnapshot querySnapshot =
-          await Users.where('googleId', isEqualTo: googleAccount.id?.trim())
+          await FirestoreCollectionsService.users.where('googleId', isEqualTo: googleAccount.id.trim())
               .limit(1)
               .get(
                 // GetOptions(source: Source.serverAndCache),
@@ -165,45 +176,56 @@ class AuthController extends GetxController {
         };
 
         // Ajouter le document et récupérer l'ID
-        DocumentReference docRef = await Users.add(userData);
+        DocumentReference docRef = await FirestoreCollectionsService.users.add(userData);
         userId = docRef.id;
 
-        print("✅ Nouvel utilisateur créé");
-        print("📧 Email: ${googleAccount.email}");
-        print("👤 Nom: ${googleAccount.displayName}");
-        print("🆔 ID Firebase: $userId");
+        debugPrint("✅ New user created");
+        debugPrint("📧 Email: ${googleAccount.email}");
+        debugPrint("👤 Name: ${googleAccount.displayName}");
+        debugPrint("🆔 Firebase ID: $userId");
       } else {
         // 4. Utilisateur existant - mettre à jour les infos
         userId = querySnapshot.docs.first.id;
 
-        await Users.doc(userId).update({
+        await FirestoreCollectionsService.users.doc(userId).update({
           "name": googleAccount.displayName,
           "photoUrl": googleAccount.photoUrl,
           "lastLogin": FieldValue.serverTimestamp(),
           "updatedAt": FieldValue.serverTimestamp(),
         });
 
-        print("🔄 Utilisateur existant mis à jour");
-        print("🆔 ID: $userId");
+        debugPrint("🔄 Existing user updated");
+        debugPrint("🆔 ID: $userId");
       }
 
-      // 5. Optionnel: Stocker l'ID utilisateur localement
-       await storeUserInfoocally(googleAccount);
+      // 5. Stocker l'ID utilisateur localement
+      await storeUserInfoLocally(googleAccount);
 
-      // 6. Optionnel: Naviguer vers l'écran principal
-      // Get.offAllNamed('/home');
+      // 6. Sauvegarder le token FCM sur Firestore
+      try {
+        final fcmToken = await _fcm.getToken();
+        if (fcmToken != null && userId.isNotEmpty) {
+          await FirestoreCollectionsService.users.doc(userId).update({
+            'fcmToken': fcmToken,
+          });
+          debugPrint('✅ FCM token saved to Firestore');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Unable to save FCM token: $e');
+      }
+
+      // 7. Naviguer vers l'écran principal
     } catch (error) {
-      errorMessage.value = 'Erreur lors de la connexion Google: $error';
-      print('❌ Erreur signInWithGoogle: $error');
+      errorMessage.value = '${'auth.google_error'.tr}: $error';
+      debugPrint('❌ signInWithGoogle error: $error');
     } finally {
       isLoading.value = false;
     }
   }
 
   // Méthode utilitaire pour stocker l'ID localement
-  Future<void> storeUserInfoocally(GoogleSignInAccount dataInfo) async {
+  Future<void> storeUserInfoLocally(GoogleSignInAccount dataInfo) async {
     final prefs = await SharedPreferences.getInstance();
-
 
     final userData = {
       'displayName': dataInfo.displayName,
@@ -213,46 +235,45 @@ class AuthController extends GetxController {
       'serverAuthCode': dataInfo.serverAuthCode,
     };
 
-
     var data = jsonEncode(userData);
     await prefs.setString('userinfo', data);
-    getUserInfoocally();
+    getUserInfoLocally();
   }
 
-  Future<void> showSimpleNotification({required Map<String, dynamic> message}) async {
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
-    AndroidNotificationDetails(
-      'simple_channel',
-      'Notifications Simples',
-      channelDescription: 'Canal pour les notifications simples',
-      importance: Importance.max,
-      priority: Priority.high,
-      ticker: 'ticker',
-    );
-
-    const NotificationDetails platformChannelSpecifics = NotificationDetails(
-      android: androidPlatformChannelSpecifics,
-      iOS: DarwinNotificationDetails(),
-    );
-
-    await flutterLocalNotificationsPlugin.show(
-      0,
-      message["namesenderId"],
-      message["content"],
-      platformChannelSpecifics,
-      payload: 'simple_notification',
-    );
-
-    // _showSuccessSnackBar('Notification simple envoyée');
-  }
+  // Future<void> showSimpleNotification({required Map<String, dynamic> message}) async
+  // {
+  //   const AndroidNotificationDetails androidPlatformChannelSpecifics =
+  //   AndroidNotificationDetails(
+  //     'simple_channel',
+  //     'Notifications Simples',
+  //     channelDescription: 'Canal pour les notifications simples',
+  //     importance: Importance.max,
+  //     priority: Priority.high,
+  //     ticker: 'ticker',
+  //   );
+  //
+  //   const NotificationDetails platformChannelSpecifics = NotificationDetails(
+  //     android: androidPlatformChannelSpecifics,
+  //     iOS: DarwinNotificationDetails(),
+  //   );
+  //
+  //   await flutterLocalNotificationsPlugin.show(
+  //     0,
+  //     message["namesenderId"],
+  //     message["content"],
+  //     platformChannelSpecifics,
+  //     payload: 'simple_notification',
+  //   );
+  //
+  //   // _showSuccessSnackBar('Notification simple envoyée');
+  // }
 
 
 
   Future<void> setupMessagesListener() async {
 
-    print("🔍 Vérification des messages non lus arriere...");
-    notif
-    // .where("senderId", whereIn: [AppUser.info!.googleId, widget.receiverId])
+    debugPrint("🔍 Checking unread messages background...");
+    FirestoreCollectionsService.notif
         .where("receiveId", isEqualTo: AppUser.info!.googleId)
         .orderBy("timestamp", descending: false)
         .snapshots()
@@ -266,8 +287,8 @@ class AuthController extends GetxController {
           case DocumentChangeType.added:
             var data = change.doc.data() as Map<String, dynamic>;
             String content = data['content'] ?? '';
-            print("✏️ Message modifié: ${content}");
-            showSimpleNotification(message: data);
+            debugPrint("✏️ Message modified: ${content}");
+            // showSimpleNotification(message: data);
 
 
             // showSimpleNotification(message: '')
@@ -276,12 +297,12 @@ class AuthController extends GetxController {
           case DocumentChangeType.modified:
             var data = change.doc.data() as Map<String, dynamic>;
             String content = data['content'] ?? '';
-            print("✏️ Message modifié: ${content}");
+            debugPrint("✏️ Message modified: ${content}");
             // _onMessageModified(change.doc);
-            showSimpleNotification(message: data);
+            // showSimpleNotification(message: data);
             break;
           case DocumentChangeType.removed:
-            print("❌ Message supprimé: ${change.doc.data()}");
+            debugPrint("❌ Message deleted: ${change.doc.data()}");
             // _onMessageRemoved(change.doc);
             break;
         }
@@ -289,23 +310,18 @@ class AuthController extends GetxController {
     }
     );}
 
-  Future<void> getUserInfoocally() async {
+  Future<void> getUserInfoLocally() async {
     final prefs = await SharedPreferences.getInstance();
     var jsonString = prefs.getString('userinfo');
     if (jsonString == null || jsonString.isEmpty) {
-      print('ℹ️ Aucune donnée utilisateur trouvée localement');
-      return  Get.offAll(()=>OnbodingScreen());
-
+      debugPrint('ℹ️ No user data found locally');
+      return Get.offAll(() => OnbodingScreen());
     }
     final userMap = jsonDecode(jsonString);
-    AppUser.info =  AppUser.fromGoogleSignIn(userMap);
-    print("userMap.id");
-    print(AppUser.info!.email);
-    print(AppUser.info!.photoUrl);
-    print("userMap.id");
+    AppUser.info = AppUser.fromGoogleSignIn(userMap);
+    debugPrint("👤 User connected: ${AppUser.info!.email}");
     setupMessagesListener();
-    Get.offAll(()=>EntryPoint());
-   //Get.offAll(()=>CloudinaryExample());
+    Get.offAll(() => EntryPoint());
   }
   Future<void> getdelete() async {
     final prefs = await SharedPreferences.getInstance();
@@ -343,8 +359,8 @@ class AuthController extends GetxController {
           _startResendTimer();
 
           Get.snackbar(
-            'SMS envoyé',
-            'Un code a été envoyé au $formattedPhone',
+            'sms.title_sent'.tr,
+            '${'sms.code_sent'.tr}$formattedPhone',
             snackPosition: SnackPosition.BOTTOM,
           );
         },
@@ -355,7 +371,7 @@ class AuthController extends GetxController {
         timeout: const Duration(seconds: 60),
       );
     } catch (e) {
-      errorMessage.value = 'Erreur: $e';
+      errorMessage.value = '${'sms.error'.tr}: $e';
       isLoading.value = false;
     }
   }
@@ -375,7 +391,7 @@ class AuthController extends GetxController {
       // Se connecter
       await _signInWithPhoneCredential(credential);
     } catch (e) {
-      errorMessage.value = 'Code invalide: $e';
+      errorMessage.value = '${'sms.invalid_code_error'.tr}: $e';
       isLoading.value = false;
     }
   }
@@ -391,8 +407,8 @@ class AuthController extends GetxController {
 
       // Succès
       Get.snackbar(
-        'Connexion réussie',
-        'Bienvenue !',
+        'auth.login_success'.tr,
+        'auth.welcome'.tr,
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.green,
         colorText: Colors.white,
@@ -441,32 +457,49 @@ class AuthController extends GetxController {
 
     // Ajouter l'indicatif si absent
     if (!cleaned.startsWith('+')) {
-      // France par défaut, adaptez selon votre pays
-      cleaned = '+237${cleaned.substring(1)}';
+      // Cameroun par défaut (237), adaptez selon votre pays
+      final digitsOnly = cleaned.replaceAll(RegExp(r'[^\d]'), '');
+      cleaned = '+237$digitsOnly';
     }
 
     return cleaned;
+  }
+
+  /// Récupère l'ID Firestore du document utilisateur à partir du googleId.
+  Future<String?> _getCurrentFirestoreUserId() async {
+    if (AppUser.info?.googleId == null) return null;
+    try {
+      final snap = await FirestoreCollectionsService.users
+          .where('googleId', isEqualTo: AppUser.info!.googleId)
+          .limit(1)
+          .get();
+      if (snap.docs.isEmpty) return null;
+      return snap.docs.first.id;
+    } catch (e) {
+      debugPrint('⚠️ _getCurrentFirestoreUserId error: $e');
+      return null;
+    }
   }
 
   // --- GESTION DES ERREURS ---
   String _getErrorMessage(String code) {
     switch (code) {
       case 'invalid-phone-number':
-        return 'Numéro de téléphone invalide';
+        return 'sms.invalid_phone'.tr;
       case 'too-many-requests':
-        return 'Trop de tentatives. Réessayez plus tard';
+        return 'sms.too_many_attempts'.tr;
       case 'quota-exceeded':
-        return 'Quota SMS dépassé';
+        return 'sms.quota_exceeded'.tr;
       case 'session-expired':
-        return 'Session expirée. Renvoyez le SMS';
+        return 'sms.session_expired'.tr;
       case 'invalid-verification-code':
-        return 'Code de vérification invalide';
+        return 'sms.invalid_code'.tr;
       case 'missing-verification-code':
-        return 'Code manquant';
+        return 'sms.code_missing'.tr;
       case 'credential-already-in-use':
-        return 'Ce numéro est déjà associé à un compte';
+        return 'sms.number_exists'.tr;
       default:
-        return 'Erreur: $code';
+        return '${'sms.error'.tr}: $code';
     }
   }
 
@@ -485,7 +518,7 @@ class AuthController extends GetxController {
     } on FirebaseAuthException catch (e) {
       errorMessage.value = _getErrorMessage(e.code);
     } catch (e) {
-      errorMessage.value = 'Une erreur est survenue';
+      errorMessage.value = 'auth.error_occurred'.tr;
     } finally {
       isLoading.value = false;
     }
@@ -501,17 +534,17 @@ class AuthController extends GetxController {
   String _getErrorMessages(String code) {
     switch (code) {
       case 'user-not-found':
-        return 'Aucun utilisateur trouvé avec cet email';
+        return 'auth.user_not_found'.tr;
       case 'wrong-password':
-        return 'Mot de passe incorrect';
+        return 'auth.wrong_password'.tr;
       case 'email-already-in-use':
-        return 'Cet email est déjà utilisé';
+        return 'auth.email_in_use'.tr;
       case 'invalid-email':
-        return 'Email invalide';
+        return 'auth.invalid_email'.tr;
       case 'weak-password':
-        return 'Mot de passe trop faible';
+        return 'auth.weak_password'.tr;
       default:
-        return 'Erreur d\'authentification';
+        return 'auth.auth_error'.tr;
     }
   }
 }

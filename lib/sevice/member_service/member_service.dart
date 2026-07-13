@@ -1,6 +1,7 @@
 // lib/services/member_service.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../model/datamodel/membermodel.dart';
 
@@ -97,12 +98,12 @@ class MemberService extends GetxService {
       }
       return null;
     } catch (e) {
-      print('Erreur getMemberById: $e');
+      debugPrint('Error getMemberById: $e');
       return null;
     }
   }
 
-  // Mettre à jour le statut en ligne
+  // Update online status
   Future<void> updateOnlineStatus(String uid, bool isOnline) async {
     try {
       await _firestore.collection('users').doc(uid).update({
@@ -110,7 +111,7 @@ class MemberService extends GetxService {
         'lastSeen': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Erreur updateOnlineStatus: $e');
+      debugPrint('Error updateOnlineStatus: $e');
     }
   }
 }

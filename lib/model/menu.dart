@@ -1,3 +1,5 @@
+import 'package:get/get.dart';
+
 import 'rive_model.dart';
 
 class Menu {
@@ -9,28 +11,28 @@ class Menu {
 
 List<Menu> sidebarMenus = [
   Menu(
-    title: "Home",
+    title: "nav.home",
     rive: RiveModel(
         src: "assets/RiveAssets/icons.riv",
         artboard: "HOME",
         stateMachineName: "HOME_interactivity"),
   ),
   Menu(
-    title: "Search",
+    title: "nav.search",
     rive: RiveModel(
         src: "assets/RiveAssets/icons.riv",
         artboard: "SEARCH",
         stateMachineName: "SEARCH_Interactivity"),
   ),
   Menu(
-    title: "Favorites",
+    title: "nav.favorites",
     rive: RiveModel(
         src: "assets/RiveAssets/icons.riv",
         artboard: "LIKE/STAR",
         stateMachineName: "STAR_Interactivity"),
   ),
   Menu(
-    title: "Help",
+    title: "nav.help",
     rive: RiveModel(
         src: "assets/RiveAssets/icons.riv",
         artboard: "CHAT",
@@ -39,14 +41,14 @@ List<Menu> sidebarMenus = [
 ];
 List<Menu> sidebarMenus2 = [
   Menu(
-    title: "History",
+    title: "nav.history",
     rive: RiveModel(
         src: "assets/RiveAssets/icons.riv",
         artboard: "TIMER",
         stateMachineName: "TIMER_Interactivity"),
   ),
   Menu(
-    title: "Notifications",
+    title: "nav.notifications",
     rive: RiveModel(
         src: "assets/RiveAssets/icons.riv",
         artboard: "BELL",
@@ -57,28 +59,28 @@ List<Menu> sidebarMenus2 = [
 List<Menu> bottomNavItems = [
 
   Menu(
-    title: "Home",
+    title: "nav.home",
     rive: RiveModel(
         src: "assets/RiveAssets/icons.riv",
         artboard: "HOME",
         stateMachineName: "HOME_interactivity"),
   ),
   Menu(
-    title: "Chat",
+    title: "nav.chats",
     rive: RiveModel(
         src: "assets/RiveAssets/icons.riv",
         artboard: "CHAT",
         stateMachineName: "CHAT_Interactivity"),
   ),
   Menu(
-    title: "Notification",
+    title: "nav.notifications",
     rive: RiveModel(
         src: "assets/RiveAssets/icons.riv",
         artboard: "BELL",
         stateMachineName: "BELL_Interactivity"),
   ),
   // Menu(
-  //   title: "Search",
+  //   title: "nav.search",
   //   rive: RiveModel(
   //       src: "assets/RiveAssets/icons.riv",
   //       artboard: "SEARCH",
@@ -93,7 +95,7 @@ List<Menu> bottomNavItems = [
   // ),
 
   Menu(
-    title: "Profile",
+    title: "nav.profile",
     rive: RiveModel(
         src: "assets/RiveAssets/icons.riv",
         artboard: "USER",

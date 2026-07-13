@@ -1,114 +1,113 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
-import '../../main.dart';
+import '../controlleur/firestore_collections_service.dart';
 import '../../model/datamodel/user_model.dart';
-import '../../presentation/component/widget/widget_component.dart';
-import '../controlleur/splashcontrolleur/splashscreen_controlleur.dart';
+import 'package:kongossa/shared/widgets/widgets.dart';
 
 
 class PostUpdateService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  // final String collectionName = 'posts'; // Adaptez selon votre nom de collection
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;    // final String collectionName = 'posts'; // Adjust to your collection name
 
   // ============================================
-  // 1. UPDATE DU CONTENU TEXTE
+  // 1. UPDATE TEXT CONTENT
   // ============================================
   Future<void> updatePostTitle(String postId, String newTitle) async {
     try {
-      await Posts.doc(postId).update({
+      await FirestoreCollectionsService.posts.doc(postId).update({
         "postData.posttitle": newTitle,
         "postData.updatedAt": FieldValue.serverTimestamp(),
         "postData.isEdited": true,
         "timestamp": FieldValue.serverTimestamp(),
       });
-      print("✅ Titre du post mis à jour");
+      debugPrint("✅ Post title updated");
     } catch (e) {
-      print("❌ Erreur update titre: $e");
+      debugPrint("❌ Error update title: $e");
       rethrow;
     }
   }
 
   // ============================================
-  // 2. UPDATE DES IMAGES
+  // 2. UPDATE IMAGES
   // ============================================
   Future<void> updatePostImages(String postId, List<String> newImages) async {
     try {
-      await Posts.doc(postId).update({
+      await FirestoreCollectionsService.posts.doc(postId).update({
         "postData.imagepost": newImages,
         "postData.updatedAt": FieldValue.serverTimestamp(),
         "timestamp": FieldValue.serverTimestamp(),
       });
-      print("✅ Images du post mises à jour");
+      debugPrint("✅ Post images updated");
     } catch (e) {
-      print("❌ Erreur update images: $e");
+      debugPrint("❌ Error update images: $e");
       rethrow;
     }
   }
 
-  // Ajouter une image
+  // Add an image
   Future<void> addImageToPost(String postId, String imageUrl) async {
     try {
-      await Posts.doc(postId).update({
+      await FirestoreCollectionsService.posts.doc(postId).update({
         "postData.imagepost": FieldValue.arrayUnion([imageUrl]),
         "postData.updatedAt": FieldValue.serverTimestamp(),
         "timestamp": FieldValue.serverTimestamp(),
       });
-      print("✅ Image ajoutée au post");
+      debugPrint("✅ Image added to post");
     } catch (e) {
-      print("❌ Erreur ajout image: $e");
+      debugPrint("❌ Error adding image: $e");
       rethrow;
     }
   }
 
-  // Supprimer une image
+  // Remove an image
   Future<void> removeImageFromPost(String postId, String imageUrl) async {
     try {
-      await Posts.doc(postId).update({
+      await FirestoreCollectionsService.posts.doc(postId).update({
         "postData.imagepost": FieldValue.arrayRemove([imageUrl]),
         "postData.updatedAt": FieldValue.serverTimestamp(),
         "timestamp": FieldValue.serverTimestamp(),
       });
-      print("✅ Image supprimée du post");
+      debugPrint("✅ Image removed from post");
     } catch (e) {
-      print("❌ Erreur suppression image: $e");
+      debugPrint("❌ Error removing image: $e");
       rethrow;
     }
   }
 
   // ============================================
-  // 3. UPDATE DES VIDEOS
+  // 3. UPDATE VIDEOS
   // ============================================
   Future<void> updatePostVideos(String postId, List<String> newVideos) async {
     try {
-      await Posts.doc(postId).update({
+      await FirestoreCollectionsService.posts.doc(postId).update({
         "postData.videopost": newVideos,
         "postData.updatedAt": FieldValue.serverTimestamp(),
         "timestamp": FieldValue.serverTimestamp(),
       });
-      print("✅ Vidéos du post mises à jour");
+      debugPrint("✅ Post videos updated");
     } catch (e) {
-      print("❌ Erreur update vidéos: $e");
+      debugPrint("❌ Error update videos: $e");
       rethrow;
     }
   }
 
-  // Ajouter une vidéo
+  // Add a video
   Future<void> addVideoToPost(String postId, String videoUrl) async {
     try {
-      await Posts.doc(postId).update({
+      await FirestoreCollectionsService.posts.doc(postId).update({
         "postData.videopost": FieldValue.arrayUnion([videoUrl]),
         "postData.updatedAt": FieldValue.serverTimestamp(),
         "timestamp": FieldValue.serverTimestamp(),
       });
-      print("✅ Vidéo ajoutée au post");
+      debugPrint("✅ Video added to post");
     } catch (e) {
-      print("❌ Erreur ajout vidéo: $e");
+      debugPrint("❌ Error adding video: $e");
       rethrow;
     }
   }
 
   // ============================================
-  // 4. UPDATE DES LIKES
+  // 4. UPDATE LIKES
   // ============================================
   Future<void> toggleLike({
     required String postId,
@@ -123,12 +122,12 @@ class PostUpdateService {
       DocumentSnapshot snapshot = await postRef.get();
 
       if (!snapshot.exists) {
-        print("Document n'existe pas");
+        debugPrint("Document does not exist");
         return;
       }
 
       var data = snapshot.data() as Map<String, dynamic>;
-      print('Données du post: ${data['postData']}');
+      debugPrint('Post data: ${data['postData']}');
 
       // Récupérer l'utilisateur actuel
       String? currentUserId = AppUser.info?.googleId;
@@ -136,15 +135,15 @@ class PostUpdateService {
       String? currentUserAvatar = AppUser.info?.photoUrl;
 
       if (currentUserId == null) {
-        print("Utilisateur non connecté");
+        debugPrint("User not logged in");
         return;
       }
 
-      // Récupérer la liste des personnes qui ont liké le POST (pas les commentaires)
-      // D'après votre structure Firebase, c'est 'allike' dans postData
+      // Get the list of people who liked the POST (not comments)
+      // Based on your Firebase structure, it's 'allike' in postData
       List<dynamic> allike = [];
 
-      // Vérifier si postData existe et contient allike
+      // Check if postData exists and contains allike
       if (data['postData'] != null) {
         Map<String, dynamic> postData = data['postData'] as Map<String, dynamic>;
 
@@ -153,34 +152,34 @@ class PostUpdateService {
         }
       }
 
-      print('Liste des likes avant: $allike');
+      debugPrint('Liste des likes avant: $allike');
 
-      // Vérifier si l'utilisateur a déjà liké
+      // Check if user already liked
       bool alreadyLiked = allike.contains(currentUserId);
 
       if (!alreadyLiked) {
         // Ajouter le like
         allike.add(currentUserId);
-        print("👍 Like ajouté pour l'utilisateur: $currentUserId");
+        debugPrint("👍 Like added for user: $currentUserId");
       } else {
         // Retirer le like
         allike.remove(currentUserId);
-        print("👎 Like retiré pour l'utilisateur: $currentUserId");
+        debugPrint("👎 Like removed for user: $currentUserId");
       }
 
-      print('Liste des likes après: $allike');
+      debugPrint('Likes list after: $allike');
 
       // Mettre à jour le document
       await postRef.update({
         'postData.allike': allike,
-        'postData.likes': allike.length, // Mettre à jour aussi le compteur
+        'postData.likes': allike.length, // Also update counter
       });
 
-      print('✅ Like mis à jour: ${!alreadyLiked ? "👍" : "👎"} (${allike.length} likes)');
+      debugPrint('✅ Like toggled: ${!alreadyLiked ? "👍" : "👎"} (${allike.length} likes)');
 
     } catch (e) {
-      print('❌ Erreur toggleLike: $e');
-      print('Stack trace: ${StackTrace.current}');
+      debugPrint('❌ Erreur toggleLike: $e');
+      debugPrint('Stack trace: ${StackTrace.current}');
     }
   }
 
@@ -189,44 +188,44 @@ class PostUpdateService {
     required String postId,
   }) async {
     try {
-      // 1. Vérifier l'utilisateur cible
-      QuerySnapshot targetUserQuery = await Users
+      // 1. Check target user
+      QuerySnapshot targetUserQuery = await FirestoreCollectionsService.users
           .where('googleId', isEqualTo: postId.trim())
           .limit(1)
           .get();
 
       if (targetUserQuery.docs.isEmpty) {
-        print("❌ Utilisateur cible non trouvé");
+        debugPrint("❌ Target user not found");
         return;
       }
 
-      // 2. Vérifier l'utilisateur courant
+      // 2. Check current user
       String? currentUserId = AppUser.info?.googleId;
       if (currentUserId == null) {
-        print("❌ Utilisateur non connecté");
+        debugPrint("❌ User not logged in");
         return;
       }
 
       if (currentUserId == postId.trim()) {
-        print("⚠️ Auto-follow impossible");
+        debugPrint("⚠️ Cannot follow self");
         return;
       }
 
-      // 3. Récupérer le document cible
+      // 3. Get target document
       final targetDoc = targetUserQuery.docs.first;
       final targetData = targetDoc.data() as Map<String, dynamic>;
 
-      // 4. Gérer la liste des followers
+      // 4. Manage follower list
       List<String> followers = [];
 
-      // Récupérer la liste existante
+      // Get existing list
       if (targetData.containsKey('allfollow') && targetData['allfollow'] != null) {
         if (targetData['allfollow'] is List) {
           followers = List<String>.from(targetData['allfollow'].map((e) => e.toString()));
         }
       }
 
-      // 5. Vérifier et mettre à jour
+      // 5. Check and update
       bool isFollowing = followers.contains(currentUserId);
 
       if (isFollowing) {
@@ -235,20 +234,20 @@ class PostUpdateService {
         followers.add(currentUserId);
       }
 
-      // 6. Mettre à jour Firestore
-      await Users.doc(targetDoc.id).update({
+      // 6. Update Firestore
+      await FirestoreCollectionsService.users.doc(targetDoc.id).update({
         'allfollow': followers,
         'followersCount': followers.length,
         'lastUpdated': FieldValue.serverTimestamp(),
       });
 
-      print(isFollowing
+      debugPrint(isFollowing
           ? "👎 Vous ne suivez plus cet utilisateur"
           : "👍 Vous suivez maintenant cet utilisateur");
 
     } catch (e, stackTrace) {
-      print('❌ Erreur: $e');
-      print(stackTrace);
+      debugPrint('❌ Erreur: $e');
+
     }
   }
 
@@ -258,7 +257,7 @@ class PostUpdateService {
 
 
   final String uniqueId =
-      '${DateTime.now().millisecondsSinceEpoch}_${AppUser.info!.uid}_${WidgetComponent.generateRandomString(6)}';
+      '${DateTime.now().millisecondsSinceEpoch}_${AppUser.info?.uid??"0"}_${WidgetComponent.generateRandomString(6)}';
 
 
   Future<void> toggleLikecomment({
@@ -277,13 +276,13 @@ class PostUpdateService {
       DocumentSnapshot snapshot = await postRef.get();
 
       if (!snapshot.exists) {
-        print("Document n'existe pas");
+        debugPrint("Document does not exist");
         return;
       }
 
       var data = snapshot.data() as Map<String, dynamic>;
 
-      // Récupérer les commentaires
+      // Get comments
       List<dynamic> comments = List.from(
           data['postData']?['commentaire'] ?? []
       );
@@ -292,7 +291,7 @@ class PostUpdateService {
       int index = comments.indexWhere((c) => c['id'] == commentId);
 
       if (index == -1) {
-        print("Commentaire non trouvé");
+        debugPrint("Comment not found");
         return;
       }
 
@@ -302,21 +301,21 @@ class PostUpdateService {
       String? currentUserAvatar = AppUser.info?.photoUrl;
 
       if (currentUserId == null) {
-        print("Utilisateur non connecté");
+        debugPrint("User not logged in");
         return;
       }
 
-      // Créer une copie modifiable du commentaire
+      // Create a mutable copy of the comment
       Map<String, dynamic> currentComment =
       Map<String, dynamic>.from(comments[index]);
 
-      // Récupérer la liste des personnes qui ont liké
+      // Get the list of people who liked
       List<dynamic> allpersonnelike = [];
       if (currentComment['allpersonnelike'] != null) {
         allpersonnelike = List.from(currentComment['allpersonnelike']);
       }
 
-      // Créer l'objet utilisateur pour le like
+      // Create user object for the like
       final likeUser = {
         'idperson': AppUser.info?.googleId,
         'userId': AppUser.info?.googleId,
@@ -325,22 +324,20 @@ class PostUpdateService {
         'likedAt': DateTime.now().toIso8601String(),
       };
 
-      // Mettre à jour la liste des likes (sans FieldValue)
-
-        // Ajouter l'utilisateur s'il n'est pas déjà dans la liste
+      // Update likes list (without FieldValue)
         bool alreadyLiked = allpersonnelike.any((u) => u['userId'] == currentUserId);
         if (!alreadyLiked) {
           allpersonnelike.add(likeUser);
-          print("j ajoute");
-          print("j ajoute");
+          debugPrint("j ajoute");
+          debugPrint("j ajoute");
         }else{
           allpersonnelike.removeWhere((u) => u['userId'] == currentUserId);
-          print("jenleve");
-          print("jenleve");
+          debugPrint("jenleve");
+          debugPrint("jenleve");
         }
 
 
-      // Mettre à jour le commentaire
+      // Update comment
       // currentComment['isLiked'] = isLiked ?? false;
       currentComment['likes'] = allpersonnelike.length;
       currentComment['allpersonnelike'] = allpersonnelike;
@@ -348,38 +345,38 @@ class PostUpdateService {
       // Remplacer l'ancien commentaire
       comments[index] = currentComment;
 
-      // Mettre à jour le document (sans FieldValue dans le tableau)
+      // Update document (without FieldValue in array)
       await postRef.update({
         'postData.commentaire': comments,
       });
 
-      print('✅ Like mis à jour: ${ allpersonnelike.any((u) => u['userId'] == currentUserId) == false ?  "👍" : "👎"} (${allpersonnelike.length} likes)');
+      debugPrint('✅ Like toggled: ${ allpersonnelike.any((u) => u['userId'] == currentUserId) == false ?  "👍" : "👎"} (${allpersonnelike.length} likes)');
 
     } catch (e) {
-      print('❌ Erreur toggleLikecomment: $e');
+      debugPrint('❌ Erreur toggleLikecomment: $e');
     }
   }
   // ============================================
-  // 5. UPDATE DES COMMENTAIRES
+  // 5. UPDATE COMMENTS
   // ============================================
   Future<void> addComment(String postId, Map<String, dynamic> comment) async {
     try {
       final commentWithMeta = {
         ...comment,
-        "commentId": Posts.doc().id,
+        "commentId": FirestoreCollectionsService.posts.doc().id,
         "userId": AppUser.info!.googleId,
         "userName": AppUser.info!.displayName,
         "userPhoto": AppUser.info!.photoUrl,
         "createdAt": FieldValue.serverTimestamp(),
       };
 
-      await Posts.doc(postId).update({
+      await FirestoreCollectionsService.posts.doc(postId).update({
         "postData.commentaire": FieldValue.arrayUnion([commentWithMeta]),
         "timestamp": FieldValue.serverTimestamp(),
       });
-      print("✅ Commentaire ajouté");
+      debugPrint("✅ Comment added");
     } catch (e) {
-      print("❌ Erreur ajout commentaire: $e");
+      debugPrint("❌ Error adding comment: $e");
       rethrow;
     }
   }
@@ -387,43 +384,43 @@ class PostUpdateService {
   Future<void> removeComment(String postId, String commentId) async {
     try {
       // Récupérer le post pour trouver le commentaire spécifique
-      final data = await Posts.doc(postId).get();
+      final data = await FirestoreCollectionsService.posts.doc(postId).get();
       final postData = data?['postData'] as Map<String, dynamic>?;
       final comments = List.from(postData?['commentaire'] ?? []);
       // final comments = List.from(doc.data()?['postData']['commentaire'] ?? []);
 
       final updatedComments = comments.where((c) => c['commentId'] != commentId).toList();
 
-      await Posts.doc(postId).update({
+      await FirestoreCollectionsService.posts.doc(postId).update({
         "postData.commentaire": updatedComments,
         "timestamp": FieldValue.serverTimestamp(),
       });
-      print("✅ Commentaire supprimé");
+      debugPrint("✅ Comment removed");
     } catch (e) {
-      print("❌ Erreur suppression commentaire: $e");
+      debugPrint("❌ Error removing comment: $e");
       rethrow;
     }
   }
 
   // ============================================
-  // 6. UPDATE DU STATUT
+  // 6. UPDATE STATUS
   // ============================================
   Future<void> updatePostStatus(String postId, String newStatus) async {
     try {
-      await Posts.doc(postId).update({
+      await FirestoreCollectionsService.posts.doc(postId).update({
         "postData.status": newStatus,
         "postData.updatedAt": FieldValue.serverTimestamp(),
         "timestamp": FieldValue.serverTimestamp(),
       });
-      print("✅ Statut du post mis à jour: $newStatus");
+      debugPrint("✅ Post status updated: $newStatus");
     } catch (e) {
-      print("❌ Erreur update statut: $e");
+      debugPrint("❌ Error updating status: $e");
       rethrow;
     }
   }
 
   // ============================================
-  // 7. UPDATE COMPLET DU POST
+  // 7. COMPLETE POST UPDATE
   // ============================================
   Future<void> updateFullPost(String postId, {
     String? newTitle,
@@ -451,30 +448,30 @@ class PostUpdateService {
       updates["timestamp"] = FieldValue.serverTimestamp();
       updates["postData.isEdited"] = true;
 
-      await Posts.doc(postId).update(updates);
-      print("✅ Post mis à jour complètement");
+      await FirestoreCollectionsService.posts.doc(postId).update(updates);
+      debugPrint("✅ Post fully updated");
     } catch (e) {
-      print("❌ Erreur update complet: $e");
+      debugPrint("❌ Error full update: $e");
       rethrow;
     }
   }
 
   // ============================================
-  // 8. UPDATE AVEC BATCH (PLUSIEURS OPÉRATIONS)
+  // 8. BATCH UPDATE (MULTIPLE OPERATIONS)
   // ============================================
   Future<void> updatePostWithBatch(String postId, Map<String, dynamic> updates) async {
     try {
       final batch = _firestore.batch();
-      final postRef = Posts.doc(postId);
+      final postRef = FirestoreCollectionsService.posts.doc(postId);
 
-      // Mise à jour du post
+      // Post update
       batch.update(postRef, {
         ...updates,
         "postData.updatedAt": FieldValue.serverTimestamp(),
         "timestamp": FieldValue.serverTimestamp(),
       });
 
-      // Ajouter une entrée dans l'historique
+      // Add history entry
       final historyRef = postRef.collection('history').doc();
       batch.set(historyRef, {
         "userId": AppUser.info!.googleId,
@@ -484,9 +481,9 @@ class PostUpdateService {
       });
 
       await batch.commit();
-      print("✅ Post mis à jour avec batch et historique");
+      debugPrint("✅ Post updated with batch and history");
     } catch (e) {
-      print("❌ Erreur batch update: $e");
+      debugPrint("❌ Error batch update: $e");
       rethrow;
     }
   }

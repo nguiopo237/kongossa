@@ -12,9 +12,9 @@ class SelectImage {
     );
 
     if (pickedFile != null) {
-      // await _uploadImage(File(pickedFile.path));
       return File(pickedFile.path);
     }
+    return null;
   }
 
  static Future<List<XFile>?>uploadMultipleImages() async {
@@ -26,12 +26,11 @@ class SelectImage {
    if (pickedFiles.isNotEmpty) {
      return pickedFiles;
    }
+   return null;
  }
  static Future<List<XFile>?>uploadMultipleVideo() async {
    List<XFile>? item = [];
    final pickedFiles = await ImagePicker().pickVideo(
-     // imageQuality: 85,
-     // maxWidth: 2000,
      source: ImageSource.gallery,
    );
 
@@ -39,6 +38,7 @@ class SelectImage {
      item.add(pickedFiles);
      return item;
    }
+   return null;
  }
 
 

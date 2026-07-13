@@ -1,91 +1,65 @@
 import 'dart:io';
+
 import 'package:cloudinary/cloudinary.dart';
-import 'package:kongossa/sevice/upload/upload_compress_image.dart';
-
-
-import 'package:path/path.dart' as path;
+import 'package:flutter/material.dart';
 import 'package:mime/mime.dart';
+import 'package:path/path.dart' as path;
 
+import '../../config_App/env_config.dart';
+import '../../model/upload_result.dart';
+
+/// Unified Cloudinary service — merge of CloudinaryServicess + UniversalCloudinaryUploader
 class UniversalCloudinaryUploader {
-  static const String cloudName = "dlzkp9dix";
-  static const String apiKey = "468428679726544";
-  static const String apiSecret = "iJqDz8I055efjaxVJndcSInifVU";
-  CloudinaryServicess item=  CloudinaryServicess();
+  // ─── Cloudinary Keys Set 2 (main UniversalCloudinaryUploader config) ───
+  static String get cloudName => EnvConfig.cloudinaryCloudName;
+  static String get apiKey => EnvConfig.cloudinaryApiKey2;
+  static String get apiSecret => EnvConfig.cloudinaryApiSecret2;
+
+  // ─── Cloudinary Keys Set 1 (ex‑CloudinaryServicess) ───
+  static String get apiKey1 => EnvConfig.cloudinaryApiKey1;
+  static String get apiSecret1 => EnvConfig.cloudinaryApiSecret1;
+  static String get apiEnv => EnvConfig.cloudinaryUrl;
+
+  /// Signed instance with Set 2 keys (detailed calls, retry, etc.)
   late final Cloudinary _cloudinary;
 
+  /// Signed instance with Set 1 keys (ex‑CloudinaryServicess._cloudinaryFull)
+  late final Cloudinary _cloudinarySigned;
 
-
+  /// Unsigned instance (ex‑CloudinaryServicess._cloudinary)
+  late final Cloudinary _cloudinaryUnsigned;
 
   UniversalCloudinaryUploader()
       : _cloudinary = Cloudinary.signedConfig(
-    cloudName: cloudName,
-    apiKey: apiKey,
-    apiSecret: apiSecret,
-  );
+          cloudName: cloudName,
+          apiKey: apiKey,
+          apiSecret: apiSecret,
+        ),
+        _cloudinarySigned = Cloudinary.signedConfig(
+          apiKey: apiKey1,
+          apiSecret: apiSecret1,
+          cloudName: cloudName,
+        ),
+        _cloudinaryUnsigned = Cloudinary.unsignedConfig(
+          cloudName: cloudName,
+        );
 
- static Future<bool> deleteVideoUsingApi(String publicId,Cloudinary cloudinary,url) async {
-   print(url);
-    try {
-      // Utiliser l'API admin via le SDK
-      final response = await cloudinary.destroy(
-        publicId,
-          // invalidate: false,
-        resourceType: CloudinaryResourceType.video,
-        url: url
-      );
-      print("response.result");
-      print(response.result);
-      print(response.isSuccessful);
-      print("response.result");
-      return response.isResultOk;
-    } catch (e) {
-      print('Erreur suppression: $e');
-      return false;
-    }
-  }
+  // ═══════════════════════════════════════════════════════════════════════
+  // Methods from ex‑UniversalCloudinaryUploader
+  // ═══════════════════════════════════════════════════════════════════════
 
-  static  String extractPublicId({String? url}) {
-    // Patterns d'URL Cloudinary
-   // url = "https://res.cloudinary.com/dlzkp9dix/image/upload/v1770582958/kogossa_app/secure/signed_1770582940348..jpg.jpg";
-   // url = "https://res.cloudinary.com/dlzkp9dix/video/upload/v1770580345/kogossa_app/secure/signed_1770580280886..mp4.mp4";
-    final patterns = [
-      RegExp(r'upload/(?:v\d+/)?(.+)'),
-      RegExp(r'image/upload/(?:v\d+/)?(.+)'),
-      RegExp(r'video/upload/(?:v\d+/)?(.+)'),
-    ];
-
-    for (final pattern in patterns) {
-      final match = pattern.firstMatch(url!);
-      if (match != null && match.groupCount >= 1) {
-        final publicId = match.group(1)!;
-        // Retirer l'extension du fichier
-        print("publicId.replaceAll(");
-        print(publicId.replaceAll(RegExp(r'\.\w+$'), ''));
-        print("publicId.replaceAll(Reg");
-        // deleteVideoUsingApi(publicId.replaceAll(RegExp(r'\.\w+$'), ''),Cloudinary.signedConfig(
-        //   cloudName: cloudName,
-        //   apiKey: apiKey,
-        //   apiSecret: apiSecret,
-        // ),url);
-        return publicId.replaceAll(RegExp(r'\.\w+$'), '');
-      }
-    }
-
-    return '';
-  }
-  /// === FONCTION D'UPLOAD CORRIGÉE ===
-   uploadAnyFile({
+  /// Upload a file (delegates to signed upload Set 1)
+  Future<dynamic> uploadAnyFile({
     required String filePath,
     required String folder,
     String? fileName,
     Function(double)? onProgress,
   }) async {
     try {
-      print('🚀 Début upload vers Cloudinary Kongossa');
-      print('📁 Chemin fichier: $filePath');
-      print('📂 Dossier destination: $folder');
+      debugPrint('🚀 Starting upload to Cloudinary Kongossa');
+      debugPrint('📁 Chemin fichier: $filePath');
+      debugPrint('📂 Dossier destination: $folder');
 
-      // 1. Vérifier que le fichier existe
       final file = File(filePath);
       if (!await file.exists()) {
         return UploadResult.error(
@@ -94,25 +68,20 @@ class UniversalCloudinaryUploader {
         );
       }
 
-      // 2. Détecter le type de fichier
       final resourceType = detectResourceType(filePath);
-      print('🎯 Type détecté: ${resourceTypeToString(resourceType)}');
+      debugPrint('🎯 Detected type: ${resourceTypeToString(resourceType)}');
 
-      // 3. Préparer le nom de fichier
-      final finalFileName = fileName ??
-          '${path.basenameWithoutExtension(filePath)}_${DateTime.now().millisecondsSinceEpoch}';
+      final isImage = resourceTypeToString(resourceType) == 'image';
 
-      // 4. Upload avec gestion d'erreurs Cloudinary
-      print('📤 Envoi vers Cloudinary...');
-      print(resourceTypeToString(resourceType)=="image");
-      // await services.uploadImageSigned(File(filePath));
-
-  final response = await item.uploadImageSigned(imageFile: file,isimage: resourceTypeToString(resourceType)=="image"?true:false);
- return response;
+      debugPrint('📤 Envoi vers Cloudinary...');
+      final response = await uploadImageSigned(
+        imageFile: file,
+        isimage: isImage,
+      );
+      return response;
     } catch (e, stackTrace) {
-      print('❌ Erreur upload: $e');
-      print('📝 StackTrace: $stackTrace');
-
+      debugPrint('❌ Erreur upload: $e');
+      debugPrint('📝 StackTrace: $stackTrace');
       return UploadResult.error(
         message: 'Erreur: ${e.toString()}',
         code: 'UPLOAD_EXCEPTION',
@@ -120,10 +89,7 @@ class UniversalCloudinaryUploader {
     }
   }
 
-
-
-
-  /// Upload avec gestion d'erreurs détaillée
+  /// Upload with detailed error handling (Set 2)
   Future<CloudinaryResponse> _uploadWithDetailedErrorHandling({
     required String filePath,
     required String fileName,
@@ -134,20 +100,17 @@ class UniversalCloudinaryUploader {
   }) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        print('📤 Tentative $attempt/$maxRetries');
+        debugPrint('📤 Tentative $attempt/$maxRetries');
 
-        // Options spécifiques selon le type
         final options = _getCloudinaryOptions(resourceType);
 
-        // Log des paramètres pour debug
-        print('📋 Paramètres upload:');
-        print('   - CloudName: $cloudName');
-        print('   - Dossier: $folder');
-        print('   - Nom fichier: $fileName');
-        print('   - Type: ${resourceTypeToString(resourceType)}');
-        print('   - Options: $options');
+        debugPrint('📋 Upload params:');
+        debugPrint('   - CloudName: $cloudName');
+        debugPrint('   - Dossier: $folder');
+        debugPrint('   - Nom fichier: $fileName');
+        debugPrint('   - Type: ${resourceTypeToString(resourceType)}');
+        debugPrint('   - Options: $options');
 
-        // Upload
         final response = await _cloudinary.upload(
           file: filePath,
           fileName: fileName,
@@ -156,45 +119,35 @@ class UniversalCloudinaryUploader {
           optParams: options,
           progressCallback: onProgress != null
               ? (count, total) {
-            if (total != null) {
-              onProgress(count / total);
-            }
-          }
+                  if (total != null) {
+                    onProgress(count / total);
+                  }
+                }
               : null,
         );
 
-        // Vérifier le résultat IMMÉDIATEMENT
         if (!response.isResultOk) {
-          throw Exception('Cloudinary a retourné une erreur: ${response.error}');
+          throw Exception(
+              'Cloudinary a retourné une erreur: ${response.error}');
         }
 
         return response;
-
       } on DioException catch (dioError) {
-        print('⚠️ Erreur Dio (tentative $attempt):');
-        print('   Code: ${dioError.response?.statusCode}');
-        print('   Message: ${dioError.message}');
-        print('   Data: ${dioError.response?.data}');
+        debugPrint('⚠️ Erreur Dio (tentative $attempt):');
+        debugPrint('   Code: ${dioError.response?.statusCode}');
+        debugPrint('   Message: ${dioError.message}');
+        debugPrint('   Data: ${dioError.response?.data}');
 
-        // Analyser l'erreur 400 spécifique
         if (dioError.response?.statusCode == 400) {
-          _analyze400Error(dioError, filePath, folder, fileName, resourceType);
+          _analyze400Error(
+              dioError, filePath, folder, fileName, resourceType);
         }
 
-        if (attempt == maxRetries) {
-          rethrow;
-        }
-
-        // Attente exponentielle
+        if (attempt == maxRetries) rethrow;
         await Future.delayed(Duration(seconds: attempt * 2));
-
       } catch (e) {
-        print('⚠️ Autre erreur (tentative $attempt): $e');
-
-        if (attempt == maxRetries) {
-          rethrow;
-        }
-
+        debugPrint('⚠️ Autre erreur (tentative $attempt): $e');
+        if (attempt == maxRetries) rethrow;
         await Future.delayed(Duration(seconds: attempt * 2));
       }
     }
@@ -202,58 +155,49 @@ class UniversalCloudinaryUploader {
     throw Exception('Toutes les tentatives ont échoué');
   }
 
-  /// Analyser l'erreur 400 de Cloudinary
   void _analyze400Error(
-      DioException error,
-      String filePath,
-      String folder,
-      String fileName,
-      CloudinaryResourceType resourceType,
-      ) {
-    print('🔍 Analyse erreur 400 Cloudinary:');
-
-    // Vérifier les données de réponse
+    DioException error,
+    String filePath,
+    String folder,
+    String fileName,
+    CloudinaryResourceType resourceType,
+  ) {
+    debugPrint('🔍 Analyse erreur 400 Cloudinary:');
     final responseData = error.response?.data;
     if (responseData != null) {
-      print('   Réponse Cloudinary: $responseData');
+      debugPrint('   Cloudinary response: $responseData');
     }
 
-    // Causes courantes d'erreur 400:
-    print('   ✅ Vérifications:');
-
-    // 1. Taille du fichier
+    debugPrint('   ✅ Checks:');
     final file = File(filePath);
     final fileSize = file.lengthSync();
-    print('   - Taille fichier: ${fileSize} bytes (${fileSize / 1024 / 1024} MB)');
+    debugPrint(
+        '   - Taille fichier: ${fileSize} bytes (${fileSize / 1024 / 1024} MB)');
     if (fileSize > 100 * 1024 * 1024) {
-      print('   ❌ Fichier trop volumineux (> 100MB)');
+      debugPrint('   ❌ Fichier trop volumineux (> 100MB)');
     }
 
-    // 2. Extension vs type MIME
     final extension = path.extension(filePath).toLowerCase();
     final mimeType = lookupMimeType(filePath);
-    print('   - Extension: $extension');
-    print('   - MIME Type: $mimeType');
+    debugPrint('   - Extension: $extension');
+    debugPrint('   - MIME Type: $mimeType');
 
-    // 3. Caractères spéciaux dans le nom
     if (fileName.contains(RegExp(r'[^a-zA-Z0-9_\-.]'))) {
-      print('   ❌ Nom fichier contient caractères spéciaux: $fileName');
+      debugPrint('   ❌ Filename contains special characters: $fileName');
     }
 
-    // 4. Format de dossier
     if (folder.contains('//') || folder.startsWith('/') || folder.endsWith('/')) {
-      print('   ❌ Format dossier incorrect: $folder');
+      debugPrint('   ❌ Format dossier incorrect: $folder');
     }
 
-    // 5. Type de ressource vs extension
     final expectedType = detectResourceType(filePath);
     if (resourceType != expectedType) {
-      print('   ❌ Type mismatch: envoyé ${resourceTypeToString(resourceType)}, '
+      debugPrint(
+          '   ❌ Type mismatch: envoyé ${resourceTypeToString(resourceType)}, '
           'attendu ${resourceTypeToString(expectedType)}');
     }
   }
 
-  /// Options Cloudinary selon le type
   Map<String, dynamic> _getCloudinaryOptions(CloudinaryResourceType resourceType) {
     final Map<String, dynamic> options = {};
 
@@ -262,23 +206,19 @@ class UniversalCloudinaryUploader {
         options['transformation'] = 'q_auto,f_auto';
         options['colors'] = true;
         break;
-
       case CloudinaryResourceType.video:
         options['resource_type'] = 'video';
         options['transformation'] = 'q_auto';
         options['video_codec'] = 'h264';
         break;
-
       case CloudinaryResourceType.raw:
         options['access_mode'] = 'authenticated';
         break;
-
       case CloudinaryResourceType.auto:
         options['transformation'] = 'q_auto';
         break;
     }
 
-    // Options communes
     options['use_filename'] = true;
     options['unique_filename'] = false;
     options['overwrite'] = false;
@@ -286,18 +226,17 @@ class UniversalCloudinaryUploader {
     return options;
   }
 
-  /// Parser la réponse Cloudinary
   UploadResult _parseCloudinaryResponse(
-      CloudinaryResponse response,
-      CloudinaryResourceType resourceType,
-      ) {
+    CloudinaryResponse response,
+    CloudinaryResourceType resourceType,
+  ) {
     try {
-      print('📥 Réponse Cloudinary reçue');
-      print('   Success: ${response.isResultOk}');
-      print('   PublicId: ${response.publicId}');
-      print('   SecureUrl: ${response.secureUrl}');
-      print('   Format: ${response.format}');
-      print('   Bytes: ${response.bytes}');
+      debugPrint('📥 Cloudinary response received');
+      debugPrint('   Success: ${response.isResultOk}');
+      debugPrint('   PublicId: ${response.publicId}');
+      debugPrint('   SecureUrl: ${response.secureUrl}');
+      debugPrint('   Format: ${response.format}');
+      debugPrint('   Bytes: ${response.bytes}');
 
       if (!response.isResultOk) {
         return UploadResult.error(
@@ -306,7 +245,6 @@ class UniversalCloudinaryUploader {
         );
       }
 
-      // Vérifier que les données essentielles sont présentes
       if (response.publicId == null || response.secureUrl == null) {
         return UploadResult.error(
           message: 'Réponse Cloudinary incomplète',
@@ -323,9 +261,8 @@ class UniversalCloudinaryUploader {
         width: response.width,
         height: response.height,
       );
-
     } catch (e) {
-      print('❌ Erreur parsing réponse: $e');
+      debugPrint('❌ Error parsing response: $e');
       return UploadResult.error(
         message: 'Erreur traitement réponse: $e',
         code: 'RESPONSE_PARSING_ERROR',
@@ -333,32 +270,66 @@ class UniversalCloudinaryUploader {
     }
   }
 
-  /// Détecter le type de ressource
- static CloudinaryResourceType detectResourceType(String filePath) {
+  static Future<bool> deleteVideoUsingApi(
+      String publicId, Cloudinary cloudinary, url) async {
+    debugPrint(url);
+    try {
+      final response = await cloudinary.destroy(
+        publicId,
+        resourceType: CloudinaryResourceType.video,
+        url: url,
+      );
+      debugPrint('response.result');
+      debugPrint(response.result);
+      debugPrint('response.result');
+      return response.isResultOk;
+    } catch (e) {
+      debugPrint('Erreur suppression: $e');
+      return false;
+    }
+  }
+
+  static String extractPublicId({String? url}) {
+    final patterns = [
+      RegExp(r'upload/(?:v\d+/)?(.+)'),
+      RegExp(r'image/upload/(?:v\d+/)?(.+)'),
+      RegExp(r'video/upload/(?:v\d+/)?(.+)'),
+    ];
+
+    for (final pattern in patterns) {
+      final match = pattern.firstMatch(url!);
+      if (match != null && match.groupCount >= 1) {
+        final publicId = match.group(1)!;
+        debugPrint('publicId.replaceAll(');
+        debugPrint(publicId.replaceAll(RegExp(r'\.\w+$'), ''));
+        debugPrint('publicId.replaceAll(Reg');
+        return publicId.replaceAll(RegExp(r'\.\w+$'), '');
+      }
+    }
+
+    return '';
+  }
+
+  static CloudinaryResourceType detectResourceType(String filePath) {
     final extension = path.extension(filePath).toLowerCase();
-    final mimeType = lookupMimeType(filePath);
+    final mimeType = lookupMimeType(filePath);      debugPrint('🔍 Detection: extension=$extension, mimeType=$mimeType');
 
-    print('🔍 Détection: extension=$extension, mimeType=$mimeType');
-
-    // Images
-    if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff', '.svg', '.heic']
+    if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff', '.svg',
+            '.heic']
         .contains(extension)) {
       return CloudinaryResourceType.image;
     }
 
-    // Vidéos
     if (['.mp4', '.mov', '.avi', '.mkv', '.webm', '.flv', '.wmv', '.m4v']
         .contains(extension)) {
       return CloudinaryResourceType.video;
     }
 
-    // Documents et autres
     if (['.pdf', '.doc', '.docx', '.txt', '.zip', '.rar', '.mp3', '.wav']
         .contains(extension)) {
       return CloudinaryResourceType.raw;
     }
 
-    // Auto-détection par MIME
     if (mimeType != null) {
       if (mimeType.startsWith('image/')) return CloudinaryResourceType.image;
       if (mimeType.startsWith('video/')) return CloudinaryResourceType.video;
@@ -367,37 +338,36 @@ class UniversalCloudinaryUploader {
     return CloudinaryResourceType.auto;
   }
 
-  /// Convertir type en string
   static String resourceTypeToString(CloudinaryResourceType type) {
     switch (type) {
-      case CloudinaryResourceType.image: return 'image';
-      case CloudinaryResourceType.video: return 'video';
-      case CloudinaryResourceType.raw: return 'raw';
-      case CloudinaryResourceType.auto: return 'auto';
+      case CloudinaryResourceType.image:
+        return 'image';
+      case CloudinaryResourceType.video:
+        return 'video';
+      case CloudinaryResourceType.raw:
+        return 'raw';
+      case CloudinaryResourceType.auto:
+        return 'auto';
     }
   }
 
-  /// Méthode alternative: upload simple pour tester
   Future<UploadResult> uploadSimpleTest() async {
     try {
-      print('🧪 Test upload simple...');
-
-      // Créer un fichier test minimal
+      debugPrint('🧪 Testing simple upload...');
       final testFile = await _createTestFile();
 
       final response = await _cloudinary.upload(
         file: testFile.path,
         folder: 'test-uploads',
-        fileName: 'test_simple_${DateTime.now().millisecondsSinceEpoch}.txt',
+        fileName:
+            'test_simple_${DateTime.now().millisecondsSinceEpoch}.txt',
         resourceType: CloudinaryResourceType.raw,
-        optParams: {
-          'transformation': 'q_auto',
-        },
+        optParams: {'transformation': 'q_auto'},
       );
 
-      print('Test réponse: ${response.isResultOk}');
-      print('Test publicId: ${response.publicId}');
-      print('Test secureUrl: ${response.secureUrl}');
+      debugPrint('Test response: ${response.isResultOk}');
+      debugPrint('Test publicId: ${response.publicId}');
+      debugPrint('Test secureUrl: ${response.secureUrl}');
 
       if (response.isResultOk && response.publicId != null) {
         return UploadResult.success(
@@ -412,130 +382,232 @@ class UniversalCloudinaryUploader {
         );
       }
     } catch (e, stackTrace) {
-      print('❌ Test échoué: $e');
-      print('📝 StackTrace: $stackTrace');
+      debugPrint('❌ Test failed: $e');
+      debugPrint('📝 StackTrace: $stackTrace');
       return UploadResult.error(message: 'Test error: $e', code: 'TEST_ERROR');
     }
   }
 
-  /// Créer un fichier test
   Future<File> _createTestFile() async {
     final tempDir = await Directory.systemTemp.createTemp('cloudinary_test');
     final testFile = File('${tempDir.path}/test.txt');
-
-    await testFile.writeAsString('Test file for Cloudinary upload - ${DateTime.now()}');
-
+    await testFile.writeAsString(
+        'Test file for Cloudinary upload - ${DateTime.now()}');
     return testFile;
   }
-}
 
-/// Résultat d'upload avec validation
-class UploadResult {
-  final bool success;
-  final String? publicId;
-  final String? secureUrl;
-  final String? resourceType;
-  final String? format;
-  final int bytes;
-  final int? width;
-  final int? height;
-  final String? errorMessage;
-  final String? errorCode;
-  // final  Cloudinary ?cloudinary;
+  // ═══════════════════════════════════════════════════════════════════════
+  // Methods from ex‑CloudinaryServicess
+  // ═══════════════════════════════════════════════════════════════════════
 
-  UploadResult({
-    required this.success,
-    this.publicId,
-    this.secureUrl,
-    this.resourceType,
-    this.format,
-    this.bytes = 0,
-    this.width,
-    this.height,
-    this.errorMessage,
-    this.errorCode,
-  });
-
-  factory UploadResult.success({
-    required String publicId,
-    required String secureUrl,
-    required String resourceType,
-    String? format,
-    int bytes = 0,
-    int? width,
-    int? height,
-  }) {
-    // VALIDATION: vérifier que les données essentielles sont présentes
-    if (publicId.isEmpty || secureUrl.isEmpty) {
-      return UploadResult.error(
-        message: 'Données manquantes dans le succès',
-        code: 'INVALID_SUCCESS_DATA',
-      );
-    }
-
-    return UploadResult(
-      success: true,
-      publicId: publicId,
-      secureUrl: secureUrl,
-      resourceType: resourceType,
-      format: format,
-      bytes: bytes,
-      width: width,
-      height: height,
-    );
-  }
-
-  factory UploadResult.error({
-    required String message,
-    String? code,
-  }) {
-    print('❌ UploadResult.error: $message (code: $code)');
-
-    return UploadResult(
-      success: false,
-      errorMessage: message,
-      errorCode: code,
-    );
-  }
-
-  @override
-  String toString() {
-    if (success) {
-      return '✅ UploadResult{publicId: $publicId, url: $secureUrl, type: $resourceType}';
-    } else {
-      return '❌ UploadResult{error: $errorMessage, code: $errorCode}';
-    }
-  }
-
-
-
-
-  /// Récupérer publicId depuis l'URL Cloudinary
-  String getPublicIdFromUrl(String url) {
-      url = "https://res.cloudinary.com/dlzkp9dix/image/upload/v1770582958/kogossa_app/secure/signed_1770582940348..jpg.jpg";
+  /// Simple unsigned upload (Set 1)
+  Future<String> uploadImageSimple(File imageFile) async {
     try {
-      // Exemple d'URL: https://res.cloudinary.com/cloudname/video/upload/v1234567/folder/video.mp4
+      final response = await _cloudinaryUnsigned.upload(
+        file: imageFile.path,
+        resourceType: CloudinaryResourceType.image,
+        folder: 'kogossa_app',
+        fileName: 'img_${DateTime.now().millisecondsSinceEpoch}',
+      );
+
+      if (response.isSuccessful) {
+        debugPrint('✅ Image uploaded: ${response.secureUrl}');
+        return response.secureUrl!;
+      } else {
+        throw Exception('Upload failed: ${response.error}');
+      }
+    } catch (e) {
+      debugPrint('❌ Error: $e');
+      rethrow;
+    }
+  }
+
+  /// Upload avec transformations (Set 1)
+  Future<String> uploadImageWithTransformations(File imageFile) async {
+    try {
+      final response = await _cloudinaryUnsigned.upload(
+        file: imageFile.path,
+        resourceType: CloudinaryResourceType.image,
+        folder: 'kogossa_app',
+        fileName: 'optimized_${DateTime.now().millisecondsSinceEpoch}',
+      );
+
+      if (response.isSuccessful && response.secureUrl != null) {
+        return _addTransformationsToUrl(response.secureUrl!);
+      } else {
+        throw Exception('Upload failed: ${response.error}');
+      }
+    } catch (e) {
+      throw Exception('Upload failed: $e');
+    }
+  }
+
+  String _addTransformationsToUrl(String originalUrl) {
+    return originalUrl.replaceFirst(
+      '/upload/',
+      '/upload/w_800,h_600,c_fill,q_auto,f_auto/',
+    );
+  }
+
+  /// Signed upload (Set 1) — used by `uploadAnyFile()`
+  Future<String> uploadImageSigned({
+    File? imageFile,
+    bool isimage = true,
+    String? fileExtension,
+  }) async {
+    try {
+      if (imageFile == null || !await imageFile.exists()) {
+        throw Exception('Fichier introuvable ou invalide');
+      }
+
+      final extension =
+          fileExtension ?? path.extension(imageFile.path).toLowerCase();        debugPrint('📤 Starting signed upload');
+      debugPrint('📁 Chemin: ${imageFile.path}');
+      debugPrint('🔍 Extension: $extension');
+      debugPrint('🖼️ Est image: $isimage');
+      debugPrint('☁️ Cloud Name: ${_cloudinarySigned.cloudName}');
+      debugPrint('🔑 API Key: ${_cloudinarySigned.apiKey}');
+
+      final resourceType = (isimage == true)
+          ? CloudinaryResourceType.image
+          : CloudinaryResourceType.video;
+
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final fileName = 'signed_$timestamp$extension';
+
+      final response = await _cloudinarySigned.upload(
+        file: imageFile.path,
+        resourceType: resourceType,
+        folder: 'kogossa_app/secure',
+        fileName: fileName,
+      );
+
+      if (response.isSuccessful) {
+        debugPrint('✅ Signed upload successful!');
+        debugPrint('🔗 URL: ${response.secureUrl}');
+        debugPrint('🆔 Public ID: ${response.publicId}');
+        final publicId = response.publicId;
+        debugPrint('📋 ID Public extrait: $publicId');
+        return response.secureUrl!;
+      } else {
+        debugPrint('❌ Upload failed: ${response.error}');
+        throw Exception('Upload signé échoué: ${response.error}');
+      }
+    } catch (e) {
+      debugPrint('🔥 Erreur lors de l\'upload: $e');
+      debugPrint('📝 Stack trace: ${e.toString()}');
+      throw Exception('Échec de l\'upload signé: $e');
+    }
+  }
+
+  /// Upload depuis une URL (Set 1)
+  Future<String> uploadFromUrl(String imageUrl) async {
+    try {
+      final response = await _cloudinaryUnsigned.upload(
+        file: imageUrl,
+        resourceType: CloudinaryResourceType.image,
+        folder: 'kogossa_app/url_uploads',
+        fileName: 'from_url_${DateTime.now().millisecondsSinceEpoch}',
+      );
+
+      if (response.isSuccessful) {
+        return response.secureUrl!;
+      } else {
+        throw Exception('Upload from URL failed: ${response.error}');
+      }
+    } catch (e) {
+      throw Exception('Upload from URL failed: $e');
+    }
+  }
+
+  /// Generate an optimized URL
+  String getOptimizedUrl(String originalUrl,
+      {int width = 400, int height = 400}) {
+    try {
+      final uri = Uri.parse(originalUrl);
+      final pathSegments = uri.pathSegments;
+
+      if (pathSegments.length < 3) return originalUrl;
+
+      final version = pathSegments[0];
+      final cloudName = uri.host.split('.')[0];
+      final publicId = pathSegments.sublist(1).join('/');
+      final cleanPublicId =
+          publicId.replaceAll(RegExp(r'\.(jpg|jpeg|png|gif|webp)$'), '');
+
+      return 'https://res.cloudinary.com/$cloudName/image/upload/'
+          'w_$width,h_$height,c_fill,q_auto,f_auto/'
+          '$version/$cleanPublicId';
+    } catch (e) {
+      debugPrint('❌ Error generating optimized URL: $e');
+      return originalUrl;
+    }
+  }
+
+  /// Supprimer une image par URL
+  Future<bool> deleteImage(String imageUrl) async {
+    debugPrint('🗑️ Suppression de url : $imageUrl');
+    try {
+      final publicId = extractPublicIdFromUrl(imageUrl);
+      debugPrint('🗑️ Deleting public ID: $publicId');
+
+      if (publicId.isEmpty) {
+        debugPrint('❌ Impossible d\'extraire publicId de l\'URL');
+        return false;
+      }
+
+      final response = await _cloudinaryUnsigned.destroy(
+        publicId,
+        resourceType: CloudinaryResourceType.auto,
+        invalidate: true,
+      );
+
+      return response.isSuccessful;
+    } catch (e) {
+      debugPrint('❌ Erreur suppression: $e');
+      return false;
+    }
+  }
+
+  /// Extract Public ID from a Cloudinary URL (instance method)
+  String extractPublicIdFromUrl(String url) {
+    try {
       final uri = Uri.parse(url);
       final pathSegments = uri.pathSegments;
 
-      // Trouver l'index de 'upload'
-      final uploadIndex = pathSegments.indexOf('upload');
-      if (uploadIndex != -1 && uploadIndex + 1 < pathSegments.length) {
-        // Tout après 'upload/' est le publicId
-        final publicIdParts = pathSegments.sublist(uploadIndex + 1);
-        return publicIdParts.join('/');
-      }
+      if (pathSegments.length < 3) return '';
 
-      return '';
+      final folderAndFile = pathSegments.sublist(1).join('/');
+      return folderAndFile.replaceAll(RegExp(r'\.[^/.]+$'), '');
     } catch (e) {
-      print('Erreur parsing URL: $e');
       return '';
     }
   }
 
-  /// Version améliorée
+  /// Upload avec callback de progression
+  Future<String> uploadWithProgress(
+    File imageFile,
+    void Function(double) onProgress,
+  ) async {
+    try {
+      onProgress(0.1);
 
+      final response = await _cloudinaryUnsigned.upload(
+        file: imageFile.path,
+        resourceType: CloudinaryResourceType.image,
+        folder: 'kogossa_app',
+        fileName: 'progress_${DateTime.now().millisecondsSinceEpoch}',
+      );
 
+      onProgress(1.0);
 
-
+      if (response.isSuccessful) {
+        return response.secureUrl!;
+      } else {
+        throw Exception('Upload failed: ${response.error}');
+      }
+    } catch (e) {
+      throw Exception('Upload with progress failed: $e');
+    }
+  }
 }

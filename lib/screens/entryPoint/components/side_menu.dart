@@ -3,7 +3,7 @@ import 'package:rive/rive.dart' hide LinearGradient, RadialGradient;
 import 'dart:math';
 
 import '../../../model/menu.dart';
-import '../../../presentation/component/style/custum_text.dart';
+import 'package:kongossa/shared/widgets/widgets.dart';
 import 'package:kongossa/config_App/colorsApp.dart';
 
 class PremiumSideMenu extends StatefulWidget {
@@ -74,7 +74,7 @@ class _PremiumSideMenuState extends State<PremiumSideMenu>
 
     _colorAnimation = ColorTween(
       begin: Colors.transparent,
-      end: ColorApp.primary1.withOpacity(0.1),
+      end: ColorApp.primary1.withValues(alpha: 0.1),
     ).animate(
       CurvedAnimation(
         parent: _animationController,
@@ -127,8 +127,8 @@ class _PremiumSideMenuState extends State<PremiumSideMenu>
                   gradient: isSelected
                       ? LinearGradient(
                     colors: [
-                      ColorApp.primary1.withOpacity(0.9),
-                      ColorApp.primary2.withOpacity(0.7),
+                      ColorApp.primary1.withValues(alpha: 0.9),
+                      ColorApp.primary2.withValues(alpha: 0.7),
                     ],
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
@@ -145,13 +145,13 @@ class _PremiumSideMenuState extends State<PremiumSideMenu>
                   boxShadow: [
                     if (isSelected)
                       BoxShadow(
-                        color: ColorApp.primary1.withOpacity(0.4),
+                        color: ColorApp.primary1.withValues(alpha: 0.4),
                         blurRadius: 20,
                         spreadRadius: 0,
                         offset: const Offset(0, 4),
                       ),
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 10,
                       spreadRadius: 0,
                       offset: const Offset(0, 2),
@@ -173,8 +173,8 @@ class _PremiumSideMenuState extends State<PremiumSideMenu>
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: [
-                                  Colors.white.withOpacity(0.2),
-                                  Colors.white.withOpacity(0.0),
+                                  Colors.white.withValues(alpha: 0.2),
+                                  Colors.white.withValues(alpha: 0.0),
                                 ],
                               ),
                             ),
@@ -195,7 +195,7 @@ class _PremiumSideMenuState extends State<PremiumSideMenu>
                                 center: Alignment.centerLeft,
                                 radius: 2.0,
                                 colors: [
-                                  ColorApp.primary1.withOpacity(0.3),
+                                  ColorApp.primary1.withValues(alpha: 0.3),
                                   Colors.transparent,
                                 ],
                               ),
@@ -212,7 +212,7 @@ class _PremiumSideMenuState extends State<PremiumSideMenu>
                       child: InkWell(
                         onTap: widget.press,
                         borderRadius: BorderRadius.circular(16),
-                        splashColor: ColorApp.primary1.withOpacity(0.3),
+                        splashColor: ColorApp.primary1.withValues(alpha: 0.3),
                         highlightColor: Colors.transparent,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
@@ -234,7 +234,7 @@ class _PremiumSideMenuState extends State<PremiumSideMenu>
                                         shape: BoxShape.circle,
                                         gradient: RadialGradient(
                                           colors: [
-                                            ColorApp.primary1.withOpacity(0.4),
+                                            ColorApp.primary1.withValues(alpha: 0.4),
                                             Colors.transparent,
                                           ],
                                           radius: 0.8,
@@ -248,13 +248,13 @@ class _PremiumSideMenuState extends State<PremiumSideMenu>
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       color: isSelected
-                                          ? Colors.white.withOpacity(0.1)
-                                          : ColorApp.primary3.withOpacity(0.1),
+                                          ? Colors.white.withValues(alpha: 0.1)
+                                          : ColorApp.primary3.withValues(alpha: 0.1),
                                       boxShadow: [
                                         if (isSelected)
                                           BoxShadow(
                                             color: ColorApp.primary1
-                                                .withOpacity(0.3),
+                                                .withValues(alpha: 0.3),
                                             blurRadius: 10,
                                             spreadRadius: 2,
                                           ),
@@ -319,7 +319,7 @@ class _PremiumSideMenuState extends State<PremiumSideMenu>
                                     color: Colors.white,
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.white.withOpacity(0.8),
+                                        color: Colors.white.withValues(alpha: 0.8),
                                         blurRadius: 10,
                                         spreadRadius: 2,
                                       ),
@@ -378,8 +378,8 @@ class _PremiumSidebarState extends State<PremiumSidebar> {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            ColorApp.background.withOpacity(0.95),
-            ColorApp.background.withOpacity(0.98),
+            ColorApp.background.withValues(alpha: 0.95),
+            ColorApp.background.withValues(alpha: 0.98),
           ],
         ),
         borderRadius: const BorderRadius.only(
@@ -388,7 +388,7 @@ class _PremiumSidebarState extends State<PremiumSidebar> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 20,
             spreadRadius: 0,
             offset: const Offset(4, 0),
@@ -416,7 +416,7 @@ class _PremiumSidebarState extends State<PremiumSidebar> {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: ColorApp.primary1.withOpacity(0.3),
+                        color: ColorApp.primary1.withValues(alpha: 0.3),
                         blurRadius: 10,
                         spreadRadius: 2,
                       ),
@@ -433,8 +433,8 @@ class _PremiumSidebarState extends State<PremiumSidebar> {
                   AnimatedOpacity(
                     duration: const Duration(milliseconds: 300),
                     opacity: widget.isExpanded ? 1.0 : 0.0,
-                    child: const CustomText(
-                      "Premium",
+                    child:                      CustomText(
+                      'sidebar.premium',
                       type: TextType.headlineSmall,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
@@ -474,12 +474,12 @@ class _PremiumSidebarState extends State<PremiumSidebar> {
               borderRadius: BorderRadius.circular(16),
               gradient: LinearGradient(
                 colors: [
-                  Colors.white.withOpacity(0.05),
-                  Colors.white.withOpacity(0.02),
+                  Colors.white.withValues(alpha: 0.05),
+                  Colors.white.withValues(alpha: 0.02),
                 ],
               ),
               border: Border.all(
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha: 0.1),
                 width: 1,
               ),
             ),
@@ -492,12 +492,12 @@ class _PremiumSidebarState extends State<PremiumSidebar> {
                     shape: BoxShape.circle,
                     gradient: LinearGradient(
                       colors: [
-                        ColorApp.primary3.withOpacity(0.3),
-                        ColorApp.primary3.withOpacity(0.1),
+                        ColorApp.primary3.withValues(alpha: 0.3),
+                        ColorApp.primary3.withValues(alpha: 0.1),
                       ],
                     ),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       width: 2,
                     ),
                   ),
@@ -513,15 +513,15 @@ class _PremiumSidebarState extends State<PremiumSidebar> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const CustomText(
-                          "Admin User",
+                        CustomText(
+                          'sidebar.admin_user',
                           type: TextType.labelMedium,
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         CustomText(
-                          "Premium Account",
+                          'sidebar.premium_account',
                           type: TextType.labelSmall,
                           style: TextStyle(
                             color: ColorApp.primary1,
@@ -539,7 +539,7 @@ class _PremiumSidebarState extends State<PremiumSidebar> {
                       color: Colors.green,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.green.withOpacity(0.5),
+                          color: Colors.green.withValues(alpha: 0.5),
                           blurRadius: 8,
                         ),
                       ],

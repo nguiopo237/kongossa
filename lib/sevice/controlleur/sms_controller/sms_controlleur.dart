@@ -57,8 +57,8 @@ class SmsController extends GetxController {
           _startResendTimer();
 
           Get.snackbar(
-            'SMS envoyé',
-            'Un code a été envoyé au $formattedPhone',
+            'sms.title_sent'.tr,
+            '${'sms.code_sent'.tr}$formattedPhone',
             snackPosition: SnackPosition.BOTTOM,
           );
         },
@@ -70,7 +70,7 @@ class SmsController extends GetxController {
       );
 
     } catch (e) {
-      errorMessage.value = 'Erreur: $e';
+      errorMessage.value = 'Error: $e';
       isLoading.value = false;
     }
   }
@@ -91,7 +91,7 @@ class SmsController extends GetxController {
       await _signInWithPhoneCredential(credential);
 
     } catch (e) {
-      errorMessage.value = 'Code invalide: $e';
+      errorMessage.value = 'Invalid code: $e';
       isLoading.value = false;
     }
   }
@@ -104,8 +104,8 @@ class SmsController extends GetxController {
 
       // Succès
       Get.snackbar(
-        'Connexion réussie',
-        'Bienvenue !',
+        'auth.login_success'.tr,
+        'auth.welcome'.tr,
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.green,
         colorText: Colors.white,
@@ -166,21 +166,21 @@ class SmsController extends GetxController {
   String _getErrorMessage(String code) {
     switch (code) {
       case 'invalid-phone-number':
-        return 'Numéro de téléphone invalide';
+        return 'sms.invalid_phone'.tr;
       case 'too-many-requests':
-        return 'Trop de tentatives. Réessayez plus tard';
+        return 'sms.too_many_attempts'.tr;
       case 'quota-exceeded':
-        return 'Quota SMS dépassé';
+        return 'sms.quota_exceeded'.tr;
       case 'session-expired':
-        return 'Session expirée. Renvoyez le SMS';
+        return 'sms.session_expired'.tr;
       case 'invalid-verification-code':
-        return 'Code de vérification invalide';
+        return 'sms.invalid_code'.tr;
       case 'missing-verification-code':
-        return 'Code manquant';
+        return 'sms.code_missing'.tr;
       case 'credential-already-in-use':
-        return 'Ce numéro est déjà associé à un compte';
+        return 'sms.number_exists'.tr;
       default:
-        return 'Erreur: $code';
+        return '${'sms.error'.tr}: $code';
     }
   }
 }

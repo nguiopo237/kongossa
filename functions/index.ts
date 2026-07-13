@@ -2,7 +2,8 @@
  * Import function triggers from their respective submodules:
  */
 import { onCall } from "firebase-functions/v2/https";
-import { onRequest } from "firebase-functions/v2/https";  // ← Ajoutez cette ligne
+import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import { onRequest } from "firebase-functions/v2/https";
 import { setGlobalOptions } from "firebase-functions/v2";
 import * as logger from "firebase-functions/logger";
 import * as admin from 'firebase-admin';
@@ -131,15 +132,145 @@ export const sendChatNotification = onCall<NotificationData>(async (request) => 
 
 /**
  * Fonction utilitaire pour vérifier le statut de la fonction
- * Note: Typage explicite des paramètres req et res
  */
 export const healthCheck = onRequest((
-    req: any,  // Vous pouvez utiliser 'any' ou importer Request de express
-    res: any   // Vous pouvez utiliser 'any' ou importer Response de express
+    req: any,
+    res: any
 ) => {
     res.status(200).json({
         status: 'ok',
         timestamp: new Date().toISOString(),
-        functions: ['sendChatNotification']
+        functions: ['sendChatNotification', 'onLiveCreated']
     });
 });
+
+/**
+ * Trigger Firestore – Notification push aux followers quand un live démarre.
+ */
+export const onLiveCreated = onDocumentCreated("lives/{liveId}", async (event) => {
+    const snap = event.data;
+    if (!snap) {
+        logger.warn("onLiveCreated: snap is null");
+        return;
+    }
+
+    const liveData = snap.data();
+    const hostId = liveData.hostId as string;
+    const hostName = liveData.hostName as string;
+    const liveTitle = liveData.title as string;
+    const liveId = snap.id;
+
+    logger.info(`🔴 Live démarré par ${hostName} (${hostId}): ${liveTitle}`);
+
+    try {
+        // 1. Trouver le doc Firestore de l'hôte via googleId
+        const hostQuery = await admin.firestore()
+            .collection('user')
+            .where('googleId', '==', hostId)
+            .limit(1)
+            .get();
+
+        if (hostQuery.empty) {
+            logger.warn(`Hôte ${hostId} introuvable dans Firestore`);
+            return;
+        }
+
+        const hostDoc = hostQuery.docs[0];
+        const hostData = hostDoc.data();
+        const followerIds: string[] = (hostData.allfollow as string[]) || [];
+
+        if (followerIds.length === 0) {
+            logger.info(`Aucun follower pour ${hostName} — pas de notification`);
+            return;
+        }
+
+        logger.info(`📣 ${followerIds.length} follower(s) à notifier pour ${hostName}`);
+
+        // 2. Récupérer les tokens FCM de tous les followers en une requête
+        // On récupère les docs par lots de 10 (limite Firestore `in`)
+        const BATCH_SIZE = 10;
+        const tokens: string[] = [];
+
+        for (let i = 0; i < followerIds.length; i += BATCH_SIZE) {
+            const batch = followerIds.slice(i, i + BATCH_SIZE);
+            const followerDocs = await admin.firestore()
+                .collection('user')
+                .where(admin.firestore.FieldPath.documentId(), 'in', batch)
+                .get();
+
+            followerDocs.forEach((doc) => {
+                const data = doc.data();
+                const token = data.fcmToken as string | undefined;
+                if (token && token.trim().length > 0) {
+                    tokens.push(token);
+                }
+            });
+        }
+
+        if (tokens.length === 0) {
+            logger.info(`Aucun token FCM disponible pour les followers de ${hostName}`);
+            return;
+        }
+
+        // 3. Envoyer les notifications via FCM
+        const payload = {
+            notification: {
+                title: `🔴 ${hostName} est en live !`,
+                body: liveTitle || 'Rejoignez le live maintenant',
+            },
+            data: {
+                type: 'live',
+                liveId: liveId,
+                hostId: hostId,
+                hostName: hostName,
+                click_action: 'FLUTTER_NOTIFICATION_CLICK',
+            },
+            android: {
+                priority: 'high' as const,
+                notification: {
+                    sound: 'default',
+                    channelId: 'live_notifications',
+                    color: '#D4AF37',
+                },
+            },
+            apns: {
+                payload: {
+                    aps: {
+                        sound: 'default',
+                        badge: 1,
+                    },
+                },
+            },
+        };
+
+        // Envoyer à chaque token individuellement + logguer les résultats
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const token of tokens) {
+            try {
+                const messageId = await admin.messaging().send({
+                    ...payload,
+                    token,
+                });
+                logger.info(`✅ Notification FCM envoyée: ${messageId}`);
+                successCount++;
+            } catch (error) {
+                if (error instanceof Error) {
+                    if (error.message.includes('registration-token-not-registered')) {
+                        logger.warn(`Token FCM invalide (supprimé): ${token.slice(0, 20)}...`);
+                    } else {
+                        logger.error(`Erreur FCM: ${error.message}`);
+                    }
+                }
+                failCount++;
+            }
+        }
+
+        logger.info(`📊 Résultat: ${successCount} envoyée(s), ${failCount} échec(s)`);
+
+    } catch (error) {
+        logger.error('❌ Erreur onLiveCreated:', error);
+    }
+});
+

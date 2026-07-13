@@ -1,18 +1,17 @@
-import 'dart:convert';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
-import 'package:kongossa/presentation/component/widget/widget_component.dart';
+import 'package:kongossa/shared/widgets/widgets.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
-import '../../main.dart';
+import '../../sevice/controlleur/firestore_collections_service.dart';
+import '../../config_App/colorsApp.dart';
 import '../../model/datamodel/user_model.dart';
-import '../../presentation/component/widget/appbar.dart';
-import '../../presentation/component/widget/component_for_post/option_card.dart';
-import '../../presentation/component/widget/component_for_post/postcard.dart';
+import '../../shared/widgets/appbar.dart';
+import '../../shared/widgets/component_for_post/option_card.dart';
+import '../../shared/widgets/component_for_post/postcard.dart';
+import '../../utils/transitions.dart';
 import '../profil_screen.dart';
 
 class HomePage extends StatefulWidget {
@@ -35,55 +34,39 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade200,
-      body: CustomScrollView(
-        controller: _scrollController,
-        slivers: [
-          // AppBar professionnelle
-          SliverAppBar(
-            expandedHeight: 3.h,
-            floating: true,
-            pinned: true,
-            snap: true,
-            stretch: true,
-            backgroundColor: Colors.white,
-            elevation: 2,
-            shadowColor: Colors.black12,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
-            ),
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.white, Colors.grey.shade50],
-                  ),
+      backgroundColor: const Color(0xFF0A0A0A),
+      body: PremiumParticleBackground(
+        config: ParticleThemes.gold,
+        showGradient: true,
+        child: CustomScrollView(
+          controller: _scrollController,
+          slivers: [
+            // AppBar fixe en haut
+            SliverToBoxAdapter(
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF0A0A0A),
                 ),
                 child: SafeArea(
-                  bottom: true,
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4.w),
-                    child: const ProfessionalAppBar(),
-                  ),
+                  bottom: false,
+                  child: const ProfessionalAppBar(),
                 ),
               ),
             ),
-          ),
-
-          // Section des posts
-          SliverFillRemaining(
-            hasScrollBody: true,
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _getPostsStream(),
-              builder: (context, snapshot) {
-                // Gestion des différents états
-                return _buildPostsContent(snapshot);
-              },
+            SliverToBoxAdapter(child: SizedBox(height: 0.5.h)),
+            // Section des posts
+            SliverFillRemaining(
+              hasScrollBody: true,
+              child: StreamBuilder<QuerySnapshot>(
+                stream: _getPostsStream(),
+                builder: (context, snapshot) {
+                  return _buildPostsContent(snapshot);
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -91,9 +74,9 @@ class _HomePageState extends State<HomePage> {
   // Séparation de la logique de stream pour plus de clarté
   Stream<QuerySnapshot> _getPostsStream() {
     try {
-      return Posts.orderBy("timestamp", descending: true).snapshots();
+      return FirestoreCollectionsService.posts.orderBy("timestamp", descending: true).snapshots();
     } catch (e) {
-      print('Erreur lors de la création du stream: $e');
+      debugPrint('Error creating stream: $e');
       return const Stream.empty();
     }
   }
@@ -102,10 +85,29 @@ class _HomePageState extends State<HomePage> {
   Widget _buildPostsContent(AsyncSnapshot<QuerySnapshot> snapshot) {
     // État de chargement
     if (snapshot.connectionState == ConnectionState.waiting) {
-      return const Center(
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 40,
+              height: 40,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  ColorApp.premiumGold,
+                ),
+              ),
+            ),
+            SizedBox(height: 2.h),
+            Text(
+              'home.loading'.tr,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 14.sp,
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -116,34 +118,35 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 48.sp, color: Colors.red.shade300),
+            Icon(Icons.error_outline, size: 48.sp, color: ColorApp.premiumGold.withValues(alpha: 0.6)),
             SizedBox(height: 2.h),
             Text(
-              'Erreur de chargement',
+              'home.error_title'.tr,
               style: TextStyle(
                 fontSize: 16.sp,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey.shade800,
+                color: Colors.white,
               ),
             ),
             SizedBox(height: 1.h),
             Text(
-              'Vérifiez votre connexion',
-              style: TextStyle(fontSize: 14.sp, color: Colors.grey.shade600),
+              'home.error_subtitle'.tr,
+              style: TextStyle(fontSize: 14.sp, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
-            SizedBox(height: 2.h),
-            ElevatedButton(
+            SizedBox(height: 2.h),              ElevatedButton(
               onPressed: () {
-                setState(() {}); // Force le rebuild pour réessayer
+                setState(() {});
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
+                backgroundColor: ColorApp.premiumGold,
+                foregroundColor: Colors.black,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(12),
                 ),
+                elevation: 4,
+                shadowColor: ColorApp.premiumGold.withValues(alpha: 0.3),
               ),
-              child: const Text('Réessayer'),
+              child: Text('app.retry'.tr),
             ),
           ],
         ),
@@ -156,20 +159,20 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.post_add, size: 48.sp, color: Colors.grey.shade400),
+            Icon(Icons.post_add, size: 48.sp, color: ColorApp.premiumGold.withValues(alpha: 0.4)),
             SizedBox(height: 2.h),
             Text(
-              'Aucun post pour le moment',
+              'home.empty_title'.tr,
               style: TextStyle(
                 fontSize: 16.sp,
                 fontWeight: FontWeight.w500,
-                color: Colors.grey.shade600,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
             SizedBox(height: 1.h),
             Text(
-              'Soyez le premier à publier !',
-              style: TextStyle(fontSize: 14.sp, color: Colors.grey.shade500),
+              'home.empty_subtitle'.tr,
+              style: TextStyle(fontSize: 14.sp, color: Theme.of(context).colorScheme.outline),
             ),
           ],
         ),
@@ -193,11 +196,10 @@ class _HomePageState extends State<HomePage> {
         },
       );
     } catch (e) {
-      print('Erreur lors de la construction des posts: $e');
-      return Center(
-        child: Text(
-          'Erreur d\'affichage des posts',
-          style: TextStyle(color: Colors.red.shade400),
+      debugPrint('Error building posts: $e');
+      return Center(                      child: Text(
+                        'home.display_error'.tr,
+          style: TextStyle(color: Theme.of(context).colorScheme.error),
         ),
       );
     }
@@ -217,14 +219,13 @@ class _HomePageState extends State<HomePage> {
     // Gestion sécurisée des images
     String? postImage = _getSafeImageUrl(postData['imagepost']);
     String? postVideo = _getSafeVideoUrl(postData['videopost']);
-    // var data = item.data as Map<String, dynamic>;
 
     // Accéder au tableau commentaire dans postData
 
-    if (postData != null && postData['commentaire'] != null) {
+    if (postData['commentaire'] != null) {
       comments = List.from(postData['commentaire']);
     }
-    if (postData != null && postData['allike'] != null) {
+    if (postData['allike'] != null) {
       alllike = List.from(postData['allike']);
     }
 
@@ -240,7 +241,7 @@ class _HomePageState extends State<HomePage> {
 
       child: PremiumPostcard(
         id: item.id,
-        name: userData['name']?.toString() ?? 'Utilisateur',
+        name: userData['name']?.toString() ?? 'app.user'.tr,
         bio: timeago.format(dateTime, locale: 'fr'),
         image: userData['photoUrl']?.toString(),
         postImage: postImage,
@@ -250,13 +251,13 @@ class _HomePageState extends State<HomePage> {
         comments: comments.length,
         content: postData['posttitle']?.toString() ?? '',
         onProfileTap: () {
-          Get.to(PremiumProfileScreen (
+          AppTransitions.toProfile(PremiumProfileScreen (
             userId: userData['googleId']?.toString() ,
             avatarUrl: userData['photoUrl']?.toString(),
             displayName: userData['name']?.toString() ?? 'Utilisateur',
             username: userData['name']?.toString() ?? 'Utilisateur',
             mail: userData['email']?.toString(),
-            bio: "${userData['bio']?.toString() ??"Créateur de contenu | Digital Creator ✨\nCollaborations"}  📩 ${userData['email']}",
+            bio: "${userData['bio']?.toString() ??'tiktok.bio'.tr}  📩 ${userData['email']}",
 
           ));
         },
@@ -271,11 +272,11 @@ class _HomePageState extends State<HomePage> {
                   PostOptionsMenu(
                     postId: item.id,
                     onDelete: () {
-                      Posts.doc(item.id).delete().then(
+                      FirestoreCollectionsService.posts.doc(item.id).delete().then(
                         (value) {
                           Get.back();
                           WidgetComponent.showNotification(
-                            "Post supprimer avec succes",
+                            'post.deleted_success'.tr,
                             Colors.green,
                             context,
                           );
@@ -311,7 +312,7 @@ class _HomePageState extends State<HomePage> {
         return timestamp.toDate();
       }
     } catch (e) {
-      print('Erreur de conversion timestamp: $e');
+      debugPrint('Timestamp conversion error: $e');
     }
     return DateTime.now();
   }
@@ -326,7 +327,7 @@ class _HomePageState extends State<HomePage> {
         }
       }
     } catch (e) {
-      print('Erreur de chargement image: $e');
+      debugPrint('Image loading error: $e');
     }
     return null;
   }
@@ -341,7 +342,7 @@ class _HomePageState extends State<HomePage> {
         }
       }
     } catch (e) {
-      print('Erreur de chargement vidéo: $e');
+      debugPrint('Video loading error: $e');
     }
     return null;
   }
@@ -354,7 +355,7 @@ class _HomePageState extends State<HomePage> {
         return int.tryParse(likes) ?? 0;
       }
     } catch (e) {
-      print('Erreur de conversion likes: $e');
+      debugPrint('Likes conversion error: $e');
     }
     return 0;
   }

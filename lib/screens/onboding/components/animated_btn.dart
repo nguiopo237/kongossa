@@ -1,11 +1,12 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:kongossa/config_App/colorsApp.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:rive/rive.dart';
 import 'package:shimmer/shimmer.dart';
 
-import '../../../presentation/component/style/custum_text.dart';
+import 'package:kongossa/shared/widgets/widgets.dart';
 
 class AnimatedBtn extends StatelessWidget {
   const AnimatedBtn({
@@ -42,7 +43,7 @@ class AnimatedBtn extends StatelessWidget {
                     baseColor: ColorApp.primary1,
                     highlightColor: ColorApp.BlackColor2,
                     child: CustomText(
-                      "Commencer",
+                      'onboarding.start'.tr,
                     //  style: Theme.of(context).textTheme.labelLarge,
                         type: TextType.button
                     ),

@@ -4,36 +4,30 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+// import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:kongossa/screens/authentification.dart';
-import 'package:kongossa/screens/onboding/onboding_screen.dart';
-import 'package:kongossa/screens/splashscreen/splaschsreen.dart';
-import 'package:kongossa/sevice/controlleur/authentification/auth_controlleur.dart';
-import 'package:kongossa/sevice/controlleur/init_controlleur/init_controlleur.dart';
-import 'package:kongossa/sevice/controlleur/notification/firebase_messaging_service.dart';
-import 'package:kongossa/sevice/controlleur/notification/local_notifications_service.dart';
-import 'package:kongossa/utils/test2.0.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
-import 'package:workmanager/workmanager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:workmanager/workmanager.dart';
 
+import 'config_App/env_config.dart';
 import 'firebase_options.dart';
-import 'model/datamodel/user_model.dart';
+import 'screens/splashscreen/splaschsreen.dart';
+import 'sevice/controlleur/authentification/auth_controlleur.dart';
+import 'sevice/controlleur/firestore_collections_service.dart';
+import 'sevice/controlleur/init_controlleur/init_controlleur.dart';
+import 'sevice/controlleur/notification/firebase_messaging_service.dart';
+import 'sevice/controlleur/notification/local_notifications_service.dart';
+import 'sevice/theme/theme_switcher_provider.dart';
 
-CollectionReference Users = FirebaseFirestore.instance.collection('user');
-CollectionReference Posts = FirebaseFirestore.instance.collection('postcarduser');
-CollectionReference Sms = FirebaseFirestore.instance.collection('message');
-CollectionReference notif = FirebaseFirestore.instance.collection('notification');
-
-// Callback pour WorkManager (s'exécute en arrière-plan)
+// WorkManager callback (runs in background)
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
-    print("🔄 Tâche en arrière-plan: $task");
-    print("📦 Données: $inputData");
+    debugPrint("🔄 Background task: $task");
+    debugPrint("📦 Data: $inputData");
 
     try {
       switch (task) {
@@ -47,35 +41,35 @@ void callbackDispatcher() {
           await syncData();
           break;
         default:
-          print("⚠️ Tâche inconnue: $task");
+          debugPrint("⚠️ Unknown task: $task");
       }
 
-      print("✅ Tâche $task terminée arriere");
+      debugPrint("✅ Task $task completed (background)");
       return Future.value(true);
 
     } catch (e, stackTrace) {
-      print("❌ Erreur dans la tâche  arriere$task: $e");
-      print(stackTrace);
+      debugPrint("❌ Error in background task $task: $e");
+      debugPrint(stackTrace.toString());
       return Future.value(false);
     }
   });
 }
 
-// Fonction pour vérifier les messages non lus
+// Function to check unread messages
 Future<void> checkUnreadMessages() async {
   try {
-    print("🔍 Vérification des messages non lus arriere...");
+    debugPrint("🔍 Checking unread messages (background)...");
 
-    // Récupérer l'ID utilisateur depuis SharedPreferences
+    // Get user ID from SharedPreferences
     String? currentUserId = await getCurrentUserId();
 
     if (currentUserId == null) {
-      print("⚠️ Utilisateur non connecté, vérification ignorée arriere");
+      debugPrint("⚠️ User not logged in, verification skipped (background)");
       return;
     }
 
-    // Récupérer les messages non lus
-    var snapshot = await Sms
+    // Get unread messages
+    var snapshot = await FirestoreCollectionsService.sms
         .where("receiveId", isEqualTo: currentUserId)
         .where("isRead", isEqualTo: false)
         .get();
@@ -83,9 +77,9 @@ Future<void> checkUnreadMessages() async {
     int unreadCount = snapshot.docs.length;
 
     if (unreadCount > 0) {
-      print("🔔 $unreadCount message(s) non lu(s) arriere");
+      debugPrint("🔔 $unreadCount unread message(s) (background)");
 
-      // Grouper par expéditeur pour plus de détails
+      // Group by sender for more details
       Map<String, int> senderCounts = {};
       for (var doc in snapshot.docs) {
         var data = doc.data() as Map<String, dynamic>;
@@ -93,31 +87,31 @@ Future<void> checkUnreadMessages() async {
         senderCounts[sender] = (senderCounts[sender] ?? 0) + 1;
       }
 
-      print("👥 Par expéditeur: arriere");
+      debugPrint("👥 By sender (background):");
       senderCounts.forEach((sender, count) {
-        print("   • $sender: $count");
+        debugPrint("   • $sender: $count");
       });
 
       // Envoyer une notification
-      await showBackgroundNotification(unreadCount, senderCounts);
+      // await showBackgroundNotification(unreadCount, senderCounts);
     } else {
-      print("✅ Aucun nouveau message arriere");
+      debugPrint("✅ No new messages (background)");
     }
 
   } catch (e) {
-    print("❌ Erreur checkUnreadMessages arriere: $e");
+    debugPrint("❌ Error checkUnreadMessages (background): $e");
   }
 }
 
 // Fonction de nettoyage
 Future<void> performCleanup() async {
   try {
-    print("🧹 Nettoyage en cours... arriere");
+    debugPrint("🧹 Cleanup in progress... (background)");
 
     // Nettoyer les anciens messages (plus de 30 jours)
     DateTime thirtyDaysAgo = DateTime.now().subtract(Duration(days: 30));
 
-    var oldMessages = await Sms
+    var oldMessages = await FirestoreCollectionsService.sms
         .where("timestamp", isLessThan: thirtyDaysAgo)
         .get();
 
@@ -127,32 +121,32 @@ Future<void> performCleanup() async {
         batch.delete(doc.reference);
       }
       await batch.commit();
-      print("✅ ${oldMessages.docs.length} anciens messages supprimés arriere");
+      debugPrint("✅ ${oldMessages.docs.length} old messages deleted (background)");
     }
 
-    // Autres tâches de nettoyage si nécessaire
-    print("✅ Nettoyage terminé arriere");
+    // Other cleanup tasks if needed
+    debugPrint("✅ Cleanup completed (background)");
 
   } catch (e) {
-    print("❌ Erreur performCleanup arriere: $e");
+    debugPrint("❌ Error performCleanup (background): $e");
   }
 }
 
 // Fonction de synchronisation
 Future<void> syncData() async {
   try {
-    print("🔄 Synchronisation des données... arriere");
+    debugPrint("🔄 Data synchronization... (background)");
 
     String? currentUserId = await getCurrentUserId();
     if (currentUserId == null) return;
 
     // Votre logique de synchronisation ici
-    // Par exemple, mettre à jour les statuts, etc.
+    // For example, update statuses, etc.
 
-    print("✅ Synchronisation terminée arriere");
+    debugPrint("✅ Synchronization completed (background)");
 
   } catch (e) {
-    print("❌ Erreur syncDataarriere: $e");
+    debugPrint("❌ Error syncData (background): $e");
   }
 }
 
@@ -160,70 +154,70 @@ Future<void> syncData() async {
 Future<String?> getCurrentUserId() async {
   try {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getString('userinfo'); // Adaptez selon votre clé
+    return prefs.getString('userinfo'); // Adjust to your key
   } catch (e) {
-    print("❌ Erreur getCurrentUserId arriere: $e");
+    debugPrint("❌ Error getCurrentUserId (background): $e");
     return null;
   }
 }
 
-// Fonction pour afficher une notification améliorée
-Future<void> showBackgroundNotification(int count, Map<String, int>? senderCounts) async {
-  try {
-    FlutterLocalNotificationsPlugin flip = FlutterLocalNotificationsPlugin();
+// Function to display an enhanced notification
+// Future<void> showBackgroundNotification(int count, Map<String, int>? senderCounts) async {
+//   try {
+//     FlutterLocalNotificationsPlugin flip = FlutterLocalNotificationsPlugin();
+//
+//     // Create a detailed message
+//     String body = 'Vous avez $count nouveau(x) message(s) arriere';
+//
+//     if (senderCounts != null && senderCounts.isNotEmpty) {
+//       String details = senderCounts.entries.map((e) => '${e.key}: ${e.value}').join(', ');
+//       body = '$body\nDe: $details';
+//     }
+//
+//     const AndroidNotificationDetails androidPlatformChannelSpecifics =
+//     AndroidNotificationDetails(
+//       'background_channel',
+//       'Messages Kongossa',
+//       channelDescription: 'Background message notifications',
+//       importance: Importance.max,
+//       priority: Priority.high,
+//       showWhen: true,
+//       enableVibration: true,
+//       playSound: true,
+//       color: Colors.deepOrange,
+//       ledColor: Colors.deepOrange,
+//       ledOnMs: 1000,
+//       ledOffMs: 500,
+//     );
+//
+//     final NotificationDetails platformChannelSpecifics = NotificationDetails(
+//       android: androidPlatformChannelSpecifics,
+//       iOS: DarwinNotificationDetails(
+//         presentAlert: true,
+//         presentBadge: true,
+//         presentSound: true,
+//         badgeNumber: count,
+//       ),
+//     );
+//
+//     await flip.show(
+//       DateTime.now().millisecond,
+//       '📬 Nouveaux messages',
+//       body,
+//       platformChannelSpecifics,
+//     );
+//
+//     debugPrint("📬 Notification envoyée arriere: $body");
+//
+//   } catch (e) {
+//     debugPrint("❌ Erreur showBackgroundNotification arriere: $e");
+//   }
+// }
 
-    // Créer un message détaillé
-    String body = 'Vous avez $count nouveau(x) message(s) arriere';
-
-    if (senderCounts != null && senderCounts.isNotEmpty) {
-      String details = senderCounts.entries.map((e) => '${e.key}: ${e.value}').join(', ');
-      body = '$body\nDe: $details';
-    }
-
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
-    AndroidNotificationDetails(
-      'background_channel',
-      'Messages Kongossa',
-      channelDescription: 'Notifications des messages en arrière-plan',
-      importance: Importance.max,
-      priority: Priority.high,
-      showWhen: true,
-      enableVibration: true,
-      playSound: true,
-      color: Colors.deepOrange,
-      ledColor: Colors.deepOrange,
-      ledOnMs: 1000,
-      ledOffMs: 500,
-    );
-
-    final NotificationDetails platformChannelSpecifics = NotificationDetails(
-      android: androidPlatformChannelSpecifics,
-      iOS: DarwinNotificationDetails(
-        presentAlert: true,
-        presentBadge: true,
-        presentSound: true,
-        badgeNumber: count,
-      ),
-    );
-
-    await flip.show(
-      DateTime.now().millisecond,
-      '📬 Nouveaux messages',
-      body,
-      platformChannelSpecifics,
-    );
-
-    print("📬 Notification envoyée arriere: $body");
-
-  } catch (e) {
-    print("❌ Erreur showBackgroundNotification arriere: $e");
-  }
-}
-
-// Fonction pour planifier toutes les tâches
+// Function to schedule all tasks
 Future<void> scheduleAllBackgroundTasks() async {
   try {
-    // Vérifier les messages toutes les 15 minutes
+    // Check messages every 15 minutes
     await Workmanager().registerPeriodicTask(
       "1",
       "checkMessagesTask",
@@ -257,34 +251,34 @@ Future<void> scheduleAllBackgroundTasks() async {
       ),
     );
 
-    print("✅ Toutes les tâches planifiées arriere");
+    debugPrint("✅ All tasks scheduled (background)");
 
   } catch (e) {
-    print("❌ Erreur scheduleAllBackgroundTasks arriere: $e");
+    debugPrint("❌ Error scheduleAllBackgroundTasks (background): $e");
   }
 }
 
-// Fonction pour annuler toutes les tâches
+// Function to cancel all tasks
 Future<void> cancelAllBackgroundTasks() async {
   await Workmanager().cancelAll();
-  print("🛑 Toutes les tâches annulées arriere");
+  debugPrint("🛑 All tasks cancelled (background)");
 }
 
 
-// Dans votre main.dart, dans la classe où vous avez initializeOneSignal()
+// In your main.dart, in the class where you have initializeOneSignal()
 
 void _showCustomNotification(OSNotification notification) {
-  // Afficher une notification personnalisée dans l'application
-  print('📱 Affichage personnalisé: ${notification.title}');
+  // Display a custom notification in the app
+  debugPrint('📱 Custom display: ${notification.title}');
 
   // Option 1: Utiliser un ScaffoldMessenger si vous avez un contexte
-  // Mais attention, _showCustomNotification n'a pas accès au contexte ici
+  // But note: _showCustomNotification has no context access here
 
-  // Option 2: Émettre un événement pour être géré ailleurs
+  // Option 2: Emit an event to be handled elsewhere
   notificationStreamController.add(notification);
 }
 
-// Créer un StreamController pour gérer les notifications
+// Create a StreamController to manage notifications
 final StreamController<OSNotification> notificationStreamController =
 StreamController<OSNotification>.broadcast();
 
@@ -293,42 +287,40 @@ Stream<OSNotification> get notificationStream => notificationStreamController.st
 
 
 void _configureNotificationHandlers() {
-  // Quand l'app est en premier plan
+  // Quand l'app est en premier plan — afficher la notification OneSignal normalement
   OneSignal.Notifications.addForegroundWillDisplayListener((event) {
-    print('📱 Notification reçue en premier plan: ${event.notification.jsonRepresentation()}');
-
-    // Vous pouvez personnaliser l'affichage ici
-    event.preventDefault(); // Empêcher l'affichage automatique
-    _showCustomNotification(event.notification);
+    debugPrint('📱 Foreground notification received: ${event.notification.jsonRepresentation()}');
+    // Ne pas appeler preventDefault() pour laisser OneSignal afficher la notification
+    // _showCustomNotification(event.notification);
   });
 
   // Quand l'utilisateur clique sur une notification
   OneSignal.Notifications.addClickListener((event) {
-    print('👆 Notification cliquée: ${event.notification.jsonRepresentation()}');
+    debugPrint('👆 Notification clicked: ${event.notification.jsonRepresentation()}');
     _handleNotificationClick(event.notification);
   });
 
-  // Récupérer l'ID du joueur (identifiant unique du device)
+  // Get the player ID (unique device identifier)
   OneSignal.User.getOnesignalId().then((id) {
     if (id != null) {
-      print('🆔 OneSignal User ID: $id');
-      // Sauvegarder cet ID pour envoyer des notifications à ce device
+      debugPrint('🆔 OneSignal User ID: $id');
+      // Save this ID to send notifications to this device
     }
   });
 }
 // Dans votre main.dart, ajoutez cette fonction
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void _handleNotificationClick(OSNotification notification) {
-  print('👆 Notification cliquée: ${notification.title}');
+  debugPrint('👆 Notification clicked: ${notification.title}');
 
-  // Récupérer les données supplémentaires
+  // Get additional data
   final additionalData = notification.additionalData ?? {};
-  print('📦 Données: $additionalData');
+  debugPrint('📦 Data: $additionalData');
 
-  // Naviguer vers l'écran approprié selon le type de notification
+  // Navigate to the appropriate screen based on notification type
   final type = additionalData['type'];
   final postId = additionalData['postId'];
-  final commentId = additionalData['commentId'];
+
 
   // Utiliser le navigatorKey pour naviguer
   final context = navigatorKey.currentContext;
@@ -340,7 +332,7 @@ void _handleNotificationClick(OSNotification notification) {
     } else if (type == 'follow') {
       navigatorKey.currentState?.pushNamed('/profile', arguments: additionalData['userId']);
     } else {
-      // Par défaut, aller à l'écran des notifications
+      // Default: go to notifications screen
       navigatorKey.currentState?.pushNamed('/notifications');
     }
   }
@@ -350,6 +342,9 @@ void _handleNotificationClick(OSNotification notification) {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Charger les variables d'environnement (.env)
+  await EnvConfig.load();
 
   // Initialiser le formatage des dates
   await initializeDateFormatting('fr_FR', null);
@@ -364,23 +359,25 @@ void main() async {
   );
 
   // Initialiser les notifications locales
-  final localNotificationsService = LocalNotificationsService.instance();
-  await localNotificationsService.init();
+  // final localNotificationsService = LocalNotificationsService.instance();
+  // await localNotificationsService.init();
 
   // Initialiser Firebase Messaging
-  final firebaseMessagingService = FirebaseMessagingService.instance();
-  await firebaseMessagingService.init(localNotificationsService: localNotificationsService);
+  // final firebaseMessagingService = FirebaseMessagingService.instance();
+  // await firebaseMessagingService.init(localNotificationsService: localNotificationsService);
 
-  // Initialiser les contrôleurs
+  // Initialize controllers
   AppControllers.initialize();
+
+  // Load saved theme BEFORE runApp (prevents dark theme flash)
+  await ThemeSwitcherProvider.loadSavedTheme();
 
   // Initialiser WorkManager
   await Workmanager().initialize(
     callbackDispatcher,
-    isInDebugMode: true, // Mettre false en production
-  );
+    );
 
-  // Planifier les tâches si l'utilisateur est connecté
+  // Schedule tasks if user is logged in
   String? userId = await getCurrentUserId();
   if (userId != null) {
     await scheduleAllBackgroundTasks();
@@ -390,7 +387,7 @@ void main() async {
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
       .then((_) {
         OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
-        OneSignal.initialize("f29d87f5-87f2-4d83-b47c-93bf3b08ac0c");
+        OneSignal.initialize(EnvConfig.onesignalAppId);
         OneSignal.Notifications.requestPermission(true);
         _configureNotificationHandlers();
     FocusManager.instance.primaryFocus?.unfocus();
@@ -405,51 +402,12 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ResponsiveSizer(
       builder: (context, orientation, screenType) {
-        return GetMaterialApp(
+        return ThemeSwitcherProvider.buildApp(
           title: 'Kongossa',
-          debugShowCheckedModeBanner: false,
-          theme: ThemeData(
-            scaffoldBackgroundColor: const Color(0xFFEEF1F8),
-            primarySwatch: Colors.deepOrange,
-            fontFamily: "Intel",
-            elevatedButtonTheme: ElevatedButtonThemeData(
-              style: ElevatedButton.styleFrom(
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  vertical: 16,
-                  horizontal: 24,
-                ),
-              ),
-            ),
-            inputDecorationTheme: const InputDecorationTheme(
-              filled: true,
-              fillColor: Colors.white,
-              errorStyle: TextStyle(height: 0),
-              border: defaultInputBorder,
-              enabledBorder: defaultInputBorder,
-              focusedBorder: defaultInputBorder,
-              errorBorder: defaultInputBorder,
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
-              ),
-            ),
-            useMaterial3: true,
-          ),
-          enableLog: false,
-          defaultGlobalState: true,
-          onInit: () => authController.getUserInfoocally(),
-          home: SplashScreen(),
+          homeBuilder: (_) => const SplashScreen(),
+          onInit: () => authController.getUserInfoLocally(),
         );
       },
     );
   }
 }
-
-const defaultInputBorder = OutlineInputBorder(
-  borderRadius: BorderRadius.all(Radius.circular(16)),
-  borderSide: BorderSide(color: Color(0xFFDEE3F2), width: 1),
-);

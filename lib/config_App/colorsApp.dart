@@ -4,6 +4,16 @@ import 'package:flutter/material.dart';
 class ColorApp {
 
 
+  // ── Premium Gold / Luxe ──
+  static const premiumGold = Color(0xFFD4AF37);
+  static const premiumGoldLight = Color(0xFFF0D060);
+  static const premiumGoldDark = Color(0xFFB8962E);
+  static const premiumChampagne = Color(0xFFF7E8C0);
+  static const premiumAmber = Color(0xFFFFB347);
+  static const premiumRose = Color(0xFFE8A0BF);
+  static const premiumPlatinum = Color(0xFFE5E4E2);
+  static const premiumCream = Color(0xFFFFFDD0);
+
   // Light colors
   static const primary = Color(0xfffe4c06);
   static const primary1 = Color(0xfffe7e03);
@@ -52,7 +62,27 @@ class ColorApp {
   static const backgroundfield = Color(0xFFEFF2F7);
 
 
-  // Dark colors
+  // ── Premium Dark / Nuit ──
+  static const darkDeep = Color(0xFF050505);
+  static const darkVelvet = Color(0xFF0A0A0A);
+  static const darkCharcoal = Color(0xFF111111);
+  static const darkSurface = Color(0xFF1A1A1A);
+  static const darkElevated = Color(0xFF222222);
+  static const darkCard = Color(0xFF2A2A2A);
+
+  // ── Couleurs d'accentuation nocturnes ──
+  static const nightBlue = Color(0xFF1A1A2E);
+  static const nightPurple = Color(0xFF2D1B3D);
+  static const nightTeal = Color(0xFF0D3B3B);
+  static const nightBurgundy = Color(0xFF3B1D1D);
+
+  // ── Lueurs / Glow ──
+  static const glowGold = Color(0x1AD4AF37);
+  static const glowGoldStrong = Color(0x33D4AF37);
+  static const glowPurple = Color(0x1A9B59B6);
+  static const glowCyan = Color(0x1A25F4EE);
+
+  // Dark colors legacy
   static const primaryDark = Color(0xFFaf003b);
   static const secondaryDark = Color(0xFFaf003b);
   static const onSecondaryDark = Color(0xFF000000);
